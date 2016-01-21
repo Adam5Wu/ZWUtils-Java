@@ -4,6 +4,7 @@
 #DebugLog.LogLevel = CONFIG
 #DebugLog.Console  = True
 #DebugLog.File     =
+#DebugLog.Log4J    = False
 #DebugLog.StdErr   = True
 #DebugLog.StdOut   = False
 #DebugLog.Daemon   = False

@@ -52,6 +52,8 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import org.slf4j.bridge.SLF4JBridgeHandler;
+
 import com.necla.am.zwutils.Config.Container;
 import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataFile;
@@ -99,6 +101,7 @@ import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
  * @version ...
  * @version 0.9 - Oct. 2012: Revision
  * @version 0.9 - Jan. 20 2016: Initial public release
+ * @version 0.95 - Jan. 21 2016: Enable Log4J forwarding
  */
 public final class DebugLog {
 	
@@ -243,6 +246,22 @@ public final class DebugLog {
 		return Ret;
 	}
 	
+	static public final String ForwardRootLogger = "(LogRoot)";
+	
+	public static Handler createLog4JHandler(String LogGroup) {
+		return new SLF4JBridgeHandler() {
+			
+			@Override
+			public void publish(LogRecord record) {
+				if (record.getLoggerName() == null) {
+					record.setLoggerName(ForwardRootLogger);
+				}
+				super.publish(record);
+			}
+			
+		};
+	}
+	
 	/**
 	 * Enable console logging output
 	 */
@@ -279,6 +298,22 @@ public final class DebugLog {
 			DaemonTask.Sink.addHandler(FileHandler);
 		}
 		Log.Config("File log handler attached");
+	}
+	
+	/**
+	 * Add a log4j forwarding logging target
+	 */
+	public static void attachLog4JHandler() {
+		Handler Log4jHandler = createLog4JHandler(LogGroup);
+		if (DaemonTask == null) {
+			if (!isConfigured()) {
+				Log4jHandler.setLevel(Level.OFF);
+			}
+			LogBase.addHandler(Log4jHandler);
+		} else {
+			DaemonTask.Sink.addHandler(Log4jHandler);
+		}
+		Log.Config("Log4J forwarding handler attached");
 	}
 	
 	/**
@@ -631,6 +666,9 @@ public final class DebugLog {
 			// Whether to use file handler
 			public Support.GroupLogFile LogFile;
 			
+			// Whether to send logs to Log4J
+			public boolean Log4J;
+			
 			// Whether to redirect StdErr
 			public boolean LogStdErr;
 			
@@ -657,6 +695,7 @@ public final class DebugLog {
 				LogLevel = GlobalLevel;
 				LogConsole = true;
 				LogFile = null;
+				Log4J = false;
 				LogStdErr = true;
 				LogStdOut = false;
 				UseDaemon = false;
@@ -669,6 +708,7 @@ public final class DebugLog {
 			private static final String CONFIG_LOGLEVEL = "LogLevel";
 			private static final String CONFIG_CONSOLE = "Console";
 			private static final String CONFIG_FILE = "File";
+			private static final String CONFIG_LOG4J = "Log4J";
 			private static final String CONFIG_STDERR = "StdErr";
 			private static final String CONFIG_STDOUT = "StdOut";
 			private static final String CONFIG_DAEMON = "Daemon";
@@ -686,6 +726,7 @@ public final class DebugLog {
 					LogFile = confMap.getObject(CONFIG_FILE, Support.StringToGroupLogFile,
 							Support.StringFromGroupLogFile);
 				}
+				Log4J = confMap.getBoolDef(CONFIG_LOG4J, Log4J);
 				LogStdErr = confMap.getBoolDef(CONFIG_STDERR, LogStdErr);
 				LogStdOut = confMap.getBoolDef(CONFIG_STDOUT, LogStdOut);
 				UseDaemon = confMap.getBoolDef(CONFIG_DAEMON, UseDaemon);
@@ -777,6 +818,9 @@ public final class DebugLog {
 				}
 				if (Source.LogFile != null) {
 					attachFileHandler(Source.LogFile);
+				}
+				if (Source.Log4J) {
+					attachLog4JHandler();
 				}
 				if (Source.LogStdErr) {
 					logStdErr();
