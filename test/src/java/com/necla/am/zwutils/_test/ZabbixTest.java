@@ -43,13 +43,13 @@ import com.necla.am.zwutils.Misc.Misc;
 
 
 public class ZabbixTest {
-
+	
 	public static final String LogGroup = "Main";
-
+	
 	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
-
+	
 	public void Go(String[] args) {
-
+		
 		try {
 			LogFormatter.ConfigData.Mutable LogFormatterConfig = LogFormatter.Config.mirror();
 			LogFormatterConfig.SetConfig(SlimFormatter.CONFIG_PFX + SlimFormatter.CONFIG_GROUPWIDTH,
@@ -60,13 +60,13 @@ public class ZabbixTest {
 		} catch (Throwable e) {
 			Misc.CascadeThrow(e);
 		}
-
+		
 		ZabbixAPI Test1 = new ZabbixAPI.Impl();
-
+		
 		ZabbixRequest request = ZabbixRequest.Factory.HostGroupInfo(null);
 		JsonObject response = Test1.call(request);
 		ClassLog.Info("Host Groups: %s", response.get("result"));
-
+		
 		try (ZabbixHandler ZH1 = new ZabbixHandler("ZWUtils", "ZabbixTest", Test1, null)) {
 			ZH1.DoLog("Test1", Misc.wrap("Test", 1));
 			ZH1.DoLog("ZabbixTest.Test1", Misc.wrap("Test", 2));
@@ -77,7 +77,7 @@ public class ZabbixTest {
 		}
 		ClassLog.Info("$ZBX$", "Test1", 3, "Test2", 4);
 	}
-
+	
 	public static void main(String[] args) {
 		ClassLog.Info("========== Zabbix Test");
 		try {
@@ -89,5 +89,5 @@ public class ZabbixTest {
 		ClassLog.Info("#@~<");
 		ClassLog.Info("========== Done");
 	}
-
+	
 }

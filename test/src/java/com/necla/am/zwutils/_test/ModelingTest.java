@@ -43,90 +43,90 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 
 
 public class ModelingTest {
-
+	
 	protected static final GroupLogger Log = new GroupLogger("Main");
-
+	
 	public void Go(String[] args) {
-
+		
 		try {
 			Log.Info("#---------- Identifiers");
 			IIdentifier.Nested<?> ROOT = IIdentifier.Nested.ROOT;
 			Log.Info("* Root Identifier = %s", ROOT);
-
+			
 			IIdentifier A = new IIdentifier.Named.Impl("A");
 			Log.Info("* Named Identifier A = %s", A);
-
+			
 			Log.Info("* Identifier A == ROOT ? %s", A.equals(ROOT));
 			Log.Info("* Identifier ROOT == A ? %s", ROOT.equals(A));
-
+			
 			IIdentifier B = new IIdentifier.Named.Impl("B");
 			Log.Info("* Named Identifier B = %s", B);
-
+			
 			Log.Info("* Identifier A == B ? %s", A.equals(B));
 			Log.Info("* Identifier B == A ? %s", B.equals(A));
-
+			
 			IIdentifier A2 = new IIdentifier.Named.Impl("A");
 			Log.Info("* Named Identifier A2 = %s", A2);
-
+			
 			Log.Info("* Identifier A == A2 ? %s", A.equals(A2));
 			Log.Info("* Identifier A2 == A ? %s", A2.equals(A));
-
+			
 			IIdentifier RA = new IIdentifier.Nested.Named.Impl<Nested<?>>(ROOT, "A");
 			Log.Info("* Nested Named Identifier Root->A = %s", RA);
-
+			
 			Log.Info("* Identifier RA == ROOT ? %s", RA.equals(ROOT));
 			Log.Info("* Identifier ROOT == RA ? %s", ROOT.equals(RA));
 			Log.Info("* Identifier RA == A ? %s", RA.equals(A));
 			Log.Info("* Identifier A == RA ? %s", A.equals(RA));
-
+			
 			IIdentifier RB = new IIdentifier.Nested.Named.Impl<Nested<?>>(ROOT, "B");
 			Log.Info("* Nested Named Identifier Root->B = %s", RB);
-
+			
 			Log.Info("* Identifier RA == RB ? %s", RA.equals(RB));
 			Log.Info("* Identifier RB == RA ? %s", RB.equals(RA));
-
+			
 			IIdentifier RA2 = new IIdentifier.Nested.Named.Impl<Nested<?>>(ROOT, "A");
 			Log.Info("* Nested Named Identifier Root->A2 = %s", RA2);
-
+			
 			Log.Info("* Identifier RA == RA2 ? %s", RA.equals(RA2));
 			Log.Info("* Identifier RA2 == RA ? %s", RA2.equals(RA));
-
+			
 			Log.Info("#---------- Decoratable");
 			IDecoratable.Type<IIdentifier> DA = new IDecoratable.Value<IIdentifier>(A);
 			Log.Info("* Decoratable Identifier A (Not Decorated) = %s", DA);
 			IDecoratable.Type<IIdentifier> DA2 = new IDecoratable.Value<IIdentifier>(A, "Test");
 			Log.Info("* Decoratable Identifier A3 (Decorated) = %s", DA2);
-
+			
 			Log.Info("* Decoratable DA == DA ? %s", DA.equals(DA));
 			Log.Info("* Decoratable DA == DA2 ? %s", DA.equals(DA2));
-
+			
 			Log.Info("* Decoratable DA2 == DA ? %s", DA2.equals(DA));
 			Log.Info("* Decoratable DA2 == DA2 ? %s", DA2.equals(DA2));
-
+			
 			IDecoratable.Type<IIdentifier> DRA = new IDecoratable.Value<IIdentifier>(RA);
 			Log.Info("* Decoratable Nested Identifier Root->A (Not Decorated) = %s", DRA);
-
+			
 			Log.Info("* Decoratable DA == DRA ? %s", DA.equals(DRA));
 			Log.Info("* Decoratable DRA == DA ? %s", DRA.equals(DA));
-
+			
 			IDecoratable.Type<IIdentifier> DRA2 = new IDecoratable.Value<IIdentifier>(RA2, "Test1");
 			Log.Info("* Decoratable Nested Identifier Root->(A2) (Decorated, non-unique) = %s", DRA2);
-
+			
 			Log.Info("* Decoratable DRA == DRA2 ? %s", DRA.equals(DRA2));
 			Log.Info("* Decoratable DRA2 == DRA ? %s", DRA2.equals(DRA));
-
+			
 			Log.Info("#---------- TimeStamp");
 			ITimeStamp TS = ITimeStamp.Impl.Now();
 			Log.Info("* TimeStamp TS = %s", TS);
-
+			
 			ITimeStamp TS2 = new ITimeStamp.Impl(TS.VALUE(TimeSystem.UNIX, TimeUnit.DAY), TimeSystem.UNIX,
 					TimeUnit.DAY);
 			Log.Info("* TimeStamp TS2 = %s", TS2);
-
+			
 			ITimeStamp TS3 = new ITimeStamp.Impl(TS.VALUE(TimeSystem.GREGORIAN, TimeUnit.DAY),
 					TimeSystem.GREGORIAN, TimeUnit.DAY);
 			Log.Info("* TimeStamp TS3 = %s", TS3);
-
+			
 			Log.Info("* TimeStamp TS = TS2 ? %s", TS.equals(TS2));
 			Log.Info("* TimeStamp TS2 = TS3 ? %s", TS2.equals(TS3));
 			Log.Info("* TimeStamp TS < TS2 ? %s", TS.Before(TS2));
@@ -137,12 +137,12 @@ public class ModelingTest {
 			Log.Info("* TimeStamp TS -> TS2 = %s", Misc.FormatDeltaTime(TS.MillisecondsTo(TS2), false));
 			Log.Info("* TimeStamp TS2 <- TS = %s", Misc.FormatDeltaTime(TS2.MillisecondsFrom(TS), false));
 			Log.Info("* TimeStamp TS2 -> TS = %s", Misc.FormatDeltaTime(TS2.MillisecondsTo(TS), false));
-
+			
 		} catch (Throwable e) {
 			Log.logExcept(e);
 		}
 	}
-
+	
 	public static void main(String[] args) {
 		Log.Info("========== Modeling Test");
 		try {
@@ -154,5 +154,5 @@ public class ModelingTest {
 		Log.Info("#@~<");
 		Log.Info("========== Done");
 	}
-
+	
 }

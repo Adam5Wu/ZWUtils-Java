@@ -12,6 +12,7 @@ buildscript {
 apply plugin: "com.zoltu.git-versioning"
 
 apply plugin: 'java'
+apply plugin: 'eclipse'
 
 compileJava {
 	sourceCompatibility = '1.8'

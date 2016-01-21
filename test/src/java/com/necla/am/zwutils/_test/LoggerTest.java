@@ -40,9 +40,9 @@ import com.necla.am.zwutils.Logging.Utils.Formatters.SlimFormatter;
 
 
 public class LoggerTest {
-
+	
 	protected static final GroupLogger Log = new GroupLogger("Main");
-
+	
 	void ExceptStackTraceTest(int i) {
 		Log.Entry("+ExceptStackTraceTest");
 		if (i > 1) {
@@ -55,9 +55,9 @@ public class LoggerTest {
 		}
 		Log.Exit("*ExceptStackTraceTest");
 	}
-
+	
 	public void Go(String[] args) throws Throwable {
-
+		
 		Log.Info("---------- Test NoInterp");
 		Log.Info("!ABC");
 		Log.Info("!  ABC");
@@ -303,7 +303,7 @@ public class LoggerTest {
 		TestLogger = Logger.getLogger("Test");
 		TestLogger.info("Test Sub Logger");
 	}
-
+	
 	public static void main(String[] args) {
 		Log.Info("========== Logger Test");
 		try {
@@ -315,5 +315,5 @@ public class LoggerTest {
 		Log.Info("#@~<");
 		Log.Info("========== Done");
 	}
-
+	
 }

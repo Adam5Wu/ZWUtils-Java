@@ -41,11 +41,11 @@ import com.necla.am.zwutils.Logging.GroupLogger;
 
 
 public class FileSystemTest {
-
+	
 	protected static final GroupLogger Log = new GroupLogger("Main");
-
+	
 	public void Go(String[] args) {
-
+		
 		Log.Info("---------- Test Enumerate Single Dir (File)");
 		for (File Item : new SingleDirFileIterable(".", new BaseFileIterable.SimpleFileFilter())) {
 			Log.Info(":%s|", Item.getAbsolutePath());
@@ -58,7 +58,7 @@ public class FileSystemTest {
 		for (File Item : new SingleDirFileIterable(".")) {
 			Log.Info(":%s|", Item.getAbsolutePath());
 		}
-
+		
 		Log.Info("---------- Test Enumerate BFS Dir (File)");
 		for (File Item : new BFSDirFileIterable(".", new BaseFileIterable.SimpleFileFilter())) {
 			Log.Info(":%s|", Item.getAbsolutePath());
@@ -75,9 +75,9 @@ public class FileSystemTest {
 		for (File Item : new BFSDirFileIterable(".", null, false)) {
 			Log.Info(":%s|", Item.getAbsolutePath());
 		}
-
+		
 	}
-
+	
 	public static void main(String[] args) {
 		Log.Info("========== FileSystem Test");
 		try {
@@ -89,5 +89,5 @@ public class FileSystemTest {
 		Log.Info("#@~<");
 		Log.Info("========== Done");
 	}
-
+	
 }

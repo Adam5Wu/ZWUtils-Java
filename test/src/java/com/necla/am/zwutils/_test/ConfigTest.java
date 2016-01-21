@@ -44,32 +44,32 @@ import com.necla.am.zwutils.Misc.Misc;
 
 
 public class ConfigTest {
-
+	
 	public static final String LogGroup = "Main";
-
+	
 	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
-
+	
 	public static class TestConfig {
 		public static class Mutable extends Data.Mutable {
-
+			
 			// Declare mutable configurable fields (public)
 			public int Test;
-
+			
 			// Declare automatic populated fields (protected)
 			protected int TestSqr;
-
+			
 			@Override
 			public void loadDefaults() {
 				Test = 0;
 			}
-
+			
 			@Override
 			public void loadFields(DataMap confMap) {
 				Test = confMap.getIntDef("Test", Test);
 			}
-
+			
 			protected class Validation implements Data.Mutable.Validation {
-
+				
 				@Override
 				public void validateFields() {
 					if (Test < 0) {
@@ -77,72 +77,72 @@ public class ConfigTest {
 					}
 				}
 			}
-
+			
 			@Override
 			protected Validation needValidation() {
 				return new Validation();
 			}
-
+			
 			protected class Population implements Data.Mutable.Population {
-
+				
 				@Override
 				public void populateFields() {
 					TestSqr = Test * Test;
 				}
 			}
-
+			
 			@Override
 			protected Population needPopulation() {
 				return new Population();
 			}
-
+			
 			@Override
 			public void copyFields(Data.ReadOnly Source) {
 				ReadOnly RSource = (ReadOnly) Source;
-
+				
 				// Copy all fields from Source
 				Test = RSource.Test;
 			}
-
+			
 		}
-
+		
 		protected static class ReadOnly extends Data.ReadOnly {
 			// Declare read-only configurable fields (public)
 			public final int Test;
-
+			
 			// Declare read-only automatic populated fields (public)
 			public final int TestSqr;
-
+			
 			public ReadOnly(GroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
-
+				
 				// Copy all fields from Source
 				Test = Source.Test;
 				TestSqr = Source.TestSqr;
 			}
-
+			
 			@Override
 			protected void putFields(DataMap confMap) {
 				// Put field values
 				confMap.setInt("Test", Test);
 			}
-
+			
 		}
-
+		
 		public static final File ConfigFile = DataFile.DeriveConfigFile("");
-
+		
 		public static Container<Mutable, ReadOnly> Create() throws Throwable {
 			return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config", ConfigFile, "");
 		}
-
+		
 		public static void Save(Container<Mutable, ReadOnly> Config, String FileName, String Comments)
 				throws IOException {
 			Container.SaveToFile(Config, "", LogGroup + ".Config", FileName, Comments);
 		}
 	}
-
+	
 	public void Go(String[] args) {
-
+		
 		Container<TestConfig.Mutable, TestConfig.ReadOnly> Test = null;
 		try {
 			Test = TestConfig.Create();
@@ -150,11 +150,11 @@ public class ConfigTest {
 			ClassLog.logExcept(e, "Failed to load configurations");
 			return;
 		}
-
+		
 		TestConfig.ReadOnly Config = Test.reflect();
 		ClassLog.Info("Test = %d", Config.Test);
 		ClassLog.Info("TestSqr = %d", Config.TestSqr);
-
+		
 		ClassLog.Info("Modifying 'Test' to %d", Config.Test + 1);
 		TestConfig.Mutable MConfig = Test.mirror();
 		MConfig.Test = MConfig.Test + 1;
@@ -164,7 +164,7 @@ public class ConfigTest {
 		} catch (Throwable e) {
 			ClassLog.logExcept(e, "Failed to apply configurations");
 		}
-
+		
 		Config = Test.reflect();
 		ClassLog.Info("Test = %d", Config.Test);
 		ClassLog.Info("TestSqr = %d", Config.TestSqr);
@@ -179,9 +179,9 @@ public class ConfigTest {
 		} catch (IOException e) {
 			ClassLog.logExcept(e, "Failed to save configurations");
 		}
-
+		
 	}
-
+	
 	public static void main(String[] args) {
 		ClassLog.Info("========== Config Test");
 		try {
@@ -193,5 +193,5 @@ public class ConfigTest {
 		ClassLog.Info("#@~<");
 		ClassLog.Info("========== Done");
 	}
-
+	
 }

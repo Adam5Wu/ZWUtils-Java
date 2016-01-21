@@ -49,9 +49,9 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 
 
 public class MiscTest {
-
+	
 	protected static final GroupLogger Log = new GroupLogger("Main");
-
+	
 	static void CascadeFailureTest(int i) {
 		Log.Entry("+CascadeFailureTest");
 		if (i > 1) {
@@ -65,7 +65,7 @@ public class MiscTest {
 		}
 		Log.Exit("*CascadeFailureTest");
 	}
-
+	
 	static void CascadeErrorTest(int i) {
 		Log.Entry("+CascadeErrorTest");
 		if (i > 1) {
@@ -79,13 +79,13 @@ public class MiscTest {
 		}
 		Log.Exit("*CascadeErrorTest");
 	}
-
+	
 	public static class TestObj {
 		public long L;
 		public int I;
 		public String S;
 		public UUID U;
-
+		
 		public TestObj(long l, int i, String s, UUID u) {
 			super();
 			L = l;
@@ -93,31 +93,31 @@ public class MiscTest {
 			S = s;
 			U = u;
 		}
-
+		
 		@Override
 		public int hashCode() {
 			return Long.hashCode(L) ^ Integer.hashCode(I) ^ S.hashCode() ^ U.hashCode();
 		}
-
+		
 		protected boolean equals(TestObj obj) {
 			return obj.L == L && obj.I == I && obj.S.equals(S) && obj.U.equals(U);
 		}
-
+		
 		@Override
 		public boolean equals(Object obj) {
 			if (super.equals(obj)) return true;
 			if (!(obj instanceof TestObj)) return false;
 			return equals((TestObj) obj);
 		}
-
+		
 	}
-
+	
 	public static class TestCObj {
 		public long L;
 		public int I;
 		public String S;
 		public UUID U;
-
+		
 		public TestCObj(long l, int i, String s, UUID u) {
 			super();
 			L = l;
@@ -125,36 +125,36 @@ public class MiscTest {
 			S = s;
 			U = u;
 		}
-
+		
 		@Override
 		public int hashCode() {
 			return Long.hashCode(L) ^ Integer.hashCode(I) ^ S.hashCode() ^ U.hashCode();
 		}
-
+		
 		protected boolean equals(TestObj obj) {
 			return obj.L == L && obj.I == I && obj.S.equals(S) && obj.U.equals(U);
 		}
-
+		
 		@Override
 		public boolean equals(Object obj) {
 			if (super.equals(obj)) return true;
 			if (!(obj instanceof TestObj)) return false;
 			return equals((TestObj) obj);
 		}
-
+		
 	}
-
+	
 	Runtime runtime = Runtime.getRuntime();
-
+	
 	public void GC() throws InterruptedException {
 		runtime.gc();
 		Thread.sleep(2000);
 		runtime.gc();
 		Thread.sleep(3000);
 	}
-
+	
 	public void Go(String[] args) {
-
+		
 		Log.Info("#---------- Test Cascade Failure");
 		try {
 			CascadeFailureTest(0);
@@ -172,25 +172,25 @@ public class MiscTest {
 			long TimeDay = 2;
 			long TimeHr = TimeUnit.DAY.Convert(TimeDay, TimeUnit.HR);
 			Log.Info("* %d days = %d hours", TimeDay, TimeHr);
-
+			
 			TimeDay = TimeUnit.HR.Convert(TimeHr, TimeUnit.DAY);
 			Log.Info("* %d hours = %d days", TimeHr, TimeDay);
-
+			
 			long TimeMin = TimeUnit.DAY.Convert(TimeDay, TimeUnit.MIN);
 			Log.Info("* %d days = %d minutes", TimeDay, TimeMin);
-
+			
 			TimeDay = TimeUnit.MIN.Convert(TimeMin, TimeUnit.DAY);
 			Log.Info("* %d minutes = %d days", TimeMin, TimeDay);
-
+			
 			TimeHr = TimeUnit.MIN.Convert(TimeMin, TimeUnit.HR);
 			Log.Info("* %d minutes = %d hours", TimeMin, TimeHr);
-
+			
 			long TimeMS = TimeUnit.DAY.Convert(TimeDay, TimeUnit.MSEC);
 			Log.Info("* %d days = %d milliseconds", TimeDay, TimeMS);
-
+			
 			long TDUNIX = TimeSystem.GREGORIAN.Convert(TimeDay, TimeUnit.DAY, TimeSystem.UNIX);
 			Log.Info("* Gregorian %d days = Unix %d days", TimeDay, TDUNIX);
-
+			
 			long DeltaMS = TimeUnit.DAY.Convert(5, TimeUnit.MSEC)+ TimeUnit.HR.Convert(4, TimeUnit.MSEC)
 											+ TimeUnit.MIN.Convert(3, TimeUnit.MSEC)
 											+ TimeUnit.SEC.Convert(2, TimeUnit.MSEC)
@@ -226,12 +226,12 @@ public class MiscTest {
 					Canonicalizer.Global.CCreate(String.class, "Test"),
 					Canonicalizer.Global.CCreate(UUID.class, 123L, 123L));
 			Log.Info("* TestObj I4 @%x", System.identityHashCode(I4));
-
+			
 			// Performance test
 			ITimeStamp Start, End;
 			long SMem, EMem;
 			Random R = new Random();
-
+			
 			Log.Info("+ Performance test: construction (fully duplicate)");
 			{
 				List<TestObj> List0 = new ArrayList<>();
@@ -250,7 +250,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				Log.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-
+						
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
@@ -264,7 +264,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				Log.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-
+						
 				Log.Info("+ Set lookup");
 				Set<TestObj> Set1 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
@@ -273,7 +273,7 @@ public class MiscTest {
 				End = ITimeStamp.Impl.Now();
 				EMem = runtime.totalMemory();
 				Log.Info("Plain @ %d ms", End.MillisecondsFrom(Start));
-
+				
 				Set<TestCObj> Set2 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
 				for (int i = 0; i < 8000000; i++)
@@ -281,7 +281,7 @@ public class MiscTest {
 				End = ITimeStamp.Impl.Now();
 				Log.Info("** Canonicalized @ %d ms", End.MillisecondsFrom(Start));
 			}
-
+			
 			Log.Info("+ Performance test: construction (fully distinct)");
 			{
 				List<TestObj> List2 = new ArrayList<>();
@@ -300,7 +300,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				Log.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-
+						
 				List<TestCObj> List3 = new ArrayList<>();
 				Log.Info("Before Start GC");
 				GC();
@@ -317,7 +317,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				Log.Info("*+ Canonicalized (String.Intern) @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-
+						
 				List<TestCObj> List4 = new ArrayList<>();
 				Log.Info("Before Start GC");
 				GC();
@@ -339,7 +339,7 @@ public class MiscTest {
 			Log.logExcept(e);
 		}
 	}
-
+	
 	public static void main(String[] args) {
 		Log.Info("========== Misc Test");
 		try {
@@ -351,5 +351,5 @@ public class MiscTest {
 		Log.Info("#@~<");
 		Log.Info("========== Done");
 	}
-
+	
 }

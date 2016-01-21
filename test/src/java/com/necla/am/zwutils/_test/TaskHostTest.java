@@ -40,15 +40,15 @@ import com.necla.am.zwutils.Tasks.TaskHost;
 
 
 public class TaskHostTest {
-
+	
 	protected static final GroupLogger Log = new GroupLogger("Main");
-
+	
 	public static class TestTask extends NotifiableTask {
-
+		
 		public TestTask(String Name) {
 			super(Name);
 		}
-
+		
 		@Override
 		protected void doTask() {
 			int i = 0;
@@ -58,19 +58,19 @@ public class TaskHostTest {
 			}
 			Log.Info("Terminating...");
 		}
-
+		
 	}
-
+	
 	public static final String TaskGroup = TaskHostTest.class.getSimpleName();
 	public static final File ConfigFile = DataFile.DeriveConfigFile("");
-
+	
 	public static void main(String[] args) {
-
+		
 		TaskHost.RegisterTaskAlias(TestTask.class);
 		TaskHost TestTaskHost = TaskHost.CreateTaskHost(TaskGroup, args, ConfigFile, TaskGroup);
 		if (TestTaskHost != null) {
 			TestTaskHost.run();
 		}
-
+		
 	}
 }
