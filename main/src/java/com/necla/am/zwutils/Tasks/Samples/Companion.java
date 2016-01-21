@@ -47,7 +47,7 @@ import com.necla.am.zwutils.Tasks.TaskCollection;
 /**
  * Companion task
  * <p>
- * Monitors status of a group of other tasks <br/>
+ * Monitors status of a group of other tasks <br>
  * Useful for managing a large set of tasks as a whole
  *
  * @author Zhenyu Wu
