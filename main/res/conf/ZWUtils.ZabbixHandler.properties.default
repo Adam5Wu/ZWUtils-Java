@@ -1,0 +1,7 @@
+# Responsible Personnel
+#ZabbixHandler.RP.(Name) = <SeveritySet>;[Email=<user@domain>]
+#<SeveritySet>: * | <Severity>[,<Severity> ... ,<Severity>] | <Zabbix-Severity-Value>
+#<Severity>: one of 0, Default, 1, Info, 2, Warn, 3, Normal, 4, High, 5, Critical
+
+# Auto-Trigger Information
+#ZabbixHandler.Trigger.(Name) = <MetricPattern>;<Severity>;<Expression>;[Comments]

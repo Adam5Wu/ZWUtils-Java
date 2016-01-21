@@ -1,0 +1,12 @@
+# Usage: Make a copy of this file, and remove the '.default' extension
+#        You only need to define the value if you want to change it
+
+#LogFormatter.Slim.MsgHdr        = True
+#LogFormatter.Slim.MsgSrc        = False
+#LogFormatter.Slim.MsgTime       = True
+#LogFormatter.Slim.AutoWarn      = True
+#LogFormatter.Slim.ExceptStack   = True
+#LogFormatter.Slim.GroupWidth    = 18
+#LogFormatter.Slim.MethodWidth   = 36
+#LogFormatter.Slim.NestDepth     = 16
+#LogFormatter.Slim.ShortHandFmt	 = True

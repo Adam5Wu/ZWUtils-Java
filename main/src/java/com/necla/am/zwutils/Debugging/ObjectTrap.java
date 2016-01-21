@@ -1,0 +1,2275 @@
+/*
+ * Copyright (c) 2011 - 2016, Zhenyu Wu, NEC Labs America Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * * Neither the name of ZWUtils-Java nor the names of its
+ *   contributors may be used to endorse or promote products derived from
+ *   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * // @formatter:on
+ */
+
+package com.necla.am.zwutils.Debugging;
+
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.Stack;
+import java.util.TreeSet;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.regex.Pattern;
+
+import com.necla.am.zwutils.Caching.CanonicalCacheMap;
+import com.necla.am.zwutils.Config.DataFile;
+import com.necla.am.zwutils.Config.DataMap;
+import com.necla.am.zwutils.Debugging.SuffixClassDictionary.DirectSuffixClassSolver;
+import com.necla.am.zwutils.Debugging.SuffixClassDictionary.ISuffixClassSolver;
+import com.necla.am.zwutils.Logging.DebugLog;
+import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.Utils.Support;
+import com.necla.am.zwutils.Logging.Utils.Formatters.LogFormatter;
+import com.necla.am.zwutils.Logging.Utils.Formatters.SlimFormatter;
+import com.necla.am.zwutils.Misc.Misc;
+import com.necla.am.zwutils.Misc.Misc.TimeUnit;
+import com.necla.am.zwutils.Misc.Parsers;
+import com.necla.am.zwutils.Misc.Parsers.IParse;
+import com.necla.am.zwutils.Modeling.ITimeStamp;
+import com.necla.am.zwutils.Reflection.PackageClassIterable;
+import com.necla.am.zwutils.Tasks.ITask;
+import com.necla.am.zwutils.Tasks.Samples.Poller;
+import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
+import com.necla.am.zwutils.i18n.Messages;
+
+
+/**
+ * Run-time object inspection utility
+ *
+ * @author Zhenyu Wu
+ * @version 0.1 - Jul. 2015: Initial implementation
+ * @version 0.2 - Oct. 2015: Various bug fix
+ * @version 0.25 - Dec. 2015: Adopt resource bundle based localization
+ * @version 0.3 - Jan. 2016: Canonicalization-based performance improvement
+ * @version 0.3 - Jan. 20 2016: Initial public release
+ */
+public class ObjectTrap {
+	
+	public static final String LogGroup = "ZWUtils.Debugging.OTap"; //$NON-NLS-1$
+	protected final GroupLogger Log;
+	
+	protected final SuffixClassDictionary ClassDict;
+	protected final Class<?> ObjClass;
+	
+	// Scope - for extracting data to be matched
+	
+	public interface IScope {
+		
+		Class<?> Type();
+		
+		Object Peek(Object obj);
+		
+		Throwable LastError();
+		
+	}
+	
+	protected static Field AccessibleField(Class<?> c, String name) throws SecurityException {
+		while (c != null) {
+			try {
+				Field Ret = c.getDeclaredField(name);
+				Ret.setAccessible(true);
+				return Ret;
+			} catch (NoSuchFieldException e) {
+				c = c.getSuperclass();
+			}
+		}
+		return null;
+	}
+	
+	public static abstract class BaseScope implements IScope {
+		
+		protected ThreadLocal<Throwable> LastError = new ThreadLocal<>();
+		
+		public static class PeekRecord {
+			
+			public Object Source = null;
+			public Object Result = null;
+			
+		}
+		
+		protected ThreadLocal<PeekRecord> PeekCache = new ThreadLocal<>();
+		
+		@Override
+		public Object Peek(Object obj) {
+			PeekRecord PRec = PeekCache.get();
+			if (PRec == null) PeekCache.set(PRec = new PeekRecord());
+			
+			if (PRec.Source == obj) return PRec.Result;
+			
+			PRec.Source = obj;
+			return PRec.Result = doPeek(obj);
+		}
+		
+		abstract protected Object doPeek(Object obj);
+		
+		@Override
+		public Throwable LastError() {
+			return LastError.get();
+		}
+		
+	}
+	
+	public class FieldScope extends BaseScope {
+		
+		public final Class<?> C;
+		public final Field F;
+		
+		public FieldScope(Class<?> c, String cname, String field) throws SecurityException {
+			C = cname != null? ClassDict.Get(cname).toClass() : null;
+			F = AccessibleField(C != null? C : c, field);
+			if (F == null) Misc.FAIL(NoSuchElementException.class,
+					Messages.Localize("Debugging.ObjectTrap.FIELD_NOT_FOUND"), //$NON-NLS-1$
+					field, (cname != null? cname : c.getSimpleName()));
+		}
+		
+		@Override
+		public Class<?> Type() {
+			return F.getType();
+		}
+		
+		@Override
+		public Object doPeek(Object obj) {
+			LastError.set(null);
+			try {
+				return F.get(obj);
+			} catch (Throwable e) {
+				if (Log.isLoggable(Level.FINE))
+					Log.Fine(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), F.getName()); //$NON-NLS-1$
+				LastError.set(e);
+				return null;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder StrBuf = new StringBuilder();
+			if (C != null) StrBuf.append(Messages.Localize("Debugging.ObjectTrap.SCOPE_CAST")) //$NON-NLS-1$
+					.append(C.getName()).append(' ');
+			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.SCOPE_FIELD")).append(F.getName()); //$NON-NLS-1$
+			
+			return StrBuf.toString();
+		}
+		
+	}
+	
+	public static final char SYM_TYPE_BOOLEAN = 'Z';
+	public static final char SYM_TYPE_BYTE = 'B';
+	public static final char SYM_TYPE_SHORT = 'S';
+	public static final char SYM_TYPE_INTEGER = 'I';
+	public static final char SYM_TYPE_LONG = 'J';
+	public static final char SYM_TYPE_FLOAT = 'F';
+	public static final char SYM_TYPE_DOUBLE = 'D';
+	public static final char SYM_TYPE_CHAR = 'C';
+	public static final char SYM_TYPE_STRING = '$';
+	public static final char SYM_TYPE_OBJECT = '?';
+	
+	public static enum CastableTypes {
+		Boolean(SYM_TYPE_BOOLEAN, java.lang.Boolean.class),
+		Byte(SYM_TYPE_BYTE, java.lang.Byte.class),
+		Short(SYM_TYPE_SHORT, java.lang.Short.class),
+		Integer(SYM_TYPE_INTEGER, java.lang.Integer.class),
+		Long(SYM_TYPE_LONG, java.lang.Long.class),
+		Float(SYM_TYPE_FLOAT, java.lang.Float.class),
+		Double(SYM_TYPE_DOUBLE, java.lang.Double.class),
+		Char(SYM_TYPE_CHAR, java.lang.Character.class),
+		String(SYM_TYPE_STRING, java.lang.String.class),
+		Object(SYM_TYPE_OBJECT, java.lang.Object.class);
+		
+		public final char SYMBOL;
+		public final Class<?> CLASS;
+		
+		CastableTypes(char S, Class<?> C) {
+			SYMBOL = S;
+			CLASS = C;
+		}
+		
+	}
+	
+	public class TypeCastScope extends BaseScope {
+		
+		public final CastableTypes T;
+		
+		public TypeCastScope(char type) throws SecurityException {
+			switch (type) {
+				case SYM_TYPE_BOOLEAN:
+					T = CastableTypes.Boolean;
+					break;
+				case SYM_TYPE_BYTE:
+					T = CastableTypes.Byte;
+					break;
+				case SYM_TYPE_SHORT:
+					T = CastableTypes.Short;
+					break;
+				case SYM_TYPE_INTEGER:
+					T = CastableTypes.Integer;
+					break;
+				case SYM_TYPE_LONG:
+					T = CastableTypes.Long;
+					break;
+				case SYM_TYPE_FLOAT:
+					T = CastableTypes.Float;
+					break;
+				case SYM_TYPE_DOUBLE:
+					T = CastableTypes.Double;
+					break;
+				case SYM_TYPE_CHAR:
+					T = CastableTypes.Char;
+					break;
+				case SYM_TYPE_STRING:
+					T = CastableTypes.String;
+					break;
+				case SYM_TYPE_OBJECT:
+					T = CastableTypes.Object;
+					break;
+				default:
+					Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_TYPE_TOKEN"), type); //$NON-NLS-1$
+					T = null;
+			}
+		}
+		
+		@Override
+		public Class<?> Type() {
+			return T.CLASS;
+		}
+		
+		@Override
+		public Object doPeek(Object obj) {
+			LastError.set(null);
+			try {
+				return Type().cast(obj);
+			} catch (Throwable e) {
+				if (Log.isLoggable(Level.FINE))
+					Log.Fine(Messages.Localize("Debugging.ObjectTrap.CAST_VALUE_FAILED"), //$NON-NLS-1$
+							T.CLASS.getSimpleName());
+				LastError.set(e);
+				return null;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder StrBuf = new StringBuilder();
+			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.SCOPE_PRIMITIVE")) //$NON-NLS-1$
+					.append(T.CLASS.getSimpleName());
+					
+			return StrBuf.toString();
+		}
+		
+	}
+	
+	public static Method AccessibleGetter(Class<?> c, String name) throws SecurityException {
+		while (c != null) {
+			try {
+				Method Ret = c.getDeclaredMethod(name);
+				if (Ret.getReturnType().equals(Void.TYPE)) throw new NoSuchMethodException(
+						Messages.Localize("Debugging.ObjectTrap.GETTER_NO_RETURN")); //$NON-NLS-1$
+				Ret.setAccessible(true);
+				return Ret;
+			} catch (NoSuchMethodException e) {
+				if (c.isInterface()) {
+					for (Class<?> i : c.getInterfaces()) {
+						Method Ret = AccessibleGetter(i, name);
+						if (Ret != null) return Ret;
+					}
+					break;
+				}
+				c = c.getSuperclass();
+			}
+		}
+		return null;
+	}
+	
+	public class GetterScope extends BaseScope {
+		
+		public final Class<?> C;
+		public final Method M;
+		
+		public GetterScope(Class<?> c, String cname, String method) throws SecurityException {
+			C = cname != null? ClassDict.Get(cname).toClass() : null;
+			M = AccessibleGetter(C != null? C : c, method);
+			if (M == null) Misc.FAIL(NoSuchElementException.class,
+					Messages.Localize("Debugging.ObjectTrap.GETTER_NOT_FOUND"), //$NON-NLS-1$
+					method, (cname != null? cname : c.getSimpleName()));
+		}
+		
+		@Override
+		public Class<?> Type() {
+			return M.getReturnType();
+		}
+		
+		@Override
+		public Object doPeek(Object obj) {
+			LastError.set(null);
+			try {
+				if ((C != null) && (C.cast(obj) == null)) {
+					// Misc.FAIL(ClassCastException.class,
+					//	Messages.Localize("Debugging.ObjectTrap.CLASS_CAST_FAILED"), C.getName()); //$NON-NLS-1$
+					LastError.set(new ClassCastException(C.getName()));
+					return null;
+				}
+				return M.invoke(obj);
+			} catch (Throwable e) {
+				if (e instanceof InvocationTargetException)
+					e = ((InvocationTargetException) e).getTargetException();
+				if (Log.isLoggable(Level.FINE))
+					Log.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), M.getName()); //$NON-NLS-1$
+				LastError.set(e);
+				return null;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder StrBuf = new StringBuilder();
+			if (C != null)
+				StrBuf.append(Messages.Localize("Debugging.ObjectTrap.SCOPE_CAST")).append(C.getName()) //$NON-NLS-1$
+						.append(' ');
+			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.SCOPE_GETTER")).append(M.getName()); //$NON-NLS-1$
+			
+			return StrBuf.toString();
+		}
+		
+	}
+	
+	public class CascadeScope extends BaseScope {
+		
+		protected List<IScope> Scopes = new ArrayList<>();
+		private IScope LastScope = null;
+		
+		public void Cascade(IScope scope) {
+			Scopes.add(scope);
+			LastScope = scope;
+		}
+		
+		public int Size() {
+			return Scopes.size();
+		}
+		
+		@Override
+		public Class<?> Type() {
+			return LastScope == null? null : LastScope.Type();
+		}
+		
+		@Override
+		public Object doPeek(Object obj) {
+			LastError.set(null);
+			
+			Object Ret = obj;
+			Throwable Error = null;
+			for (IScope scope : Scopes) {
+				Ret = scope.Peek(Ret);
+				if (Ret == null) {
+					Error = scope.LastError();
+					if (Error != null) break;
+				}
+			}
+			LastError.set(Error);
+			
+			return Ret;
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder StrBuf = new StringBuilder();
+			for (IScope scope : Scopes) {
+				if (StrBuf.length() > 0) StrBuf.append(System.lineSeparator()).append("-> "); //$NON-NLS-1$
+				StrBuf.append(scope.toString());
+			}
+			return StrBuf.toString();
+		}
+		
+	}
+	
+	// Hook - for executing matching condition
+	
+	public interface IHook {
+		
+		boolean Latch(Object value);
+		
+	}
+	
+	public static class HookFactory {
+		
+		protected Map<Type, Class<? extends Hook>> HookReg = new HashMap<>();
+		
+		void Register(Type type, Class<? extends Hook> hookclass) {
+			if (HookReg.containsKey(type))
+				Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.TYPE_KNOWN"), type); //$NON-NLS-1$
+			HookReg.put(type, hookclass);
+		}
+		
+		IHook Create(Type type, String condition) {
+			Class<? extends Hook> hookclass = Lookup(type);
+			if (hookclass == null)
+				Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.TYPE_UNKNOWN"), type); //$NON-NLS-1$
+				
+			try {
+				return hookclass.getConstructor(String.class).newInstance(condition);
+			} catch (Throwable e) {
+				if (e instanceof InvocationTargetException)
+					e = ((InvocationTargetException) e).getTargetException();
+				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.HOOK_CREATE_FAILED")); //$NON-NLS-1$
+				return null;
+			}
+		}
+		
+		public Class<? extends Hook> Lookup(Type type) {
+			return HookReg.get(type);
+		}
+		
+		public static class Hook implements IHook {
+			
+			@Override
+			public boolean Latch(Object value) {
+				Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.CONDCHECK_NOT_IMPL")); //$NON-NLS-1$
+				return false;
+			}
+			
+			public static Collection<String> InputHelp() {
+				return null;
+			}
+			
+		}
+		
+	}
+	
+	public static HookFactory HookMaker = new HookFactory();
+	
+	public static class BasicHooks {
+		
+		public static enum LatchOp {
+			Accept('Y'),
+			IsNull('X'),
+			EqualTo('='),
+			GreaterThan('>'),
+			LessThan('<'),
+			InRange('~'),
+			OneOf('@'),
+			RegMatch('*');
+			
+			public final char OpSym;
+			
+			LatchOp(char opSym) {
+				OpSym = opSym;
+			}
+			
+			public static LatchOp Convert(char SymIn) {
+				for (LatchOp I : LatchOp.values())
+					if (SymIn == I.OpSym) return I;
+				return null;
+			}
+			
+		}
+		
+		public static abstract class BaseHook extends HookFactory.Hook {
+			
+			public static final char SYM_NEGATION = '!';
+			
+			public final boolean Negate;
+			public final LatchOp Op;
+			
+			public BaseHook(String condition) {
+				if (condition.isEmpty())
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.NO_HOOK_DESCRPTION")); //$NON-NLS-1$
+				char iChar = condition.charAt(0);
+				if (Negate = iChar == SYM_NEGATION) {
+					if (condition.length() < 2)
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.NO_HOOK_OPERATOR")); //$NON-NLS-1$
+					iChar = condition.charAt(1);
+				}
+				Op = LatchOp.Convert(iChar);
+				if (Op == null)
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_HOOK_OPERATION"), iChar); //$NON-NLS-1$
+				ParseValue(condition.substring(Negate? 2 : 1));
+			}
+			
+			abstract protected void ParseValue(String condval);
+			
+			@Override
+			public String toString() {
+				return (Negate? Messages.Localize("Debugging.ObjectTrap.HOOK_ACTION_NOT") : "") + Op.name();  //$NON-NLS-1$ //$NON-NLS-2$
+			}
+			
+		}
+		
+		public static class IntegerHook extends BaseHook {
+			
+			public IntegerHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Integer> Parser = Parsers.StringToInteger;
+			
+			protected Integer CompValA;
+			protected Integer CompValB;
+			protected Set<Integer> CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int1>,<int2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int1>,<int2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+							
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+						}
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Integer value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case OneOf:
+						return value != null && CompSet.contains(value);
+					case InRange:
+						return value != null && (value >= CompValA) && (value <= CompValB);
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"),  //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Integer) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (Integer I : CompSet)
+							StrBuf.append(I).append(',');
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class LongHook extends BaseHook {
+			
+			public LongHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Long> Parser = Parsers.StringToLong;
+			
+			protected Long CompValA;
+			protected Long CompValB;
+			protected Set<Long> CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long1>,<long2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long1>,<long2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval);//$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+							
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+								
+						}
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Long value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case InRange:
+						return value != null && (value >= CompValA) && (value <= CompValB);
+					case OneOf:
+						return CompSet.contains(value);
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Long) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (Long I : CompSet)
+							StrBuf.append(I).append(',');
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class ByteHook extends BaseHook {
+			
+			public ByteHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Byte> Parser = Parsers.StringToByte;
+			
+			protected Byte CompValA;
+			protected Byte CompValB;
+			protected Set<Byte> CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte1>,<byte2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte1>,<byte2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim());//$NON-NLS-1$
+							
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+						}
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Byte value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case InRange:
+						return value != null && (value >= CompValA) && (value <= CompValB);
+					case OneOf:
+						return CompSet.contains(value);
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Byte) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (Byte I : CompSet)
+							StrBuf.append(I).append(',');
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class ShortHook extends BaseHook {
+			
+			public ShortHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Short> Parser = Parsers.StringToShort;
+			
+			protected Short CompValA;
+			protected Short CompValB;
+			protected Set<Short> CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short1>,<short2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short1>,<short2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+						}
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Short value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case InRange:
+						return value != null && (value >= CompValA) && (value <= CompValB);
+					case OneOf:
+						return CompSet.contains(value);
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Short) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (Short I : CompSet)
+							StrBuf.append(I).append(',');
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"),//$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class FloatHook extends BaseHook {
+			
+			public FloatHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Float> Parser = Parsers.StringToFloat;
+			
+			protected Float CompValA;
+			protected Float CompValB;
+			protected Set<Float> CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float1>,<float2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float1>,<float2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+						}
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Float value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case InRange:
+						return (value >= CompValA) && (value <= CompValB);
+					case OneOf:
+						return CompSet.contains(value);
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Float) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (Float I : CompSet)
+							StrBuf.append(I).append(',');
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class DoubleHook extends BaseHook {
+			
+			public DoubleHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Double> Parser = Parsers.StringToDouble;
+			
+			protected Double CompValA;
+			protected Double CompValB;
+			protected Set<Double> CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double1>,<double2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double1>,<double2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+						}
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Double value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case InRange:
+						return value != null && (value >= CompValA) && (value <= CompValB);
+					case OneOf:
+						return CompSet.contains(value);
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Double) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (Double I : CompSet)
+							StrBuf.append(I).append(',');
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class CharHook extends BaseHook {
+			
+			public CharHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Character> Parser = Parsers.StringToChar;
+			protected static IParse<String, String> SetParser = Parsers.StringToString;
+			
+			protected Character CompValA;
+			protected Character CompValB;
+			protected String CompSet;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<Char>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<Char>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<Char>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<Char1>,<Char2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<Char1>,<Char2>,...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA > CompValB) Misc
+								.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, CompValB); //$NON-NLS-1$
+						break;
+					}
+					case OneOf: {
+						CompSet = SetParser.parseOrFail(condval.trim());
+						break;
+					}
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Character value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.equals(CompValA);
+					case GreaterThan:
+						return value != null && value > CompValA;
+					case LessThan:
+						return value != null && value < CompValA;
+					case InRange:
+						return value != null && (value >= CompValA) && (value <= CompValB);
+					case OneOf:
+						return CompSet.indexOf(value) >= 0;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Character) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(' ').append(CompValA);
+						break;
+					case InRange:
+						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						break;
+					case OneOf:
+						StrBuf.append(" \"").append(CompSet).append('"'); //$NON-NLS-1$
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class BooleanHook extends BaseHook {
+			
+			public BooleanHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, Boolean> Parser = Parsers.StringToBoolean;
+			
+			protected Boolean CompVal;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<bool>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+							
+						break;
+					case EqualTo:
+						CompVal = Parser.parseOrFail(condval.trim());
+						break;
+					case GreaterThan:
+					case LessThan:
+					case InRange:
+					case OneOf:
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Boolean value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value == CompVal;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((Boolean) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+						StrBuf.append(' ').append(CompVal);
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class StringHook extends BaseHook {
+			
+			public StringHook(String condition) {
+				super(condition);
+			}
+			
+			protected static IParse<String, String> Parser = Parsers.StringToString;
+			
+			protected String CompValA;
+			protected String CompValB;
+			protected Set<String> CompSet;
+			protected Pattern RegComp;
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string\"", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string\"", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string\"", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string1\",\"string2\"", LatchOp.InRange.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string1\",\"string2\",...", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"regexp\"", LatchOp.RegMatch.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						CompValA = Parser.parseOrFail(condval.trim());
+						break;
+					case InRange: {
+						String[] CondVals = condval.trim().split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); //$NON-NLS-1$
+						if (CondVals.length != 2)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+						CompValA = Parser.parseOrFail(CondVals[0].trim());
+						CompValB = Parser.parseOrFail(CondVals[1].trim());
+						if (CompValA.compareTo(CompValB) > 0)
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE_STR"), //$NON-NLS-1$
+									CompValA, CompValB);
+						break;
+					}
+					case OneOf: {
+						String[] CondVals = condval.trim().split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); //$NON-NLS-1$
+						CompSet = new HashSet<>();
+						for (String Val : CondVals) {
+							if (!CompSet.add(Parser.parseOrFail(Val)))
+								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+						}
+						break;
+					}
+					case RegMatch:
+						RegComp = Pattern.compile(Parser.parseOrFail(condval.trim()));
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(String value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					case EqualTo:
+						return value != null && value.compareTo(CompValA) == 0;
+					case GreaterThan:
+						return value != null && value.compareTo(CompValA) > 0;
+					case LessThan:
+						return value != null && value.compareTo(CompValA) < 0;
+					case InRange:
+						return value != null&& (value.compareTo(CompValA) >= 0)
+										&& (value.compareTo(CompValB) <= 0);
+					case OneOf:
+						return value != null && CompSet.contains(value);
+					case RegMatch:
+						return value != null && RegComp.matcher(value).find();
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), Op.OpSym, //$NON-NLS-1$
+								Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper((String) value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+						StrBuf.append(" \"").append(CompValA).append('"'); //$NON-NLS-1$
+						break;
+					case InRange:
+						StrBuf.append(" [\"").append(CompValA).append("\",\"").append(CompValB).append("\"]"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+						break;
+					case OneOf:
+						StrBuf.append(" {"); //$NON-NLS-1$
+						for (String I : CompSet)
+							StrBuf.append('"').append(I).append("\","); //$NON-NLS-1$
+						if (!CompSet.isEmpty()) StrBuf.setLength(StrBuf.length() - 1);
+						StrBuf.append('}');
+						break;
+					case RegMatch:
+						StrBuf.append(" /").append(RegComp).append('/'); //$NON-NLS-1$
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+		public static class ObjectHook extends BaseHook {
+			
+			public ObjectHook(String condition) {
+				super(condition);
+			}
+			
+			public static Collection<String> InputHelp() {
+				Collection<String> HelpStr = new ArrayList<String>();
+				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			@Override
+			protected void ParseValue(String condval) {
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						if (!condval.trim().isEmpty())
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+						break;
+					case EqualTo:
+					case GreaterThan:
+					case LessThan:
+					case InRange:
+					case OneOf:
+					case RegMatch:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+			}
+			
+			protected boolean Oper(Object value) {
+				switch (Op) {
+					case Accept:
+						return true;
+					case IsNull:
+						return value == null;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+						return Negate;
+				}
+			}
+			
+			@Override
+			public boolean Latch(Object value) {
+				return Oper(value) ^ Negate;
+			}
+			
+			@Override
+			public String toString() {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(super.toString());
+				
+				switch (Op) {
+					case Accept:
+					case IsNull:
+						break;
+					default:
+						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
+								Op.OpSym, Op.name());
+				}
+				return StrBuf.toString();
+			}
+			
+		}
+		
+	}
+	
+	static {
+		HookMaker.Register(String.class, BasicHooks.StringHook.class);
+		HookMaker.Register(Object.class, BasicHooks.ObjectHook.class);
+		HookMaker.Register(Integer.TYPE, BasicHooks.IntegerHook.class);
+		HookMaker.Register(Long.TYPE, BasicHooks.LongHook.class);
+		HookMaker.Register(Byte.TYPE, BasicHooks.ByteHook.class);
+		HookMaker.Register(Short.TYPE, BasicHooks.ShortHook.class);
+		HookMaker.Register(Float.TYPE, BasicHooks.FloatHook.class);
+		HookMaker.Register(Double.TYPE, BasicHooks.DoubleHook.class);
+		HookMaker.Register(Character.TYPE, BasicHooks.CharHook.class);
+		HookMaker.Register(Boolean.TYPE, BasicHooks.BooleanHook.class);
+		HookMaker.Register(Integer.class, BasicHooks.IntegerHook.class);
+		HookMaker.Register(Long.class, BasicHooks.LongHook.class);
+		HookMaker.Register(Byte.class, BasicHooks.ByteHook.class);
+		HookMaker.Register(Short.class, BasicHooks.ShortHook.class);
+		HookMaker.Register(Float.class, BasicHooks.FloatHook.class);
+		HookMaker.Register(Double.class, BasicHooks.DoubleHook.class);
+		HookMaker.Register(Boolean.class, BasicHooks.BooleanHook.class);
+		HookMaker.Register(Character.class, BasicHooks.CharHook.class);
+	}
+	
+	// Fork - Scope + Hook
+	
+	public interface IFork {
+		
+		public static enum Result {
+			Match,
+			Unmatch,
+			Error
+		}
+		
+		String Name();
+		
+		Result Stab(Object obj);
+		
+		int Next(Result R);
+		
+	}
+	
+	public class Fork implements IFork {
+		
+		protected final GroupLogger Log;
+		
+		public final String Name;
+		public final IScope S;
+		public final IHook H;
+		
+		protected int MatchNext;
+		protected int UnmatchNext;
+		
+		public Fork(String name, IScope scope, String condition) {
+			Log = new GroupLogger(name, ObjectTrap.this.Log.GroupName());
+			Name = name;
+			S = scope;
+			H = HookMaker.Create(S.Type(), condition);
+			MatchNext = 0;
+			UnmatchNext = 1;
+		}
+		
+		@Override
+		public Result Stab(Object obj) {
+			try {
+				Object Scoped = S.Peek(obj);
+				Throwable Error = S.LastError();
+				if (Error != null) return Result.Error;
+				return H.Latch(Scoped)? Result.Match : Result.Unmatch;
+			} catch (Throwable e) {
+				if (Log.isLoggable(Level.FINER))
+					Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION")); //$NON-NLS-1$
+				else if (Log.isLoggable(Level.FINE))
+					Log.Warn(Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION_LT"), e); //$NON-NLS-1$
+				return Result.Error;
+			}
+		}
+		
+		@Override
+		public int Next(Result R) {
+			switch (R) {
+				case Match:
+					return MatchNext;
+				case Unmatch:
+				case Error:
+					return UnmatchNext;
+				default:
+					Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_FORK_RET"), R.name()); //$NON-NLS-1$
+					
+					return -1;
+			}
+		}
+		
+		@Override
+		public String Name() {
+			return Name;
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder StrBuf = new StringBuilder();
+			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_ITEM")) //$NON-NLS-1$
+					.append(Name).append(": ");  //$NON-NLS-1$
+			String ScopeStr = S.toString();
+			boolean MultilineScope = ScopeStr.indexOf(System.lineSeparator()) > 0;
+			if (MultilineScope) StrBuf.append(System.lineSeparator());
+			StrBuf.append(ScopeStr);
+			if (MultilineScope)
+				StrBuf.append(System.lineSeparator());
+			else
+				StrBuf.append(' ');
+			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_EVAL")) //$NON-NLS-1$
+					.append(H.toString());
+			if (MultilineScope)
+				StrBuf.append(System.lineSeparator());
+			else
+				StrBuf.append(' ');
+			if (MatchNext == 0)
+				StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_ACCEPT")); //$NON-NLS-1$
+			else if (MatchNext == 1)
+				StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_NEXT")); //$NON-NLS-1$
+			else
+				StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_SKIP")) //$NON-NLS-1$
+						.append(MatchNext - 1);
+			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_OTHERWISE")); //$NON-NLS-1$
+			if (UnmatchNext == 1)
+				StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_NEXT")); //$NON-NLS-1$
+			else
+				StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_SKIP")) //$NON-NLS-1$
+						.append(UnmatchNext - 1);
+			return StrBuf.toString();
+		}
+		
+	}
+	
+	List<IFork> Trap = null;
+	
+	@SuppressWarnings("serial")
+	public static class SuffixClassNameSolver extends ArrayList<String> {
+		
+		protected final String CName;
+		protected int Level = 1;
+		
+		public SuffixClassNameSolver(String cname) {
+			super();
+			
+			CName = cname;
+			for (String token : cname.split("\\.")) //$NON-NLS-1$
+				add(token);
+		}
+		
+		public void NotUnique() {
+			if (Level >= size()) Misc.FAIL(IllegalStateException.class,
+					Messages.Localize("Debugging.ObjectTrap.ALREADY_AT_ROOT")); //$NON-NLS-1$
+			Level++;
+		}
+		
+		public Class<?> toClass() throws ClassNotFoundException {
+			return Class.forName(CName);
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder StrBuf = new StringBuilder();
+			for (int i = Level; i > 0; i--) {
+				if (i < Level) StrBuf.append('.');
+				StrBuf.append(get(size() - i));
+			}
+			return StrBuf.toString();
+		}
+		
+	}
+	
+	public ObjectTrap(Class<?> c) {
+		this(c, c.getPackage());
+	}
+	
+	public ObjectTrap(Class<?> c, Package pkg) {
+		this(c, pkg.getName());
+	}
+	
+	public ObjectTrap(Class<?> c, String pkgname) {
+		this(c, pkgname, c.getClassLoader());
+	}
+	
+	public ObjectTrap(Class<?> c, String pkgname, ClassLoader loader) {
+		Log = new GroupLogger(LogGroup + String.format(".%s", c.getSimpleName())); //$NON-NLS-1$
+		ObjClass = c;
+		
+		ClassDict = new SuffixClassDictionary(pkgname, loader);
+		for (ISuffixClassSolver csolver : DirectSuffixClassSolver.BaseClasses)
+			ClassDict.Add(csolver);
+		try {
+			for (String cname : new PackageClassIterable(pkgname, loader))
+				ClassDict.Add(cname);
+		} catch (IOException e) {
+			Misc.CascadeThrow(e);
+		}
+	}
+	
+	ITask.TaskRun Watcher = null;
+	
+	public static interface ITrapConfigState {
+		
+		void Configured(int ForkCount);
+		
+	}
+	
+	synchronized public void WatchConfig(String WatchFileName, int PollInterval,
+			ITrapConfigState notifier) {
+		if (Watcher != null) {
+			if (WatchFileName != null)
+				Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_DEFINED")); //$NON-NLS-1$
+			try {
+				Watcher.Stop(-1);
+			} catch (InterruptedException e) {
+				Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_STOP_ERROR")); //$NON-NLS-1$
+			}
+			Watcher = null;
+		} else {
+			if (WatchFileName == null) {
+				Log.Warn(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_UNDEFINED")); //$NON-NLS-1$
+				return;
+			}
+			
+			Poller ConfigPoller = new Poller(Log.GroupName()) {
+				
+				ITimeStamp ConfigTS = new ITimeStamp.Impl(0);
+				
+				@Override
+				protected boolean Poll() {
+					DataFile TapConfig = new DataFile(Log.GroupName(), WatchFileName);
+					ITimeStamp TapTS = TapConfig.lastModified();
+					if (!TapTS.equals(ConfigTS)) {
+						Log.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
+								WatchFileName, TapTS);
+						try {
+							ConfigTS = TapTS;
+							DataMap TapDesc = new DataMap(TapConfig);
+							TapDesc.SetEnvSubstitution(false);
+							Update(TapDesc);
+							Log.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), Count()); //$NON-NLS-1$
+							notifier.Configured(Count());
+						} catch (Throwable e) {
+							Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
+						}
+					}
+					return true;
+				}
+				
+			};
+			
+			try {
+				ConfigPoller
+						.setConfiguration(String.format("%s=%d", Poller.ConfigData.Mutable.CONFIG_TIMERES, //$NON-NLS-1$
+								TimeUnit.SEC.Convert(PollInterval, TimeUnit.MSEC)), ""); //$NON-NLS-1$
+			} catch (Throwable e) {
+				Misc.CascadeThrow(e);
+			}
+			
+			Watcher = new DaemonRunner(ConfigPoller);
+			try {
+				Watcher.Start(-1);
+			} catch (InterruptedException e) {
+				Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
+				while (!Watcher.tellState().hasTerminated()) {
+					try {
+						Watcher.Stop(-1);
+					} catch (InterruptedException e1) {
+						Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
+					}
+				}
+				Watcher = null;
+				Misc.CascadeThrow(e);
+			}
+		}
+	}
+	
+	public static interface ITrapNotifiable {
+		
+		void Trapped(Object obj, IFork f);
+		
+	}
+	
+	public void Flow(Object obj, ITrapNotifiable notifier) {
+		List<IFork> InstTrap = Trap;
+		if (InstTrap == null) return;
+		
+		int FIP = 0;
+		while (FIP < InstTrap.size()) {
+			IFork F = InstTrap.get(FIP);
+			int FNext = F.Next(F.Stab(obj));
+			
+			if (FNext <= 0) {
+				if (FNext == 0) notifier.Trapped(obj, F);
+				break;
+			}
+			FIP += FNext;
+		}
+	}
+	
+	public static final char SYM_CGROUP = '$';
+	
+	public static final char SYM_ASCLASS = '?';
+	public static final char SYM_ASTYPE = '!';
+	
+	public static final char SYM_FIELD = '@';
+	public static final char SYM_GETTER = '>';
+	
+	public static final char SYM_SCOPES = '+';
+	public static final char SYM_SCOPEOP = ':';
+	
+	public static final Pattern DEM_CGROUP = Pattern.compile(String.format("\\%c", SYM_CGROUP)); //$NON-NLS-1$
+	public static final Pattern DEM_SCOPEOP = Pattern.compile(String.valueOf(SYM_SCOPEOP));
+	public static final Pattern DEM_SCOPES = Pattern.compile(String.format("\\%c", SYM_SCOPES)); //$NON-NLS-1$
+	public static final Pattern DEM_ASCLASS =
+			Pattern.compile(String.format("[%c%c]", SYM_FIELD, SYM_GETTER)); //$NON-NLS-1$
+			
+	protected CanonicalCacheMap<String, IScope> ScopePathCache =
+			new CanonicalCacheMap.Classic<>("OTap-ScopePath");
+			
+	protected IScope CreateScopePath(String ScopePath) {
+		return ScopePathCache.Query(ScopePath, scopepath -> {
+			IScope Scope = null;
+			Class<?> BaseClass = ObjClass;
+			CascadeScope CScope = new CascadeScope();
+			for (String Desc : DEM_SCOPES.split(scopepath)) {
+				Scope = CreateScope(Desc, BaseClass);
+				CScope.Cascade(Scope);
+				BaseClass = Scope.Type();
+			}
+			return (CScope.Size() > 1)? CScope : Scope;
+		});
+	}
+	
+	protected static class ScopeContext {
+		
+		public final String ScopeDesc;
+		public final Class<?> BaseClass;
+		
+		public ScopeContext(String ScopeDesc, Class<?> BaseClass) {
+			this.ScopeDesc = ScopeDesc;
+			this.BaseClass = BaseClass;
+		}
+		
+		@Override
+		public int hashCode() {
+			return BaseClass.hashCode() ^ ScopeDesc.hashCode();
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) return true;
+			ScopeContext sobj = (ScopeContext) obj;
+			return BaseClass.equals(sobj.BaseClass) && ScopeDesc.equals(sobj.ScopeDesc);
+		}
+		
+	}
+	
+	protected CanonicalCacheMap<ScopeContext, IScope> ScopeCache =
+			new CanonicalCacheMap.Classic<>("OTap-Scope");
+			
+	protected IScope CreateScope(String ScopeDesc, Class<?> BaseClass) {
+		return ScopeCache.Query(new ScopeContext(ScopeDesc, BaseClass), Key -> {
+			String cname = null;
+			if (Key.ScopeDesc.charAt(0) == SYM_ASTYPE) {
+				if (Key.ScopeDesc.length() != 2)
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_TYPE_SCOPE_DESC"), Key.ScopeDesc); //$NON-NLS-1$
+				return new TypeCastScope(Key.ScopeDesc.charAt(1));
+			}
+			
+			String Desc;
+			if (Key.ScopeDesc.charAt(0) == SYM_ASCLASS) {
+				String[] token = DEM_ASCLASS.split(Key.ScopeDesc);
+				if (token.length > 2)
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_SCOPE_DESC"), Key.ScopeDesc); //$NON-NLS-1$
+					
+				cname = token[0].substring(1);
+				Desc = Key.ScopeDesc.substring(token[0].length());
+			} else
+				Desc = Key.ScopeDesc;
+				
+			switch (Desc.charAt(0)) {
+				case SYM_FIELD:
+					return new FieldScope(Key.BaseClass, cname, Desc.substring(1));
+				case SYM_GETTER:
+					return new GetterScope(Key.BaseClass, cname, Desc.substring(1));
+				default:
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_SCOPE_MEMBER"), Desc); //$NON-NLS-1$
+			}
+			return null;
+		});
+	}
+	
+	public void Update(DataMap config) {
+		List<IFork> InstTrap = new ArrayList<>();
+		Map<String, Collection<IFork>> ForkGroups = new HashMap<>();
+		Log.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_START")); //$NON-NLS-1$
+		for (String name : new TreeSet<>(config.keySet())) {
+			String[] keytoks = DEM_CGROUP.split(name, 2);
+			String Group = keytoks.length > 1? keytoks[0] : null;
+			String[] payload = DEM_SCOPEOP.split(config.getText(name).trim(), 2);
+			if (payload.length < 2) Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_FORK_DESC"), //$NON-NLS-1$
+					name, config.getText(name));
+					
+			try {
+				IScope Scope = CreateScopePath(payload[0]);
+				IFork F = new Fork(name, Scope, payload[1]);
+				if (Group != null) {
+					if (!ForkGroups.containsKey(Group)) ForkGroups.put(Group, new Stack<>());
+					Collection<IFork> FG = ForkGroups.get(Group);
+					FG.add(F);
+				} else {
+					Log.Config(":%s", F); //$NON-NLS-1$
+					InstTrap.add(F);
+				}
+			} catch (Throwable e) {
+				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.FORK_GENERAL_CREATE_FAILURE"), //$NON-NLS-1$
+						name);
+			}
+		}
+		for (Collection<IFork> FG : ForkGroups.values()) {
+			int GIdx = FG.size();
+			for (IFork F : FG) {
+				Fork GF = (Fork) F;
+				GF.MatchNext = GIdx > 1? 1 : 0;
+				GF.UnmatchNext = GIdx > 1? GIdx : 1;
+				Log.Config(Messages.Localize("Debugging.ObjectTrap.FORK_GROUP_LABEL"), GF); //$NON-NLS-1$
+				InstTrap.add(GF);
+				GIdx--;
+			}
+		}
+		Log.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_FINISH"), //$NON-NLS-1$
+				InstTrap.size(), ForkGroups.size());
+		Trap = InstTrap.isEmpty()? null : InstTrap;
+	}
+	
+	public int Count() {
+		List<IFork> InstTrap = Trap;
+		if (InstTrap == null) return 0;
+		
+		return InstTrap.size();
+	}
+	
+	public static abstract class ForDummies
+			implements AutoCloseable, ITrapNotifiable, ITrapConfigState {
+			
+		public static final int DEF_POLLINTERVAL = 5;
+		
+		protected final ObjectTrap TheTrap;
+		
+		public ForDummies(Class<?> c, String ConfigLogName) {
+			this(new ObjectTrap(c), ConfigLogName);
+		}
+		
+		public ForDummies(Class<?> c, Package pkg, String ConfFileName) {
+			this(new ObjectTrap(c, pkg), ConfFileName);
+		}
+		
+		public ForDummies(Class<?> c, String pkgname, String ConfFileName) {
+			this(new ObjectTrap(c, pkgname), ConfFileName);
+		}
+		
+		public ForDummies(Class<?> c, String pkgname, ClassLoader loader, String ConfFileName) {
+			this(new ObjectTrap(c, pkgname, loader), ConfFileName);
+		}
+		
+		protected ForDummies(ObjectTrap Trap, String ConfFileName) {
+			this(Trap, ConfFileName, DEF_POLLINTERVAL);
+		}
+		
+		protected ForDummies(ObjectTrap Trap, String ConfFileName, int PollInterval) {
+			TheTrap = Trap;
+			Trap.WatchConfig(ConfFileName + ".config", PollInterval, this); //$NON-NLS-1$
+		}
+		
+		@Override
+		public void close() {
+			TheTrap.WatchConfig(null, 0, null);
+		}
+		
+		public void Flow(Object obj) {
+			TheTrap.Flow(obj, this);
+		}
+		
+	}
+	
+	public static class EasyLogger extends ForDummies {
+		
+		protected final String LogGroupName;
+		protected GroupLogger TrapLogger = null;
+		protected Handler LogHandler = null;
+		
+		public EasyLogger(Class<?> c, String ConfigLogName) {
+			this(new ObjectTrap(c), ConfigLogName);
+		}
+		
+		public EasyLogger(Class<?> c, Package pkg, String ConfFileName) {
+			this(new ObjectTrap(c, pkg), ConfFileName);
+		}
+		
+		public EasyLogger(Class<?> c, String pkgname, String ConfFileName) {
+			this(new ObjectTrap(c, pkgname), ConfFileName);
+		}
+		
+		public EasyLogger(Class<?> c, String pkgname, ClassLoader loader, String ConfFileName) {
+			this(new ObjectTrap(c, pkgname, loader), ConfFileName);
+		}
+		
+		protected EasyLogger(ObjectTrap Trap, String ConfFileName) {
+			this(Trap, ConfFileName, DEF_POLLINTERVAL);
+		}
+		
+		protected EasyLogger(ObjectTrap Trap, String ConfFileName, int PollInterval) {
+			super(Trap, ConfFileName, PollInterval);
+			LogGroupName = ConfFileName;
+		}
+		
+		@Override
+		public void close() {
+			super.close();
+			StopLogging();
+		}
+		
+		synchronized public void StopLogging() {
+			if (TrapLogger != null) {
+				TrapLogger.setHandler(null, false);
+				LogHandler.close();
+				LogHandler = null;
+				TrapLogger = null;
+			}
+		}
+		
+		@Override
+		public void Configured(int ForkCount) {
+			if (ForkCount > 0) {
+				if (TrapLogger == null) {
+					TrapLogger = new GroupLogger(LogGroupName);
+					TrapLogger.setLevel(Level.INFO);
+					Support.GroupLogFile LogGroupFile = new Support.GroupLogFile(LogGroupName + ".log", //$NON-NLS-1$
+							EnumSet.of(Support.GroupLogFile.Feature.Append));
+					LogHandler = DebugLog.createFileHandler(LogGroupFile, TrapLogger.GroupName());
+					TrapLogger.setHandler(LogHandler, false);
+					LogFormatter.ConfigHandler.SendConfigurationMsg(TrapLogger, //
+							SlimFormatter.CONFIG_PFX + SlimFormatter.CONFIG_GROUPWIDTH, "0"); //$NON-NLS-1$
+					LogFormatter.ConfigHandler.SendConfigurationMsg(TrapLogger, //
+							SlimFormatter.CONFIG_PFX + SlimFormatter.CONFIG_METHODWIDTH, "0"); //$NON-NLS-1$
+				}
+				TrapLogger.Warn(Messages.Localize("Debugging.ObjectTrap.LOG_BANNER_NEW_TRAP"), //$NON-NLS-1$
+						ForkCount);
+			} else {
+				if (TrapLogger != null)
+					TrapLogger.Warn(Messages.Localize("Debugging.ObjectTrap.LOG_BANNER_NO_TRAP")); //$NON-NLS-1$
+				StopLogging();
+			}
+		}
+		
+		@Override
+		public void Trapped(Object obj, IFork f) {
+			TrapLogger.Info(Messages.Localize("Debugging.ObjectTrap.LOG_PREFIX"), f.Name(), obj); //$NON-NLS-1$
+		}
+		
+	}
+	
+}

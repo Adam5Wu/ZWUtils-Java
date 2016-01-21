@@ -1,0 +1,27 @@
+# Usage: Make a copy of this file, and remove the '.default' extension
+#        You only need to define the value if you want to change it
+
+#DebugLog.LogLevel = CONFIG
+#DebugLog.Console  = True
+#DebugLog.File     =
+#DebugLog.StdErr   = True
+#DebugLog.StdOut   = False
+#DebugLog.Daemon   = False
+#DebugLog.CapRoot  = True
+
+# Zabbix log integration (default disabled)
+#DebugLog.ZabbixScope = (null)
+# Note that, function is enabled as long as DebugLog.ZabbixScope is defined (even if empty)  
+
+# Specifying log level for individual logging group
+#DebugLog.LevelOf.(Group) = (Level)
+
+# Specifying separate log file for each logging group
+# Note 1: Append '$' (no quotes) to the file name to enable special logging features
+#         '~' Forward log message to higher level (set if special logging feature not enabled)
+#         '+' Append to log file (default overwrite)
+#         '@' Perform a daily rotation of log file, with date as extension (default no rotation)
+#         '#' GZip rotated log file, with 'gz' as extension (default no compression)
+# Note 2: Log redirection does not work for LogFormatters, sine they are attached to individual logging target
+# Note 3: Per group file logging is not handled by the daemon thread, and may result in performance penalties
+#DebugLog.FileOf.(Group)  = (Log File)[$[~+@#]]

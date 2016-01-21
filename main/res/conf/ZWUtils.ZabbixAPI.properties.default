@@ -1,0 +1,19 @@
+# Support not implemented, do not change
+#ZabbixAPI.SecureHTTP = false
+
+# Change to match your configurations
+#ZabbixAPI.ServerAddr = 192.168.58.129
+#ZabbixAPI.APIPort = 80
+
+# Do not change unless necessary
+#ZabbixAPI.ReportPort = 10051;
+
+# Change to match your configurations
+#ZabbixAPI.UserName = ZWUtils
+#ZabbixAPI.Password = ZWUtilsLogger
+
+# Change to match your configurations
+#ZabbixAPI.RPCPath = /api_jsonrpc.php
+
+# Do not change unless necessary
+#ZabbixAPI.NetTimeout = (time in seconds, default: 10; range 3-60)

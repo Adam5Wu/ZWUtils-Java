@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE project>
+<project default="build" name="Create Library Jar for ZWUtils">
+	<presetdef name="javac.release">
+		<javac includeantruntime="false" debug="true" debuglevel="lines,vars,source" />
+	</presetdef>
+	<property name="LibPrefix" value="ZWUtils-" />
+	<target name="init">
+		<property name="Src" value="main/src/java" />
+		<property name="Bin" value="bin" />
+		<property name="Lib" value="lib" />
+		<property name="Res" value="main/res" />
+	</target>
+	<target name="clean" depends="init">
+		<deltree dir="${Bin}" />
+	</target>
+	<target name="prepare" depends="init">
+		<mkdir dir="${Bin}" />
+	</target>
+	<target name="compile" depends="prepare">
+		<path id="binlibs">
+			<fileset dir="${Lib}" erroronmissingdir="false">
+				<include name="*.jar" />
+			</fileset>
+		</path>
+		<javac.release srcdir="${Src}" destdir="${Bin}">
+			<classpath>
+				<path refid="binlibs" />
+			</classpath>
+		</javac.release>
+	</target>
+
+	<target name="build" depends="compile">
+		<tstamp>
+			<format property="YMDHM" pattern="yyyyMMdd.HHmm" timezone="UTC" />
+		</tstamp>
+		<condition property="LibName" value="${LibPrefix}${LibVer}"
+			else="${LibPrefix}${YMDHM}">
+			<isset property="LibVer" />
+		</condition>
+		<jar destfile="${LibName}.jar" filesetmanifest="mergewithoutmain">
+			<fileset dir="${Bin}" />
+			<fileset dir="${Src}" includes="**/*.java, **/*.properties" />
+			<fileset dir="${Res}" erroronmissingdir="false" />
+		</jar>
+	</target>
+
+</project>
