@@ -15,5 +15,8 @@ I will be actively maintaining this repository for the forseeable future. :D
 # Acknowledgement
 I am grateful for NEC Laboratories America, Inc., for granting open source release of this library.
 
+# License
+BSD 3-clause New License
+
 # How to Use
 (Coming soon in wiki)
