@@ -56,7 +56,6 @@ import sun.misc.Signal;
  * @version 0.1 - May. 2015: Initial implementation
  * @version 0.1 - Jan. 20 2016: Initial public release
  */
-@SuppressWarnings("restriction")
 public class SignalEvent extends Poller implements ITask.TaskDependency {
 	
 	public static final String LogGroup = ProcStats.class.getSimpleName();

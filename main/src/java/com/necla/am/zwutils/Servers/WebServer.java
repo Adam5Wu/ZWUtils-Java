@@ -92,7 +92,6 @@ import com.sun.net.httpserver.HttpsServer;
  * @version 0.3 - Dec. 2015: Refactored from supplementing project
  * @version 0.3 - Jan. 20 2016: Initial public release
  */
-@SuppressWarnings("restriction")
 public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	public static final String LogGroup = "ZWUtils.Servers.Web";

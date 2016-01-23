@@ -45,7 +45,6 @@ import sun.misc.SignalHandler;
  * @version 0.1 - Oct. 2014: Initial implementation
  * @version 0.1 - Jan. 20 2016: Initial public release
  */
-@SuppressWarnings("restriction")
 public class SignalHelper implements SignalHandler {
 	
 	public static final String LogGroup = "ZWUtils.SignalHelper";
