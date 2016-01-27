@@ -29,7 +29,7 @@
  * // @formatter:on
  */
 
-package com.necla.am.zwutils.Debugging;
+package com.necla.am.zwutils.Reflection;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,9 +39,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.logging.Level;
 
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary.IClassSolver;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.i18n.Messages;
 
@@ -54,18 +55,20 @@ import com.necla.am.zwutils.i18n.Messages;
  * @version 0.2 - Oct. 2015: Various bug fix
  * @version 0.25 - Dec. 2015: Adopt resource bundle based localization
  * @version 0.25 - Jan. 20 2016: Initial public release
+ * @version 0.30 - Jan. 26 2016: Moved from Debugging package to Reflection package; Refactored out
+ *          IClassSolver interface
  */
 public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	
 	public static final String LogGroup = "ZWUtils.Debugging.SCD"; //$NON-NLS-1$
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	protected Map<String, Object> RAWDict;
 	protected Map<String, IClassSolver> RevDict;
 	protected final ClassLoader Loader;
 	
 	public SuffixClassDictionary(String name, ClassLoader loader) {
-		Log = new GroupLogger(LogGroup + String.format(".%s", name)); //$NON-NLS-1$
+		ILog = new GroupLogger.PerInst(LogGroup + String.format(".%s", name)); //$NON-NLS-1$
 		RAWDict = new HashMap<>();
 		RevDict = new HashMap<>();
 		Loader = loader;
@@ -75,46 +78,9 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 		this(name, ClassLoader.getSystemClassLoader());
 	}
 	
-	public interface IClassSolver {
-		
-		String fullName();
-		
-		Class<?> toClass();
-		
-	}
-	
 	public interface ISuffixClassSolver extends IClassSolver {
 		
 		void notUnique();
-		
-	}
-	
-	public static class DirectClassSolver implements IClassSolver {
-		
-		protected final Class<?> C;
-		
-		public DirectClassSolver(Class<?> c) {
-			C = c;
-		}
-		
-		public DirectClassSolver(String fullName) throws ClassNotFoundException {
-			this(Class.forName(fullName));
-		}
-		
-		@Override
-		public String fullName() {
-			return C.getName();
-		}
-		
-		@Override
-		public Class<?> toClass() {
-			return C;
-		}
-		
-		@Override
-		public String toString() {
-			return C.getName();
-		}
 		
 	}
 	
@@ -266,9 +232,12 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	
 	public void Add(String cname) {
 		IClassSolver Solver = Lookup(cname);
-		if (Solver != null)
-			Misc.FAIL(Messages.Localize("Debugging.SuffixClassDictionary.CLASS_KNOWN"), Solver, cname); //$NON-NLS-1$
-			
+		if (Solver != null) {
+			if (ILog.isLoggable(Level.FINE))
+				ILog.Warn(("Debugging.SuffixClassDictionary.CLASS_KNOWN"), Solver, cname); //$NON-NLS-1$
+			return;
+		}
+		
 		SuffixClassSolver NewSolver = new SuffixClassSolver(cname);
 		RevDict.put(cname, NewSolver);
 		DictIn(NewSolver);

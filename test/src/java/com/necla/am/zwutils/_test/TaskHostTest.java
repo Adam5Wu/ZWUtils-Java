@@ -35,13 +35,14 @@ import java.io.File;
 
 import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Tasks.NotifiableTask;
 import com.necla.am.zwutils.Tasks.TaskHost;
 
 
 public class TaskHostTest {
 	
-	protected static final GroupLogger Log = new GroupLogger("Main");
+	protected static final IGroupLogger CLog = new GroupLogger("Main");
 	
 	public static class TestTask extends NotifiableTask {
 		
@@ -53,10 +54,10 @@ public class TaskHostTest {
 		protected void doTask() {
 			int i = 0;
 			while (!tellState().isTerminating()) {
-				Log.Info("%s.%d", TestTask.class.getSimpleName(), i++);
+				ILog.Info("%s.%d", TestTask.class.getSimpleName(), i++);
 				Sleep(1000);
 			}
-			Log.Info("Terminating...");
+			ILog.Info("Terminating...");
 		}
 		
 	}

@@ -147,12 +147,12 @@ public class DaemonRunner extends TaskRunner {
 	private Thread GetCleanupThread() {
 		return new Thread(() -> {
 			if (Task.tellState().isRunning()) {
-				Log.Fine("Terminating at program exit...");
+				ILog.Fine("Terminating at program exit...");
 				Task.Terminate(-1);
 				try {
 					Join(-1);
 				} catch (Throwable e) {
-					Log.logExcept(e, "Cleanup failed");
+					ILog.logExcept(e, "Cleanup failed");
 					// Eat exception
 				}
 			}
@@ -163,7 +163,7 @@ public class DaemonRunner extends TaskRunner {
 	public boolean Start(int Timeout) throws InterruptedException {
 		if (CleanupThread != null) {
 			Runtime.getRuntime().addShutdownHook(CleanupThread);
-			Log.Fine("Registered program exit cleanup");
+			ILog.Fine("Registered program exit cleanup");
 		}
 		
 		return super.Start(Timeout);

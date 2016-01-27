@@ -58,6 +58,7 @@ import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Logging.Utils.Handlers.Zabbix.api.ZabbixAPI;
 import com.necla.am.zwutils.Logging.Utils.Handlers.Zabbix.api.ZabbixReport;
 import com.necla.am.zwutils.Logging.Utils.Handlers.Zabbix.api.ZabbixRequest;
@@ -80,7 +81,7 @@ import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
 public class ZabbixHandler extends Handler implements AutoCloseable {
 	
 	public static final String LogGroup = "ZWUtils.Logging.Zabbix.Handler";
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	public static class ConfigData {
 		
@@ -438,7 +439,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			public final String ProblemSubject;
 			public final String ProblemBody;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				// Copy all fields from Source
@@ -487,7 +488,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			try {
 				ZAPI = new ZabbixAPI.Impl();
 			} catch (Throwable e) {
-				ClassLog.Warn("Unable to initialize Zabbix API - %s", e);
+				CLog.Warn("Unable to initialize Zabbix API - %s", e);
 			}
 		}
 		
@@ -509,14 +510,13 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					// Cannot create host group by ourselves
 					// (unless we are super-admin, not likely, and not safe!)
 					
-					ClassLog.Error("Please contact Zabbix administrator to create host group '%s'", Project);
-					ClassLog.Error(
-							"And / or please give user '%s' read/write access right to this host group",
+					CLog.Error("Please contact Zabbix administrator to create host group '%s'", Project);
+					CLog.Error("And / or please give user '%s' read/write access right to this host group",
 							ZAPI.user());
 					Misc.FAIL("Missing project (host group) '%s'", Project);
 				} else {
 					HostGroupID = HostGroups.get(0).getAsJsonObject().get("groupid").getAsString();
-					ClassLog.Config("Found project (host group) '%s' with ID #%s", Project, HostGroupID);
+					CLog.Config("Found project (host group) '%s' with ID #%s", Project, HostGroupID);
 				}
 				
 				ZabbixRequest HostQuery = ZabbixRequest.Factory.HostInfo(Component);
@@ -535,7 +535,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							Project, Result.get("error"));
 					JsonObject HCreate = Result.get("result").getAsJsonObject();
 					HostID = HCreate.get("hostids").getAsJsonArray().get(0).getAsString();
-					ClassLog.Info("Created component (host) '%s' with ID #%s", Component, HostID);
+					CLog.Info("Created component (host) '%s' with ID #%s", Component, HostID);
 				} else {
 					JsonObject Host = Hosts.get(0).getAsJsonObject();
 					// Host exists, check if it is in the right group
@@ -547,11 +547,11 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							RHostGroups.get(0).getAsJsonObject().get("name").getAsString());
 					// Everything check up, we are good to go!
 					HostID = Host.get("hostid").getAsString();
-					ClassLog.Config("Found component (host) '%s' with ID #%s", Component, HostID);
+					CLog.Config("Found component (host) '%s' with ID #%s", Component, HostID);
 				}
 			}
 		} catch (Throwable e) {
-			ClassLog.Warn("Unable to initialize Zabbix logging handler - %s", e);
+			CLog.Warn("Unable to initialize Zabbix logging handler - %s", e);
 			ZAPI = null;
 		}
 		
@@ -559,7 +559,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		this.HostGroupID = HostGroupID;
 		this.HostID = HostID;
 		
-		ClassLog.Fine("Starting Zabbix report daemon thread...");
+		CLog.Fine("Starting Zabbix report daemon thread...");
 		DaemonTask = new Daemon(LogGroup + '.' + Daemon.class.getSimpleName());
 		ReportDaemon = DaemonRunner.LowPriorityTaskDaemon(DaemonTask);
 		try {
@@ -611,14 +611,13 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							// Cannot create media type by ourselves
 							// (unless we are super-admin, not likely, and not safe!)
 							
-							ClassLog.Error(
+							CLog.Error(
 									"Please contact Zabbix administrator to create and configure media type '%s'",
 									MediaTypeName);
 							Misc.FAIL("Missing email media type '%s'", MediaTypeName);
 						} else {
 							MediaTypeID = MediaTypes.get(0).getAsJsonObject().get("mediatypeid").getAsString();
-							ClassLog.Config("Found email media type '%s' with ID #%s", MediaTypeName,
-									MediaTypeID);
+							CLog.Config("Found email media type '%s' with ID #%s", MediaTypeName, MediaTypeID);
 						}
 					}
 					
@@ -663,8 +662,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 								for (Map.Entry<String, ConfigData.ResponsiblePerson> xRP : xRPs.entrySet()) {
 									ConfigData.ResponsiblePerson RP = xRP.getValue();
 									if (RP.Email.equalsIgnoreCase(UMEmail)) {
-										ClassLog.Config("Found responsible person (user media) '%s' "
-																		+ "with Severity %d [%s], ID #%s, %s", //
+										CLog.Config("Found responsible person (user media) '%s' "
+																+ "with Severity %d [%s], ID #%s, %s", //
 												UMEmail, UMSeverity, ConfigData.SeveritySet.ToString
 														.parseOrFail(new ConfigData.SeveritySet(UMSeverity)),
 												UMID, UMState);
@@ -678,7 +677,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							JsonArray NewUserMedias = new JsonArray();
 							for (Map.Entry<String, ConfigData.ResponsiblePerson> xRP : xRPs.entrySet()) {
 								ConfigData.ResponsiblePerson RP = xRP.getValue();
-								ClassLog.Info("Creating responsible person (user media) '%s' with Severity %d [%s]",
+								CLog.Info("Creating responsible person (user media) '%s' with Severity %d [%s]",
 										RP.Email, RP.Severities.Value(),
 										ConfigData.SeveritySet.ToString.parseOrFail(RP.Severities));
 								JsonObject NewUserMedia = new JsonObject();
@@ -694,7 +693,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							JsonObject UMAddRet = ZAPI.call(UMAddQuery);
 							if (!UMAddRet.has("result"))
 								Misc.FAIL("Unable to create responsible persons (user medias) - %s", UMAddRet);
-							ClassLog.Info("Created responsible persons (user medias) with IDs %s",
+							CLog.Info("Created responsible persons (user medias) with IDs %s",
 									UMAddRet.get("result").getAsJsonObject().get("mediaids"));
 						}
 					}
@@ -754,23 +753,23 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 								Misc.FAIL("Unable to create notification action - %s", ActionCreateRet);
 							JsonObject ActionInfo = ActionCreateRet.get("result").getAsJsonObject();
 							ActionID = ActionInfo.get("actionids").getAsJsonArray().get(0).getAsString();
-							ClassLog.Info("Created notification action with IDs %s", ActionID);
+							CLog.Info("Created notification action with IDs %s", ActionID);
 						} else {
 							JsonObject ActionInfo = Actions.get(0).getAsJsonObject();
 							ActionID = ActionInfo.get("actionid").getAsString();
 							String ActionState =
 									(ActionInfo.get("status").getAsInt() == 0)? "Enabled" : "Disabled";
-							ClassLog.Config("Found notification action '%s' with ID #%s, %s", ActionName,
-									ActionID, ActionState);
+							CLog.Config("Found notification action '%s' with ID #%s, %s", ActionName, ActionID,
+									ActionState);
 						}
 					}
 				} catch (Throwable e) {
-					ClassLog.Warn("Notification configuration error detected - %s", e);
-					ClassLog.Warn("You may not receive notification for your triggers");
+					CLog.Warn("Notification configuration error detected - %s", e);
+					CLog.Warn("You may not receive notification for your triggers");
 				}
 			} else if (!Config.Triggers.isEmpty()) {
-				ClassLog.Warn("No responsible personnel defined");
-				ClassLog.Warn("You may not receive notification for your triggers");
+				CLog.Warn("No responsible personnel defined");
+				CLog.Warn("You may not receive notification for your triggers");
 			}
 		}
 	}
@@ -801,10 +800,10 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 						Application, Result.get("error"));
 				JsonObject ACreate = Result.get("result").getAsJsonObject();
 				Ret = ACreate.get("applicationids").getAsJsonArray().get(0).getAsString();
-				ClassLog.Info("Created log group (application) '%s' with ID #%s", Application, Ret);
+				CLog.Info("Created log group (application) '%s' with ID #%s", Application, Ret);
 			} else {
 				Ret = Apps.get(0).getAsJsonObject().get("applicationid").getAsString();
-				ClassLog.Config("Found log group (application) '%s' with ID #%s", Application, Ret);
+				CLog.Config("Found log group (application) '%s' with ID #%s", Application, Ret);
 			}
 			AppMap.put(Application, Ret);
 		}
@@ -903,11 +902,11 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					}
 					StringifySupport.put(Type, null);
 				} catch (Throwable e) {
-					ClassLog.Warn("Unable to locate stringification implementation for class '%s'", Type);
+					CLog.Warn("Unable to locate stringification implementation for class '%s'", Type);
 					StringifySupport.put(Type, null);
 				}
 			}
-			ClassLog.Warn("No custom stringification implementation for class '%s'", Type);
+			CLog.Warn("No custom stringification implementation for class '%s'", Type);
 		}
 	}
 	
@@ -934,7 +933,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				
 				String ItemID = ICreate.get("itemids").getAsJsonArray().get(0).getAsString();
 				iRet = TItemInfo.Create(ItemID, Type, VType);
-				ClassLog.Info("Created metric (item) '%s' with ID #%s", AppKey, iRet.ID);
+				CLog.Info("Created metric (item) '%s' with ID #%s", AppKey, iRet.ID);
 			} else {
 				// Item exists, validate type, value_type
 				JsonObject ItemInfo = Items.get(0).getAsJsonObject();
@@ -949,7 +948,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				// Everything check up, we are good to go!
 				iRet = TItemInfo.Create(ItemInfo.get("itemid").getAsString(), Type, VType);
 				String ItemName = ItemInfo.get("name").getAsString();
-				ClassLog.Config("Found metric (item) '%s'[%s] with ID #%s", AppKey, ItemName, iRet.ID);
+				CLog.Config("Found metric (item) '%s'[%s] with ID #%s", AppKey, ItemName, iRet.ID);
 			}
 			ItemMap.put(AppKey, iRet);
 		} else {
@@ -965,7 +964,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 	
 	public void DoLog(String LoggerName, Object[] LogRecords) {
 		if (ZAPI == null) {
-			ClassLog.Warn("Zabbix API initialization failed, data not logged!");
+			CLog.Warn("Zabbix API initialization failed, data not logged!");
 			return;
 		}
 		
@@ -998,8 +997,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				}
 			}
 		} catch (Throwable e) {
-			ClassLog.Warn("Report preparation failed - %s", e.getMessage());
-			if (e.getCause() != null) ClassLog.logExcept(e.getCause());
+			CLog.Warn("Report preparation failed - %s", e.getMessage());
+			if (e.getCause() != null) CLog.logExcept(e.getCause());
 			return;
 		}
 		
@@ -1013,14 +1012,14 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 	
 	@Override
 	public void close() {
-		ClassLog.Fine("Flusing Zabbix report daemon queue...");
+		CLog.Fine("Flusing Zabbix report daemon queue...");
 		DaemonTask.Queue.flush();
 		DaemonTask.Queue.close();
 		
 		try {
 			ReportDaemon.Join(-1);
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Zabbix report daemon termination join failed");
+			CLog.logExcept(e, "Zabbix report daemon termination join failed");
 		}
 	}
 	
@@ -1103,7 +1102,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		
 		@Override
 		protected void doTask() {
-			ClassLog.Fine("Zabbix report daemon thread started");
+			CLog.Fine("Zabbix report daemon thread started");
 			while (!tellState().isTerminating() || !Queue.Container.isEmpty()) {
 				ZabbixReport report = Queue.handle();
 				if (report == null) {
@@ -1122,18 +1121,18 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				} else
 					doReport(report);
 			}
-			ClassLog.Fine("Zabbix report daemon thread terminated");
+			CLog.Fine("Zabbix report daemon thread terminated");
 		}
 		
 		protected void doReport(ZabbixReport report) {
 			try {
 				JsonObject Reply = ZAPI.send(report);
 				if (Reply.get("response").getAsString().equals("success"))
-					ClassLog.Fine("Successful report: %s", Reply.get("info").getAsString());
+					CLog.Fine("Successful report: %s", Reply.get("info").getAsString());
 				else
-					ClassLog.Warn("Unsuccessful report: %s", Reply);
+					CLog.Warn("Unsuccessful report: %s", Reply);
 			} catch (Throwable e) {
-				ClassLog.Warn("Failed report - %s", e);
+				CLog.Warn("Failed report - %s", e);
 			}
 		}
 		

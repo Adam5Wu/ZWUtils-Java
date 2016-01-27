@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileFilter;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 
 
 /**
@@ -47,7 +48,7 @@ import com.necla.am.zwutils.Logging.GroupLogger;
 public abstract class BaseFileIterable implements Iterable<File> {
 	
 	public static final String LogGroup = "ZWUtils.FileSystem.Iterable"; //$NON-NLS-1$
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	protected final File BaseDir;
 	public FileFilter Filter;

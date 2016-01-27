@@ -64,19 +64,19 @@ public abstract class NotifiableTask extends RunnableTask implements ITask.TaskN
 		OnTerminate = TaskTerm -> {
 			ITask SenderTask = TaskTerm.GetSender();
 			if (SenderTask != null) {
-				Log.Entry("+Termination request from %s", SenderTask);
+				ILog.Entry("+Termination request from %s", SenderTask);
 			} else {
-				Log.Entry("+Termination request received");
+				ILog.Entry("+Termination request received");
 			}
 			Terminate(0);
-			Log.Exit("*Termination request handled");
+			ILog.Exit("*Termination request handled");
 		};
 		OnWakeup = TaskWake -> {
 			ITask SenderTask = TaskWake.GetSender();
 			if (SenderTask != null) {
-				Log.Fine("Wakeup request from %s", SenderTask);
+				ILog.Fine("Wakeup request from %s", SenderTask);
 			} else {
-				Log.Fine("Wakeup request received");
+				ILog.Fine("Wakeup request received");
 			}
 			Wakeup();
 		};

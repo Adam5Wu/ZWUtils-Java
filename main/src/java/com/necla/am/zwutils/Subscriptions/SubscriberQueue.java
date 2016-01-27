@@ -44,6 +44,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Tasks.MessageCategories;
 
@@ -59,7 +60,7 @@ import com.necla.am.zwutils.Tasks.MessageCategories;
  */
 public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	public final String Name;
 	
 	public final int HighQueueLen;
@@ -72,7 +73,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	protected BlockingDeque<X> RepQueue;
 	
 	public SubscriberQueue(String name, int hql, int bqs) {
-		Log = new GroupLogger(name);
+		ILog = new GroupLogger.PerInst(name);
 		
 		Name = name;
 		HighQueueLen = hql;
@@ -95,7 +96,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		int DiscardCount = BatchQueueLen - Queue.remainingCapacity();
 		DiscardCount = Queue.drainTo(new ArrayList<>(DiscardCount), DiscardCount);
 		DropCount.addAndGet(DiscardCount);
-		Log.Warn("Subscriber '%s' queue overflow, discarded %d items", Name, DiscardCount);
+		ILog.Warn("Subscriber '%s' queue overflow, discarded %d items", Name, DiscardCount);
 	}
 	
 	@Override
@@ -185,7 +186,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	
 	public static class ElasticDemux<X> implements ISubscription<X> {
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		public final String Name;
 		
 		public final int HighQueueLen;
@@ -206,7 +207,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		protected long QueueIndex;
 		
 		public ElasticDemux(String name, int hql, int bqs, Demux<X> Demuxer, LaneEvent<X> LaneInit) {
-			Log = new GroupLogger(name);
+			ILog = new GroupLogger.PerInst(name);
 			
 			Name = name;
 			HighQueueLen = hql;
@@ -249,7 +250,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				SplitMergeNonCritical<X> NonCritical) {
 			Misc.ASSERT(Queues.contains(Lane), "Invalid stream lane '%s'", Lane);
 			
-			Log.Fine("Lane splitting in progress...");
+			ILog.Fine("Lane splitting in progress...");
 			Collection<X> LeftOver = Lane.MultiGet(0);
 			InsertionLock.lock();
 			try {
@@ -269,18 +270,18 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				if (NonCritical.Notify(Lane))
 					LeftOver.forEach(Payload -> Demux.GetLane(Payload).onSubscription(Payload));
 				else
-					Log.Warn("Dropping %d split-residual items", LeftOver.size());
+					ILog.Warn("Dropping %d split-residual items", LeftOver.size());
 			} finally {
 				InsertionLock.unlock();
 			}
-			Log.Fine("Lane splitting finished, re-queued %d entries", LeftOver.size());
+			ILog.Fine("Lane splitting finished, re-queued %d entries", LeftOver.size());
 		}
 		
 		public void LaneMerge(SubscriberQueue<X> Lane, LaneEvent<X> LaneRemove,
 				SplitMergeNonCritical<X> NonCritical) {
 			Misc.ASSERT(Queues.contains(Lane), "Invalid stream lane '%s'", Lane);
 			
-			Log.Fine("Lane merging in progress...");
+			ILog.Fine("Lane merging in progress...");
 			Collection<X> LeftOver = Lane.MultiGet(0);
 			InsertionLock.lock();
 			try {
@@ -298,11 +299,11 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				if (NonCritical.Notify(Lane))
 					LeftOver.forEach(Payload -> Demux.GetLane(Payload).onSubscription(Payload));
 				else
-					Log.Warn("Dropping %d merge-residual items", LeftOver.size());
+					ILog.Warn("Dropping %d merge-residual items", LeftOver.size());
 			} finally {
 				InsertionLock.unlock();
 			}
-			Log.Fine("Lane merging finished, re-queued %d entries", LeftOver.size());
+			ILog.Fine("Lane merging finished, re-queued %d entries", LeftOver.size());
 		}
 		
 	}

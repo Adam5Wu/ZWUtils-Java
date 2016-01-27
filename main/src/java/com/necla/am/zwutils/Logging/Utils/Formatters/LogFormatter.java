@@ -49,6 +49,7 @@ import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
 
@@ -68,13 +69,13 @@ public abstract class LogFormatter extends Formatter {
 	public static final String LogGroup = "ZWUtils.Logging.Formatter";
 	public static final String LogGroupPFX = "Formatter";
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	public LogFormatter(Handler LogHandler, String LogTargetName) {
 		super();
 		
-		Log = new GroupLogger(LogTargetName + '.' + LogGroupPFX);
-		Log.setHandler(LogHandler, false);
+		ILog = new GroupLogger(LogTargetName + '.' + LogGroupPFX);
+		ILog.setHandler(LogHandler, false);
 	}
 	
 	protected static final String CONFIGMSG_PREFIX = "<<{[##LogConfig##]}>>";
@@ -103,10 +104,10 @@ public abstract class LogFormatter extends Formatter {
 					try {
 						ConfigLogMessage(Pair[0], Pair[1]);
 					} catch (Throwable e) {
-						Log.logExcept(e, "Error setting configuration '%s'", Config);
+						ILog.logExcept(e, "Error setting configuration '%s'", Config);
 					}
 				} else {
-					Log.Warn("Invalid configuration string '%s'", Config);
+					ILog.Warn("Invalid configuration string '%s'", Config);
 				}
 				
 				return "";
@@ -123,7 +124,7 @@ public abstract class LogFormatter extends Formatter {
 	 * Default implementation just ignores the parameters and prints a warning
 	 */
 	public void ConfigLogMessage(String Key, String Value) {
-		Log.Warn("Ignored unknown configuration: %s = %s", Key, Value);
+		ILog.Warn("Ignored unknown configuration: %s = %s", Key, Value);
 	}
 	
 	public static class Delegator extends LogFormatter {
@@ -202,7 +203,7 @@ public abstract class LogFormatter extends Formatter {
 			
 			private final Map<String, String> ConfigStore;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				// Copy all fields from Source
@@ -228,29 +229,29 @@ public abstract class LogFormatter extends Formatter {
 	 */
 	public static class ConfigHandler implements ISubscription.Named<ConfigData.ReadOnly> {
 		
-		protected GroupLogger Logger;
+		protected IGroupLogger ILog;
 		protected final String Name;
 		
-		public ConfigHandler(String Name, GroupLogger logger) {
+		public ConfigHandler(String Name, IGroupLogger Logger) {
 			super();
-			Logger = logger;
+			ILog = Logger;
 			this.Name = Name;
 		}
 		
 		/**
 		 * Send a configuration message to the logger which it will recognizes
 		 */
-		static public void SendConfigurationMsg(GroupLogger Logger, String key, String value) {
+		static public void SendConfigurationMsg(IGroupLogger Logger, String key, String value) {
 			Logger.PushLog(Level.OFF, "%s%s%s%s", CONFIGMSG_PREFIX, key, CONFIGMSG_DELIM, value);
 		}
 		
-		protected void SendConfigurations(GroupLogger Logger, ConfigData.ReadOnly Config) {
+		protected void SendConfigurations(IGroupLogger Logger, ConfigData.ReadOnly Config) {
 			Config.ConfigStore.forEach((K, V) -> SendConfigurationMsg(Logger, K, V));
 		}
 		
 		@Override
 		public void onSubscription(ConfigData.ReadOnly NewPayload) {
-			SendConfigurations(Logger, NewPayload);
+			SendConfigurations(ILog, NewPayload);
 		}
 		
 		@Override
@@ -263,16 +264,16 @@ public abstract class LogFormatter extends Formatter {
 	// Subscriptions are weakly referenced, we need to have strong references to keep them alive
 	protected static Map<String, ConfigHandler> Subscriptions = new HashMap<>();
 	
-	public static void SubscribeConfigChange(String Name, GroupLogger Logger) {
+	public static void SubscribeConfigChange(String Name, IGroupLogger Logger) {
 		ConfigHandler Handler = new ConfigHandler(Name, Logger);
 		Config.RegisterSubscription(Handler);
 		Subscriptions.put(Name, Handler);
 	}
 	
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	static {
-		ClassLog.Entry("+Initializing...");
+		CLog.Entry("+Initializing...");
 		
 		{
 			Container<ConfigData.Mutable, ConfigData.ReadOnly> _Config = null;
@@ -288,6 +289,6 @@ public abstract class LogFormatter extends Formatter {
 			Config = _Config;
 		}
 		
-		ClassLog.Exit("*Initialized");
+		CLog.Exit("*Initialized");
 	}
 }

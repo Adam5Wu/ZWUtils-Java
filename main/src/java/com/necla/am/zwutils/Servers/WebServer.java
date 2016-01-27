@@ -64,14 +64,16 @@ import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManagerFactory;
 
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary;
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary.IClassSolver;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
+import com.necla.am.zwutils.Reflection.IClassSolver;
+import com.necla.am.zwutils.Reflection.IClassSolver.Impl.DirectClassSolver;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
+import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Tasks.ITask;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
 import com.sun.net.httpserver.Headers;
@@ -95,7 +97,7 @@ import com.sun.net.httpserver.HttpsServer;
 public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	public static final String LogGroup = "ZWUtils.Servers.Web";
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	public final GroupLogger.Zabbix ZBXLog;
 	
 	public static class ConfigData extends Poller.ConfigData {
@@ -104,6 +106,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		protected static final String CLSSEARCHPKG_PFX = "Handler.Search.";
 		
 		public static class HandlerConfig {
+			
 			public final Constructor<?> CHandler;
 			public final String ConfigInfo;
 			
@@ -111,81 +114,82 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				CHandler = chandler;
 				ConfigInfo = configinfo;
 			}
-		}
-		
-		/**
-		 * String to group log file record
-		 */
-		public static class StringToHandlerConfig extends Parsers.SimpleStringParse<HandlerConfig> {
 			
-			protected static final Pattern HANDLERCONFIG_DELIM = Pattern.compile(":");
-			
-			protected final SuffixClassDictionary HandlerDict;
-			
-			public StringToHandlerConfig(SuffixClassDictionary handlerDict) {
-				super();
-				HandlerDict = handlerDict;
-			}
-			
-			@Override
-			public HandlerConfig parseOrFail(String From) {
-				if (From == null) {
-					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+			/**
+			 * String to group log file record
+			 */
+			public static class StringToHandlerConfig extends Parsers.SimpleStringParse<HandlerConfig> {
+				
+				protected static final Pattern HANDLERCONFIG_DELIM = Pattern.compile(":");
+				
+				protected final SuffixClassDictionary HandlerDict;
+				
+				public StringToHandlerConfig(SuffixClassDictionary handlerDict) {
+					super();
+					HandlerDict = handlerDict;
 				}
 				
-				String[] Tokens = HANDLERCONFIG_DELIM.split(From.trim(), 2);
-				String ConfigInfo = (Tokens.length > 1? Tokens[1] : null);
-				
-				try {
-					IClassSolver HandlerClsRef;
-					// Try lookup short-hand
-					if (HandlerDict.isKnown(Tokens[0])) {
-						HandlerClsRef = HandlerDict.Get(Tokens[0]);
-						ClassLog.Fine("Handler class: %s (short-hand '%s')", HandlerClsRef.fullName(),
-								Tokens[0]);
-					} else
-						HandlerClsRef = new SuffixClassDictionary.DirectClassSolver(Tokens[0]);
-						
-					Class<?> HandlerCls = HandlerClsRef.toClass();
-					if (!WebHandler.class.isAssignableFrom(HandlerCls))
-						Misc.FAIL("Class '%s' does not descend from %s", HandlerCls.getName(),
-								WebHandler.class.getSimpleName());
-								
-					Constructor<?> WHC = null;
-					try {
-						if (ConfigInfo == null)
-							WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class);
-						else
-							WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
-						WHC.setAccessible(true);
-					} catch (Throwable e) {
-						Misc.CascadeThrow(e, "No appropriate constructor found in class '%s'",
-								HandlerCls.getName());
+				@Override
+				public HandlerConfig parseOrFail(String From) {
+					if (From == null) {
+						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 					}
-					return new HandlerConfig(WHC, ConfigInfo);
-				} catch (Throwable e) {
-					Misc.CascadeThrow(e);
+					
+					String[] Tokens = HANDLERCONFIG_DELIM.split(From.trim(), 2);
+					String ConfigInfo = (Tokens.length > 1? Tokens[1] : null);
+					
+					try {
+						IClassSolver HandlerClsRef;
+						// Try lookup short-hand
+						if (HandlerDict.isKnown(Tokens[0])) {
+							HandlerClsRef = HandlerDict.Get(Tokens[0]);
+							CLog.Fine("Handler class: %s (short-hand '%s')", HandlerClsRef.fullName(), Tokens[0]);
+						} else
+							HandlerClsRef = new DirectClassSolver(Tokens[0]);
+							
+						Class<?> HandlerCls = HandlerClsRef.toClass();
+						if (!WebHandler.class.isAssignableFrom(HandlerCls))
+							Misc.FAIL("Class '%s' does not descend from %s", HandlerCls.getName(),
+									WebHandler.class.getSimpleName());
+									
+						Constructor<?> WHC = null;
+						try {
+							if (ConfigInfo == null)
+								WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class);
+							else
+								WHC =
+										HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
+							WHC.setAccessible(true);
+						} catch (Throwable e) {
+							Misc.CascadeThrow(e, "No appropriate constructor found in class '%s'",
+									HandlerCls.getName());
+						}
+						return new HandlerConfig(WHC, ConfigInfo);
+					} catch (Throwable e) {
+						Misc.CascadeThrow(e);
+					}
+					return null;
 				}
-				return null;
 			}
-		}
-		
-		/**
-		 * String from group log file record
-		 */
-		public static class StringFromHandlerConfig extends Parsers.SimpleParseString<HandlerConfig> {
 			
-			@Override
-			public String parseOrFail(HandlerConfig From) {
-				if (From == null) {
-					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+			/**
+			 * String from group log file record
+			 */
+			public static class StringFromHandlerConfig extends Parsers.SimpleParseString<HandlerConfig> {
+				
+				@Override
+				public String parseOrFail(HandlerConfig From) {
+					if (From == null) {
+						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+					}
+					
+					StringBuilder StrBuf = new StringBuilder();
+					StrBuf.append("Handler: ").append(From.CHandler.getDeclaringClass().getName());
+					
+					if (From.ConfigInfo != null) StrBuf.append("; Config: ").append(From.ConfigInfo);
+					return StrBuf.toString();
 				}
 				
-				StringBuilder StrBuf = new StringBuilder();
-				StrBuf.append("Handler: ").append(From.CHandler.getDeclaringClass().getName());
-				
-				if (From.ConfigInfo != null) StrBuf.append("; Config: ").append(From.ConfigInfo);
-				return StrBuf.toString();
 			}
 			
 		}
@@ -265,26 +269,28 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 								ClassCount++;
 							}
 						}
-						Log.Fine("Loaded %d handler classes from %s:'%s'", ClassCount, SearchKey, pkgname);
+						ILog.Fine("Loaded %d handler classes from %s:'%s'", ClassCount, SearchKey, pkgname);
 					} catch (Throwable e) {
 						Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for package %s:'%s'",
 								SearchKey, pkgname);
 					}
 				}
 				
-				StringToHandlerConfig StringToHandlerConfig = new StringToHandlerConfig(HandlerDict);
-				StringFromHandlerConfig StringFromHandlerConfig = new StringFromHandlerConfig();
-				
+				HandlerConfig.StringToHandlerConfig StringToHandlerConfig =
+						new HandlerConfig.StringToHandlerConfig(HandlerDict);
+				HandlerConfig.StringFromHandlerConfig StringFromHandlerConfig =
+						new HandlerConfig.StringFromHandlerConfig();
+						
 				DataMap HandlerDescs = new DataMap("Handlers", confMap, HANDLER_PREFIX);
 				for (String Context : HandlerDescs.keySet()) {
 					try {
 						Handlers.put(Context,
 								HandlerDescs.getObject(Context, StringToHandlerConfig, StringFromHandlerConfig));
 					} catch (Throwable e) {
-						Log.logExcept(e, "Failed to load handler '%s'", Context);
+						ILog.logExcept(e, "Failed to load handler '%s'", Context);
 					}
 				}
-				Log.Config("Loaded %d / %d handlers", Handlers.size(), HandlerDescs.getDataMap().size());
+				ILog.Config("Loaded %d / %d handlers", Handlers.size(), HandlerDescs.getDataMap().size());
 			}
 			
 			public static final int MAX_PORTNUM = 0xFFFF;
@@ -303,7 +309,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					super.validateFields();
 					
 					if ((AddrStr != null) && !AddrStr.isEmpty()) {
-						Log.Fine("Checking Address...");
+						ILog.Fine("Checking Address...");
 						try {
 							Address = InetAddress.getByName(AddrStr);
 						} catch (UnknownHostException e) {
@@ -312,19 +318,19 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					} else
 						Address = null;
 						
-					Log.Fine("Checking Port...");
+					ILog.Fine("Checking Port...");
 					if ((Port <= 0) || (Port > MAX_PORTNUM)) Misc.ERROR("Invalid port number (%d)", Port);
 					
-					Log.Fine("Checking IO Timeout Interval...");
+					ILog.Fine("Checking IO Timeout Interval...");
 					if ((IOTimeout < MIN_TIMEOUT) || (IOTimeout > MAX_TIMEOUT))
 						Misc.ERROR("Invalid IO Timeout Interval (%d)", IOTimeout);
 						
-					Log.Fine("Checking Shutdown Grace Period...");
+					ILog.Fine("Checking Shutdown Grace Period...");
 					if ((ShutdownGrace < MIN_WAITTIME) || (ShutdownGrace > MAX_WAITTIME))
 						Misc.ERROR("Invalid shutdown grace period (%d)", ShutdownGrace);
 						
 					if (CertStoreFile != null) {
-						Log.Fine("Checking Certificate Storage...");
+						ILog.Fine("Checking Certificate Storage...");
 						try {
 							CertStore = KeyStore.getInstance("JKS");
 							CertStore.load(new FileInputStream(CertStoreFile), CertPass.toCharArray());
@@ -332,22 +338,22 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 							Misc.CascadeThrow(e, "Failed to load certificate storage");
 						}
 						
-						Log.Fine("Checking SSL Session Cache Size...");
+						ILog.Fine("Checking SSL Session Cache Size...");
 						if ((SSLSessionCacheSize < 0) || (SSLSessionCacheSize > MAX_SSLSESSIONCNT))
 							Misc.ERROR("Invalid SSL session cache size (%d)", SSLSessionCacheSize);
 							
-						Log.Fine("Checking SSL Session Lifespan...");
+						ILog.Fine("Checking SSL Session Lifespan...");
 						if ((SSLSessionTimeout < MIN_SSLSESSIONLIFE)
 								|| (SSLSessionTimeout > MAX_SSLSESSIONLIFE))
 							Misc.ERROR("Invalid SSL session lifespan (%s)",
 									Misc.FormatDeltaTime(TimeUnit.SEC.Convert(SSLSessionTimeout, TimeUnit.MSEC)));
 									
-						Log.Fine("Checking Client Authentication Setting...");
+						ILog.Fine("Checking Client Authentication Setting...");
 						if (SSLNeedClientAuth) {
-							Log.Config("Client authentication is mandatory");
+							ILog.Config("Client authentication is mandatory");
 							SSLWantClientAuth = true;
 						} else if (SSLWantClientAuth) {
-							Log.Config("Client authentication is suggested");
+							ILog.Config("Client authentication is suggested");
 						}
 					}
 				}
@@ -377,7 +383,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			public Map<String, HandlerConfig> Handlers;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				// Copy all fields from Source
@@ -402,7 +408,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	public static class WebHandler implements HttpHandler {
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		
 		public final WebServer SERVER;
 		public final String CONTEXT;
@@ -413,7 +419,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		protected final Map<Class<? extends Throwable>, Long> ExceptStats;
 		
 		public WebHandler(WebServer server, String context) {
-			Log = new GroupLogger(WebServer.LogGroup + ".Handler/" + context);
+			ILog = new GroupLogger.PerInst(server.getName() + ".Handler/" + context);
 			
 			SERVER = server;
 			CONTEXT = context;
@@ -482,13 +488,13 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			InvokeCount.incrementAndGet();
 			try {
 				RequestProcessor RP = getProcessor(HE);
-				Log.Fine("%s: %s '%s'", RP.RemoteDispIdent, HE.getRequestMethod(), HE.getRequestURI());
+				ILog.Fine("%s: %s '%s'", RP.RemoteDispIdent, HE.getRequestMethod(), HE.getRequestURI());
 				
 				int RCODE = RP.Serve(HE.getRequestURI());
 				
 				if (!RP.DropRequest) {
 					if (HE.getRequestBody().read() != -1)
-						Log.Warn("%s: Left-over payload data (connection will not be reused)",
+						ILog.Warn("%s: Left-over payload data (connection will not be reused)",
 								RP.RemoteDispIdent);
 				}
 				
@@ -499,7 +505,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 				HE.getResponseHeaders().putAll(RP.RHEADERS);
 				int RBODYLEN = RP.RBODY != null? RP.RBODY.capacity() : -1;
-				Log.Finer("%s: %d (%dH, %s)", RP.RemoteDispIdent, RCODE, RP.RHEADERS.size(),
+				ILog.Finer("%s: %d (%dH, %s)", RP.RemoteDispIdent, RCODE, RP.RHEADERS.size(),
 						Misc.FormatSize(RBODYLEN));
 						
 				HE.sendResponseHeaders(RCODE, RBODYLEN);
@@ -512,10 +518,10 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				if (RP.DropRequest) HE.close();
 			} catch (Throwable e) {
 				HE.close();
-				if (Log.isLoggable(Level.FINE))
-					Log.logExcept(e, "Error serving request");
+				if (ILog.isLoggable(Level.FINE))
+					ILog.logExcept(e, "Error serving request");
 				else
-					Log.Warn("[%s:%d]: Error serving request %s '%s' - %s",
+					ILog.Warn("[%s:%d]: Error serving request %s '%s' - %s",
 							HE.getRemoteAddress().getAddress().getHostAddress(), HE.getRemoteAddress().getPort(),
 							HE.getRequestMethod(), HE.getRequestURI(),
 							(e.getMessage() != null? e.getMessage() : e.getClass().getName()));
@@ -545,7 +551,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		}
 		
 		public void HeartBeat(ITimeStamp now) {
-			Log.Info("%d requests served, %d exceptions", InvokeCount.get(), ExceptCount.get());
+			ILog.Info("%d requests served, %d exceptions", InvokeCount.get(), ExceptCount.get());
 		}
 		
 		public long GetInvokeCount() {
@@ -585,7 +591,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		super.PreStartConfigUpdate(NewConfig);
 		Config = ConfigData.ReadOnly.class.cast(NewConfig);
 		
-		Log.Fine("Loading Web handlers...");
+		ILog.Fine("Loading Web handlers...");
 		Handlers = new HashMap<>();
 		Config.Handlers.forEach((Context, HandlerConf) -> {
 			try {
@@ -606,7 +612,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		super.preTask();
 		
 		// Reflection workaround for HttpServer bad default configurations
-		Log.Fine("Applying correction to default JVM configuration...");
+		ILog.Fine("Applying correction to default JVM configuration...");
 		try {
 			// Enforcing standard 90sec TCP timeout
 			Class<?> ServerConfig_Class = Class.forName("sun.net.httpserver.ServerConfig");
@@ -624,7 +630,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			Misc.CascadeThrow(e, "Failed to initialize configurations");
 		}
 		
-		Log.Fine("Creating HTTP%s Service...", Config.CertStore != null? "S" : "");
+		ILog.Fine("Creating HTTP%s Service...", Config.CertStore != null? "S" : "");
 		try {
 			if (Config.CertStore != null) {
 				if (Config.Address != null)
@@ -660,7 +666,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			// Setup Handlers
 			Handlers.forEach((Context, Handler) -> {
-				Log.Config("Registered handler '%s'", Context);
+				ILog.Config("Registered handler '%s'", Context);
 				Server.createContext('/' + Context, Handler);
 			});
 			
@@ -678,17 +684,17 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	protected void doTask() {
 		StartTime = ITimeStamp.Impl.Now();
 		InetSocketAddress SockAddr = Server.getAddress();
-		ClassLog.Info("Starting up Web server (%s:%d)...", SockAddr.getAddress().getHostAddress(),
+		ILog.Info("Starting up Web server (%s:%d)...", SockAddr.getAddress().getHostAddress(),
 				SockAddr.getPort());
 		Server.start();
-		ClassLog.Info("Web server started");
+		ILog.Info("Web server started");
 		
 		super.doTask();
 		
-		ClassLog.Info("Stopping Web server (%s grace time)...",
+		ILog.Info("Stopping Web server (%s grace time)...",
 				Misc.FormatDeltaTime(TimeUnit.SEC.Convert(Config.ShutdownGrace, TimeUnit.MSEC), false));
 		Server.stop(Config.ShutdownGrace);
-		ClassLog.Info("Web server stopped");
+		ILog.Info("Web server stopped");
 	}
 	
 	@Override
@@ -698,7 +704,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			long TotalInvoke = 0;
 			long TotalExcept = 0;
 			ITimeStamp CurTime = ITimeStamp.Impl.Now();
-			ClassLog.Info("+ Service statistics for %d handlers", Handlers.size());
+			ILog.Info("+ Service statistics for %d handlers", Handlers.size());
 			for (WebHandler Handler : Handlers.values()) {
 				Handler.HeartBeat(CurTime);
 				TotalInvoke += Handler.GetInvokeCount();
@@ -707,13 +713,13 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			OnStatCollect(CurTime.MillisecondsFrom(StartTime), TotalInvoke, TotalExcept);
 			return true;
 		} catch (Throwable e) {
-			ClassLog.logExcept(e);
+			ILog.logExcept(e);
 			return false;
 		}
 	}
 	
 	protected void OnStatCollect(long uptime, long totalinvoke, long totalexcept) {
-		ClassLog.Info("* Server up for %s; Invoke / Except: %d / %d", Misc.FormatDeltaTime(uptime),
+		ILog.Info("* Server up for %s; Invoke / Except: %d / %d", Misc.FormatDeltaTime(uptime),
 				totalinvoke, totalexcept);
 				
 		PerfLog(null, Misc.wrap("UpTime", "TotalInvoke", "TotalExcept"),
@@ -735,16 +741,16 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	@Override
 	protected void postTask(State RefState) {
-		Log.Fine("Shutting down thread pool...");
+		ILog.Fine("Shutting down thread pool...");
 		List<Runnable> WaitList = ThreadPool.shutdownNow();
-		if (!WaitList.isEmpty()) Log.Warn("There are %d pending service requests", WaitList.size());
+		if (!WaitList.isEmpty()) ILog.Warn("There are %d pending service requests", WaitList.size());
 		super.postTask(RefState);
 	}
 	
 	@Override
 	public void AddDependency(ITask task) {
 		Handlers.forEach((Context, Handler) -> {
-			Log.Config("Dispatching CoTask to handler '%s'", Context);
+			ILog.Config("Dispatching CoTask to handler '%s'", Context);
 			Handler.CoTask(task);
 		});
 	}

@@ -104,9 +104,9 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 		OnConfigure = TaskConfig -> {
 			ITask SenderTask = TaskConfig.GetSender();
 			if (SenderTask != null) {
-				Log.Entry("+Configuration request from %s", SenderTask);
+				ILog.Entry("+Configuration request from %s", SenderTask);
 			} else {
-				Log.Entry("+Configuration request received");
+				ILog.Entry("+Configuration request received");
 			}
 			Object ConfigData = TaskConfig.GetData();
 			
@@ -116,17 +116,17 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 				UpdateConfig(RClass.cast(ConfigData));
 			} else if (MClass.isInstance(ConfigData)) {
 				try {
-					R NewConfig = Data.reflect(MClass.cast(ConfigData), RClass, Log);
+					R NewConfig = Data.reflect(MClass.cast(ConfigData), RClass, ILog);
 					UpdateConfig(NewConfig);
 				} catch (Throwable e) {
-					Log.logExcept(e, "Unable to apply mutable configuration");
+					ILog.logExcept(e, "Unable to apply mutable configuration");
 					// Eat exception
 				}
 			} else {
-				Log.Entry("Unrecognized configuration payload: %s", ConfigData.getClass());
+				ILog.Entry("Unrecognized configuration payload: %s", ConfigData.getClass());
 			}
 			
-			Log.Exit("*Configuration update handled");
+			ILog.Exit("*Configuration update handled");
 		};
 		MessageDispatcher.RegisterSubscription(MessageCategories.EVENT_TASK_CONFIGURE, OnConfigure);
 	}
@@ -154,31 +154,31 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 	@Override
 	public void setConfiguration(DataMap ConfigData) throws Throwable {
 		setConfiguration(new Container<>(MutableConfigClass(), ReadOnlyConfigClass(),
-				Log.GroupName() + ".Config", ConfigData).reflect());
+				ILog.GroupName() + ".Config", ConfigData).reflect());
 	}
 	
 	@Override
 	public void setConfiguration(File ConfigFile, String Prefix) throws Throwable {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
-				Log.GroupName() + ".Config", ConfigFile, Prefix).reflect());
+				ILog.GroupName() + ".Config", ConfigFile, Prefix).reflect());
 	}
 	
 	@Override
 	public void setConfiguration(String ConfigStr, String Prefix) throws Throwable {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
-				Log.GroupName() + ".Config", ConfigStr, Prefix).reflect());
+				ILog.GroupName() + ".Config", ConfigStr, Prefix).reflect());
 	}
 	
 	@Override
 	public void setConfiguration(String[] ConfigArgs, final String Prefix) throws Throwable {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
-				Log.GroupName() + ".Config", ConfigArgs, Prefix).reflect());
+				ILog.GroupName() + ".Config", ConfigArgs, Prefix).reflect());
 	}
 	
 	@Override
 	public void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Throwable {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
-				Log.GroupName() + ".Config", ConfigMap, Prefix).reflect());
+				ILog.GroupName() + ".Config", ConfigMap, Prefix).reflect());
 	}
 	
 	@Override
@@ -186,10 +186,10 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 		super.preTask();
 		
 		if (Config == null) {
-			Log.Config("No configuration assigned, using default values");
+			ILog.Config("No configuration assigned, using default values");
 			try {
 				PreStartConfigUpdate(
-						Data.reflect(Data.defaults(MutableConfigClass(), Log), ReadOnlyConfigClass(), Log));
+						Data.reflect(Data.defaults(MutableConfigClass(), ILog), ReadOnlyConfigClass(), ILog));
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e);
 			}

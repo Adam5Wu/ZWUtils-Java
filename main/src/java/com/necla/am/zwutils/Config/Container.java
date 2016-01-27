@@ -149,8 +149,8 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 * @since 0.4
 	 */
 	public final void load(DataMap confMap) throws Throwable {
-		M Source = Data.load(MCLASS, confMap, Log);
-		SetPayload(Data.reflect(Source, RCLASS, Log));
+		M Source = Data.load(MCLASS, confMap, ILog);
+		SetPayload(Data.reflect(Source, RCLASS, ILog));
 	}
 	
 	/**
@@ -216,7 +216,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 */
 	public final M mirror() {
 		R Payload = CommonSubscriptions.TellPayload();
-		return Data.mirror(Payload, MCLASS, Log);
+		return Data.mirror(Payload, MCLASS, ILog);
 	}
 	
 	/**
@@ -229,7 +229,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 *          - ReadOnly configuration
 	 */
 	public final void set(R Source) throws Throwable {
-		SetPayload(Data.reflect(Data.mirror(Source, MCLASS, Log), RCLASS, Log));
+		SetPayload(Data.reflect(Data.mirror(Source, MCLASS, ILog), RCLASS, ILog));
 	}
 	
 	/**
@@ -239,7 +239,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 *          - Mutable configuration
 	 */
 	public final void set(M Source) throws Throwable {
-		SetPayload(Data.reflect(Source, RCLASS, Log));
+		SetPayload(Data.reflect(Source, RCLASS, ILog));
 	}
 	
 }

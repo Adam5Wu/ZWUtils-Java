@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Tasks;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,18 +43,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.googlecode.mobilityrpc.MobilityRPC;
+import com.googlecode.mobilityrpc.controller.MobilityController;
+import com.googlecode.mobilityrpc.network.ConnectionId;
+import com.googlecode.mobilityrpc.quickstart.EmbeddedMobilityServer;
+import com.googlecode.mobilityrpc.session.MobilityContext;
+import com.googlecode.mobilityrpc.session.MobilitySession;
 import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary;
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary.IClassSolver;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
+import com.necla.am.zwutils.Misc.Parsers;
+import com.necla.am.zwutils.Reflection.IClassSolver;
+import com.necla.am.zwutils.Reflection.IClassSolver.Impl.DirectClassSolver;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
+import com.necla.am.zwutils.Reflection.RemoteClassLoaders;
+import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
 import com.necla.am.zwutils.Tasks.Samples.Companion;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
@@ -75,6 +88,8 @@ import com.necla.am.zwutils.Tasks.Wrappers.TaskRunner;
  * @version 0.5 - May. 2015: Various bug fix
  * @version 0.6 - Dec. 2015: Added ability for hosted tasks to refer to the host
  * @version 0.6 - Jan. 20 2016: Initial public release
+ * @version 0.65 - Jan. 24 2016: Major configuration/initialization refactor to facilitate remote
+ *          task hosting and loading
  */
 public class TaskHost extends Poller {
 	
@@ -84,9 +99,51 @@ public class TaskHost extends Poller {
 		
 		private static String[] CmdArgs = null;
 		
+		public static class StringToInetSocketAddress
+				extends Parsers.SimpleStringParse<InetSocketAddress> {
+				
+			protected static final Pattern SocketAddrItemToken = Pattern.compile(":");
+			protected static final String NetAddrAny = "*";
+			protected static final String NetWildCard = "0.0.0.0";
+			
+			@Override
+			public InetSocketAddress parseOrFail(String From) {
+				if (From == null) {
+					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+				}
+				
+				String[] Items = SocketAddrItemToken.split(From, 2);
+				String Address = (Items[0].equals(NetAddrAny)? NetWildCard : Items[0]);
+				int Port = (Items.length > 1? Parsers.StringToInteger
+						.parseOrFail(Items[1]) : EmbeddedMobilityServer.DEFAULT_PORT);
+						
+				return new InetSocketAddress(Address, Port);
+			}
+			
+		}
+		
+		public static class StringFromInetSocketAddress
+				extends Parsers.SimpleParseString<InetSocketAddress> {
+				
+			@Override
+			public String parseOrFail(InetSocketAddress From) {
+				if (From == null) {
+					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+				}
+				
+				return From.getAddress().getHostAddress() + ':' + From.getPort();
+			}
+			
+		}
+		
+		public static final StringToInetSocketAddress StringToInetSocketAddress =
+				new StringToInetSocketAddress();
+		public static final StringFromInetSocketAddress StringFromInetSocketAddress =
+				new StringFromInetSocketAddress();
+				
 		public static class Mutable extends Poller.ConfigData.Mutable {
 			
-			protected static class HostedTaskRec {
+			public static class HostedTaskRec {
 				
 				public static enum TType {
 					NORMAL,
@@ -94,30 +151,38 @@ public class TaskHost extends Poller {
 					GRACEDAEMON
 				}
 				
-				public IClassSolver TaskClassRef;
+				public String ClassDesc;
 				public TType TaskType;
 				public Integer TaskPriority;
 				public DataMap ConfigData;
 				public Set<String> TaskDep;
 			}
 			
-			protected Map<String, HostedTaskRec> HostedTasks;
-			protected Set<String> RawJoin;
-			protected Set<String> RawTerm;
-			protected String RawReturn;
+			protected Map<String, HostedTaskRec> HostedTaskRecs;
+			protected Set<String> JoinTaskNames;
+			protected Set<String> TermTaskNames;
+			protected String ReturnTaskName;
 			
-			protected SuffixClassDictionary TaskDict;
+			protected SuffixClassDictionary TaskClassDict;
+			
+			protected InetSocketAddress HostingAddress;
+			protected Map<String, InetSocketAddress> RemoteTaskServers;
 			
 			@Override
 			public void loadDefaults() {
 				super.loadDefaults();
 				
+				// Override default setting
 				TimeRes = 0; // Wait forever
-				HostedTasks = new HashMap<>();
-				RawJoin = new HashSet<>();
-				RawTerm = new HashSet<>();
-				RawReturn = null;
-				TaskDict = new SuffixClassDictionary(LogGroup + ".TaskDict");
+				
+				HostedTaskRecs = new HashMap<>();
+				JoinTaskNames = new HashSet<>();
+				TermTaskNames = new HashSet<>();
+				ReturnTaskName = null;
+				TaskClassDict = new SuffixClassDictionary(LogGroup + ".ClassDict");
+				
+				HostingAddress = null;
+				RemoteTaskServers = new HashMap<>();
 			}
 			
 			private static final Pattern KeyToken = Pattern.compile("\\.");
@@ -142,6 +207,8 @@ public class TaskHost extends Poller {
 			
 			private static final String CONFIG_TASK_SETUP_RETURN = "Return";
 			private static final String CONFIG_TASK_SETUP_SEARCHPKG_PFX = "Search.";
+			private static final String CONFIG_TASK_SETUP_SERVER = "TaskServer";
+			private static final String CONFIG_TASK_SETUP_SERVER_PFX = CONFIG_TASK_SETUP_SERVER + '.';
 			
 			private static final String CONFIG_TASK_HOSTDEP = "<TaskHost>";
 			
@@ -153,7 +220,7 @@ public class TaskHost extends Poller {
 				DataMap setupMap = new DataMap("Setup", confMap, String.valueOf(CONFIG_TASK_SETUP));
 				for (String Key : setupMap.keySet()) {
 					if (Key.equals(CONFIG_TASK_SETUP_RETURN)) {
-						RawReturn = setupMap.getText(Key);
+						ReturnTaskName = setupMap.getText(Key);
 					} else if (Key.startsWith(CONFIG_TASK_SETUP_SEARCHPKG_PFX)) {
 						String pkgname = setupMap.getText(Key);
 						try {
@@ -161,23 +228,38 @@ public class TaskHost extends Poller {
 							for (String cname : new PackageClassIterable(pkgname)) {
 								Class<?> PkgClass = Class.forName(cname);
 								if (TaskRunnable.class.isAssignableFrom(PkgClass)) {
-									TaskDict.Add(cname);
+									TaskClassDict.Add(cname);
 									ClassCount++;
 								}
 							}
-							Log.Fine("Loaded %d task classes from %s:'%s'", ClassCount,
+							ILog.Fine("Loaded %d task classes from %s:'%s'", ClassCount,
 									Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
 						} catch (Throwable e) {
-							Misc.CascadeThrow(e,
-									"Failed to prepare short-hand class lookup for package %s:'%s' - %s",
-									Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname, e);
+							Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for package %s->'%s'",
+									Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
+						}
+					} else if (Key.equals(CONFIG_TASK_SETUP_SERVER)) {
+						try {
+							HostingAddress =
+									setupMap.getObject(Key, StringToInetSocketAddress, StringFromInetSocketAddress);
+						} catch (Throwable e) {
+							Misc.CascadeThrow(e, "Failed to load task serving bind address");
+						}
+					} else if (Key.startsWith(CONFIG_TASK_SETUP_SERVER_PFX)) {
+						String ServName = Key.substring(CONFIG_TASK_SETUP_SERVER_PFX.length());
+						try {
+							InetSocketAddress ServerAddress =
+									setupMap.getObject(Key, StringToInetSocketAddress, StringFromInetSocketAddress);
+							RemoteTaskServers.put(ServName, ServerAddress);
+						} catch (Throwable e) {
+							Misc.CascadeThrow(e, "Failed to load task server '%s' target address", ServName);
 						}
 					} else
-						Log.Warn("Unrecognized task host setup '%s' = '%s'", Key, setupMap.getText(Key));
+						ILog.Warn("Unrecognized task host setup '%s' = '%s'", Key, setupMap.getText(Key));
 				}
 				
-				Set<String> BCTasks = new HashSet<>();
-				Set<String> TaskBC = new HashSet<>();
+				Set<String> BundleConfigTasks = new HashSet<>();
+				Set<String> TasksWithBundledConfig = new HashSet<>();
 				for (String Key : confMap.keySet()) {
 					HostedTaskRec.TType TaskType = null;
 					switch (Key.charAt(0)) {
@@ -194,20 +276,20 @@ public class TaskHost extends Poller {
 							// Setup keys already digested
 							continue;
 						default:
-							Log.Warn("Unrecognized configuration '%s' = '%s'", Key, confMap.getText(Key));
+							ILog.Warn("Unrecognized configuration '%s' = '%s'", Key, confMap.getText(Key));
 							continue;
 					}
 					
 					String[] TaskTok = KeyToken.split(Key.substring(1), 2);
-					HostedTaskRec HostedTask = HostedTasks.get(TaskTok[0]);
+					HostedTaskRec HostedTask = HostedTaskRecs.get(TaskTok[0]);
 					if (HostedTask == null) {
 						HostedTask = new HostedTaskRec();
-						HostedTasks.put(TaskTok[0], HostedTask);
+						HostedTaskRecs.put(TaskTok[0], HostedTask);
 						HostedTask.TaskType = TaskType;
-						Log.Config("Created %s task entry '%s'", TaskType, TaskTok[0]);
+						ILog.Config("Created %s task entry '%s'", TaskType, TaskTok[0]);
 						// Normal tasks will be joined implicitly
 						if (TaskType.equals(HostedTaskRec.TType.NORMAL)) {
-							RawJoin.add(TaskTok[0]);
+							JoinTaskNames.add(TaskTok[0]);
 						}
 					} else {
 						Misc.ASSERT(HostedTask.TaskType.equals(TaskType),
@@ -215,40 +297,7 @@ public class TaskHost extends Poller {
 								HostedTask.TaskType, TaskType);
 					}
 					
-					if (TaskTok.length == 1) {
-						try {
-							String TaskClassNameRef = confMap.getTextDef(Key, null);
-							while (TaskClassNameRef != null) {
-								{ // Try lookup task alias
-									String TaskClassName = LookupTaskAlias(TaskClassNameRef);
-									if (TaskClassName != null) {
-										HostedTask.TaskClassRef =
-												new SuffixClassDictionary.DirectClassSolver(TaskClassName);
-										Log.Fine("Task '%s' class: %s (alias '%s')", TaskTok[0], TaskClassNameRef,
-												TaskClassName);
-										break;
-									}
-								}
-								
-								{ // Try lookup short-hand
-									if (TaskDict.isKnown(TaskClassNameRef)) {
-										HostedTask.TaskClassRef = TaskDict.Get(TaskClassNameRef);
-										Log.Fine("Task '%s' class: %s (short-hand '%s')", TaskTok[0],
-												HostedTask.TaskClassRef.fullName(), TaskClassNameRef);
-										break;
-									}
-								}
-								
-								HostedTask.TaskClassRef =
-										new SuffixClassDictionary.DirectClassSolver(TaskClassNameRef);
-								Log.Fine("Task '%s' class: %s", TaskTok[0], TaskClassNameRef);
-								break;
-							}
-							Misc.ASSERT(HostedTask.TaskClassRef != null, "Missing class descriptor");
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e, "Unable to resolve class for task '%s'", TaskTok[0]);
-						}
-					} else {
+					if (TaskTok.length > 1) {
 						switch (TaskTok[1]) {
 							case CONFIG_TASK_CONFIG:
 								String ConfigType = confMap.getTextDef(Key, null);
@@ -262,38 +311,38 @@ public class TaskHost extends Poller {
 										HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
 												new DataFile("Task." + TaskTok[0] + ".ConfigFile", ConfigFile),
 												ConfigPrefix);
-										Log.Finer("Task '%s' configuration file: %s<", TaskTok[0], ConfigFile);
+										ILog.Finer("Task '%s' configuration file: %s<", TaskTok[0], ConfigFile);
 									} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_ENV)) {
 										ConfigPrefix = ConfigType.substring(CONFIG_TASK_CONFIG_ENV.length());
 										HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
 												System.getenv(), ConfigPrefix);
-										Log.Finer("Task '%s' configuration environmental<", TaskTok[0]);
+										ILog.Finer("Task '%s' configuration environmental<", TaskTok[0]);
 									} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_CMD)) {
 										ConfigPrefix = ConfigType.substring(CONFIG_TASK_CONFIG_CMD.length());
 										HostedTask.ConfigData =
 												new DataMap("Task." + TaskTok[0] + ".Config", CmdArgs, ConfigPrefix);
-										Log.Finer("Task '%s' configuration commandline<", TaskTok[0]);
+										ILog.Finer("Task '%s' configuration commandline<", TaskTok[0]);
 									} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_DATA)) {
 										ConfigPrefix = "";
 										HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
 												ConfigType.substring(CONFIG_TASK_CONFIG_DATA.length()), ConfigPrefix);
-										Log.Finer("Task '%s' configuration from embeded string<", TaskTok[0]);
+										ILog.Finer("Task '%s' configuration from embeded string<", TaskTok[0]);
 									} else if (ConfigType.equals(CONFIG_TASK_CONFIG_BUNDLED)) {
 										ConfigPrefix = "";
 										HostedTask.ConfigData =
 												new DataMap("ConfigBundle", confMap, Key + CONFIG_TASK_CONFIG_BUNDLEDELIM);
-										BCTasks.add(TaskTok[0]);
-										Log.Finer("Task '%s' configuration from bundled configurations<", TaskTok[0]);
+										BundleConfigTasks.add(TaskTok[0]);
+										ILog.Finer("Task '%s' configuration from bundled configurations<", TaskTok[0]);
 									} else {
 										Misc.FAIL(IllegalArgumentException.class, "Unrecognized task configuration: %s",
 												ConfigType);
 									}
 									
-									if (Log.isLoggable(Level.FINER)) {
+									if (ILog.isLoggable(Level.FINER)) {
 										if (!ConfigPrefix.isEmpty()) {
-											Log.Finer("@, prefix: %s", ConfigPrefix);
+											ILog.Finer("@, prefix: %s", ConfigPrefix);
 										} else {
-											Log.Finer("@~<");
+											ILog.Finer("@~<");
 										}
 									}
 								}
@@ -301,41 +350,41 @@ public class TaskHost extends Poller {
 							case CONFIG_TASK_DEPENDS:
 								String DepItem = confMap.getTextDef(Key, null);
 								if (DepItem != null) {
-									Log.Finer("Task '%s' dependencies:<", TaskTok[0]);
+									ILog.Finer("Task '%s' dependencies:<", TaskTok[0]);
 									HostedTask.TaskDep = new HashSet<>();
 									String[] DataToks = DataItemToken.split(DepItem);
 									for (String DataTok : DataToks) {
 										if (!DataTok.isEmpty()) {
 											if (DataTok.equals(CONFIG_TASK_HOSTDEP)) {
-												Log.Finer("@: [%s]<", DataTok);
+												ILog.Finer("@: [%s]<", DataTok);
 												// Special dependency on the task host
 												DataTok = null;
 											} else
-												Log.Finer("@: [%s]<", DataTok);
+												ILog.Finer("@: [%s]<", DataTok);
 											HostedTask.TaskDep.add(DataTok);
 										}
 									}
-									Log.Finer("@~<");
+									ILog.Finer("@~<");
 								}
 								break;
 							case CONFIG_TASK_WAITFOR:
 								Boolean WaitFor = confMap.getBoolDef(Key, false);
 								if (WaitFor) {
-									Log.Fine("Task '%s' requires to be joined", TaskTok[0]);
-									RawJoin.add(TaskTok[0]);
+									ILog.Fine("Task '%s' requires to be joined", TaskTok[0]);
+									JoinTaskNames.add(TaskTok[0]);
 								}
 								break;
 							case CONFIG_TASK_TERMSIG:
 								Boolean TermSignal = confMap.getBoolDef(Key, false);
 								if (TermSignal) {
-									Log.Fine("Task '%s' requires to be signaled for termination", TaskTok[0]);
-									RawTerm.add(TaskTok[0]);
+									ILog.Fine("Task '%s' requires to be signaled for termination", TaskTok[0]);
+									TermTaskNames.add(TaskTok[0]);
 								}
 								break;
 							case CONFIG_TASK_PRIORITY:
 								Integer Priority = confMap.getIntDef(Key, null);
 								if (Priority != null) {
-									Log.Fine("Task '%s' priority %d", TaskTok[0], Priority);
+									ILog.Fine("Task '%s' priority %d", TaskTok[0], Priority);
 									HostedTask.TaskPriority = Priority;
 									if ((Priority < Thread.MIN_PRIORITY) || (Priority > Thread.MAX_PRIORITY)) {
 										Misc.FAIL(IndexOutOfBoundsException.class,
@@ -347,17 +396,18 @@ public class TaskHost extends Poller {
 							default:
 								// Ignore bundled configuration keys
 								if (TaskTok[1].startsWith(CONFIG_TASK_CONFIG + CONFIG_TASK_CONFIG_BUNDLEDELIM)) {
-									TaskBC.add(TaskTok[0]);
+									TasksWithBundledConfig.add(TaskTok[0]);
 									continue;
 								}
-								Log.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0], TaskTok[1],
-										confMap.getText(Key));
+								ILog.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0],
+										TaskTok[1], confMap.getText(Key));
 						}
-					}
+					} else
+						HostedTask.ClassDesc = confMap.getText(Key);
 				}
-				TaskBC.removeAll(BCTasks);
-				if (!TaskBC.isEmpty())
-					Log.Warn("Unused bundled configuration found for tasks: %s", BCTasks);
+				TasksWithBundledConfig.removeAll(BundleConfigTasks);
+				if (!TasksWithBundledConfig.isEmpty())
+					ILog.Warn("Unused bundled configuration found for tasks: %s", BundleConfigTasks);
 			}
 			
 			protected class Validation extends Poller.ConfigData.Mutable.Validation {
@@ -366,49 +416,47 @@ public class TaskHost extends Poller {
 				public void validateFields() throws Throwable {
 					super.validateFields();
 					
-					HostedTasks.forEach((TaskName, HostedTask) -> {
-						Log.Finer("+Checking task '%s'..", TaskName);
+					HostedTaskRecs.forEach((TaskName, HostedTask) -> {
+						ILog.Finer("+Checking task '%s'..", TaskName);
 						
-						Class<?> TaskRefClass = HostedTask.TaskClassRef.toClass();
-						if (!TaskRunnable.class.isAssignableFrom(TaskRefClass)) {
-							Misc.FAIL(ClassCastException.class,
-									"Task refers to class '%s' which does not implement required %s interface",
-									TaskRefClass, TaskRunnable.class.getSimpleName());
-						}
-						
-						if (HostedTask.ConfigData != null)
-							if (!Configurable.class.isAssignableFrom(TaskRefClass)) {
-							Misc.FAIL(ClassCastException.class,
-									"Configuration specified for class '%s' which does not implement required %s interface",
-									TaskRefClass, Configurable.class.getSimpleName());
-						}
-						
+						if (HostedTask.ClassDesc == null) Misc.FAIL(NoSuchElementException.class,
+								"Task '%s' misses class descriptor", TaskName);
+								
 						if (HostedTask.TaskDep != null) {
-							if (!Dependency.class.isAssignableFrom(TaskRefClass)) {
-								Misc.FAIL(ClassCastException.class,
-										"Dependencies specified for class '%s' which does not implement required %s interface",
-										TaskRefClass, Dependency.class.getSimpleName());
-							}
 							HostedTask.TaskDep.forEach(DepTaskName -> {
-								if ((DepTaskName != null) && !HostedTasks.containsKey(DepTaskName)) {
+								if ((DepTaskName != null) && !HostedTaskRecs.containsKey(DepTaskName)) {
 									Misc.FAIL(NoSuchElementException.class, "Dependency task '%s' not defined",
 											DepTaskName);
 								}
 							});
 						}
-						Log.Finer("*@<");
+						ILog.Finer("*@<");
 					});
 					
 					// Plain Daemon tasks cannot be joined
 					// (since them will not receive termination signal)
-					Log.Finer("Checking join tasks...");
-					RawJoin.forEach(JoinTaskName -> {
-						HostedTaskRec HostedTask = HostedTasks.get(JoinTaskName);
+					ILog.Finer("Checking join tasks...");
+					JoinTaskNames.forEach(JoinTaskName -> {
+						HostedTaskRec HostedTask = HostedTaskRecs.get(JoinTaskName);
 						if (HostedTask.TaskType.equals(HostedTaskRec.TType.DAEMON)) {
 							Misc.FAIL(UnsupportedOperationException.class, "Daemon task '%s' may not be joined",
 									JoinTaskName);
 						}
 					});
+					
+					// Check ReturnTask existence and cannot be daemon
+					if (ReturnTaskName != null) {
+						ILog.Finer("Checking return task...");
+						HostedTaskRec HostedTask = HostedTaskRecs.get(ReturnTaskName);
+						if (HostedTask == null) {
+							Misc.FAIL(NoSuchElementException.class, "Return task '%s' not defined",
+									ReturnTaskName);
+						}
+						if (HostedTask.TaskType.equals(HostedTaskRec.TType.DAEMON)) {
+							Misc.FAIL(UnsupportedOperationException.class,
+									"Daemon task '%s' cannot be return task", ReturnTaskName);
+						}
+					}
 				}
 			}
 			
@@ -421,281 +469,71 @@ public class TaskHost extends Poller {
 		
 		public static class ReadOnly extends Poller.ConfigData.ReadOnly {
 			
-			protected final Map<String, TaskRunner> RunTasks;
-			protected final List<TaskRun> JoinTasks;
-			protected final List<TaskRun> TermTasks;
-			protected final List<Dependency> HostDepTasks;
-			protected final TaskRun ReturnTask;
-			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
-				super(Logger, Source);
+			public static class HostedTaskRec {
 				
-				Map<String, TaskRunner> xRunTasks = new HashMap<>();
-				List<TaskRun> xJoinTasks = new ArrayList<>();
-				List<TaskRun> xTermTasks = new ArrayList<>();
-				List<Dependency> xHostDepTasks = new ArrayList<>();
+				public final String ClassDesc;
+				public final Mutable.HostedTaskRec.TType TaskType;
+				public final Integer TaskPriority;
+				public final DataMap ConfigData;
+				public final Set<String> TaskDep;
 				
-				loadRawConfig(Source, xRunTasks, xJoinTasks, xTermTasks, xHostDepTasks);
-				
-				RunTasks = Collections.unmodifiableMap(xRunTasks);
-				JoinTasks = Collections.unmodifiableList(xJoinTasks);
-				TermTasks = Collections.unmodifiableList(xTermTasks);
-				HostDepTasks = Collections.unmodifiableList(xHostDepTasks);
-				
-				if (Source.RawReturn != null) {
-					ReturnTask = xRunTasks.get(Source.RawReturn);
-					if (ReturnTask == null) {
-						Misc.FAIL(IllegalArgumentException.class, "Return task '%s' could not be resolved");
-					}
-				} else {
-					ReturnTask = null;
+				protected HostedTaskRec(Mutable.HostedTaskRec Source) {
+					ClassDesc = Source.ClassDesc;
+					TaskType = Source.TaskType;
+					TaskPriority = Source.TaskPriority;
+					ConfigData = Source.ConfigData != null? new DataMap(null, Source.ConfigData, null) : null;
+					TaskDep = Source.TaskDep != null? Collections.unmodifiableSet(Source.TaskDep) : null;
 				}
 			}
 			
-			private void loadRawConfig(Mutable Source, Map<String, TaskRunner> xRunTasks,
-					List<TaskRun> xJoinTasks, List<TaskRun> xTermTasks, List<Dependency> xHostDepTasks) {
-				Log.Fine("+Creating hosted tasks...");
+			protected Map<String, HostedTaskRec> HostedTaskRecs;
+			protected Set<String> JoinTaskNames;
+			protected Set<String> TermTaskNames;
+			protected String ReturnTaskName;
+			
+			protected SuffixClassDictionary TaskClassDict;
+			
+			protected InetSocketAddress HostingAddress;
+			protected Map<String, InetSocketAddress> RemoteTaskServers;
+			
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
+				super(Logger, Source);
 				
-				// Pass 1: Create the hosted task instances
-				Map<String, TaskRunnable> Tasks = new HashMap<>();
-				Source.HostedTasks.forEach((TaskName, HostedTask) -> {
-					Log.Fine("+Configuring %s Task '%s'", HostedTask.TaskType, TaskName);
-					
-					TaskRunnable Task = null;
-					try {
-						@SuppressWarnings("unchecked")
-						Class<TaskRunnable> TaskClass = (Class<TaskRunnable>) HostedTask.TaskClassRef.toClass();
-						Task = TaskClass.getDeclaredConstructor(String.class).newInstance(TaskName);
-					} catch (Throwable e) {
-						if (e instanceof InvocationTargetException)
-							e = ((InvocationTargetException) e).getTargetException();
-						Misc.CascadeThrow(e);
-					}
-					Tasks.put(TaskName, Task);
-					
-					TaskRunner TaskWrap = null;
-					switch (HostedTask.TaskType) {
-						case NORMAL:
-							if (HostedTask.TaskPriority == null) {
-								TaskWrap = new TaskRunner(Task);
-							} else {
-								TaskWrap = new TaskRunner(Task, HostedTask.TaskPriority);
-							}
-							break;
-						case DAEMON:
-							if (HostedTask.TaskPriority == null) {
-								TaskWrap = new DaemonRunner(Task);
-							} else {
-								TaskWrap = new DaemonRunner(Task, HostedTask.TaskPriority);
-							}
-							break;
-						case GRACEDAEMON:
-							if (HostedTask.TaskPriority == null) {
-								TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task);
-							} else {
-								TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task, HostedTask.TaskPriority);
-							}
-							break;
-						default:
-							Misc.FAIL(UnsupportedOperationException.class, "Unrecognized task type: %s",
-									HostedTask.TaskType);
-					}
-					xRunTasks.put(TaskName, TaskWrap);
-					
-					if (HostedTask.ConfigData != null) {
-						Log.Fine("Sending task configurations...");
-						Configurable Configurable = (Configurable) Task;
-						try {
-							Configurable.setConfiguration(HostedTask.ConfigData);
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e);
-						}
-					}
-					Log.Fine("*@<");
-				});
+				HostedTaskRecs = new HashMap<>();
+				Source.HostedTaskRecs
+						.forEach((Key, Value) -> HostedTaskRecs.put(Key, new HostedTaskRec(Value)));
+				JoinTaskNames = Collections.unmodifiableSet(Source.JoinTaskNames);
+				TermTaskNames = Collections.unmodifiableSet(Source.TermTaskNames);
+				ReturnTaskName = Source.ReturnTaskName;
 				
-				Log.Fine("*+Resolving dependencies...");
-				// Pass 2: Resolve dependencies
-				Source.HostedTasks.forEach((TaskName, HostedTask) -> {
-					if (HostedTask.TaskDep != null) {
-						Dependency Dependent = (Dependency) Tasks.get(TaskName);
-						HostedTask.TaskDep.forEach(DepTaskName -> {
-							if (DepTaskName == null) {
-								// Delay dependency binding to task host
-								xHostDepTasks.add(Dependent);
-							} else
-								Dependent.AddDependency(Tasks.get(DepTaskName));
-						});
-					}
-				});
+				TaskClassDict = Source.TaskClassDict;
 				
-				// Now resolve join dependency
-				xJoinTasks.addAll(Source.RawJoin.stream().map(xRunTasks::get).collect(Collectors.toList()));
-				
-				// Now resolve termination dependency
-				xTermTasks.addAll(Source.RawTerm.stream().map(xRunTasks::get).collect(Collectors.toList()));
-				
-				Log.Fine("*@<");
+				HostingAddress = Source.HostingAddress;
+				RemoteTaskServers = Collections.unmodifiableMap(Source.RemoteTaskServers);
 			}
+			
 		}
 		
 		public static final File ConfigFile = DataFile.DeriveConfigFile("ZWUtils.");
 		
 	}
 	
+	protected ConfigData.ReadOnly Config;
+	
+	protected final String[] CmdArgs;
+	
 	protected Map<String, TaskRunner> RunTasks = new HashMap<>();
 	protected final List<TaskRun> JoinTasks = new ArrayList<>();
 	protected final List<TaskRun> TermTasks = new ArrayList<>();
 	protected TaskRun ReturnTask = null;
 	
-	protected final String[] CmdArgs;
+	protected MobilityController RPCHandler = null;
+	protected static Map<MobilityController, TaskHost> HostDirectory = new ConcurrentHashMap<>();
 	
 	public TaskHost(String Name, String[] CmdArgs) {
 		super(Name);
 		
 		this.CmdArgs = CmdArgs;
-	}
-	
-	public ITask LookupTask(String Name) {
-		return RunTasks.get(Name).GetTask();
-	}
-	
-	@Override
-	protected void PreStartConfigUpdate(Poller.ConfigData.ReadOnly NewConfig) {
-		super.PreStartConfigUpdate(NewConfig);
-		ConfigData.ReadOnly Config = ConfigData.ReadOnly.class.cast(NewConfig);
-		
-		RunTasks.putAll(Config.RunTasks);
-		JoinTasks.addAll(Config.JoinTasks);
-		TermTasks.addAll(Config.TermTasks);
-		ReturnTask = Config.ReturnTask;
-		
-		// Delayed dependency binding to task host
-		Config.HostDepTasks.forEach(Dependent -> Dependent.AddDependency(this));
-	}
-	
-	@Override
-	protected void preTask() {
-		super.preTask();
-		
-		if (RunTasks.isEmpty()) {
-			Misc.ERROR("No task to run");
-		}
-		
-		if (JoinTasks.isEmpty()) {
-			Log.Warn("No join task specified");
-		}
-	}
-	
-	protected ISubscription<State> TaskStateChanges = Payload -> {
-		if (Payload.isTerminating() || Payload.hasTerminated()) {
-			TaskHost.this.Wakeup();
-		}
-	};
-	
-	@Override
-	protected void doTask() {
-		// Start all hosted tasks
-		Collection<TaskRunner> TaskRunners = RunTasks.values();
-		if (!TaskRunners.isEmpty()) {
-			synchronized (JoinTasks) {
-				List<TaskRun> GoodTasks = new ArrayList<>();
-				Collection<TaskRunner> BadTasks = new ArrayList<>();
-				Log.Finer("+Starting %d tasks...", TaskRunners.size());
-				TaskRunners.forEach(Task -> {
-					String TaskName = Task.getName();
-					Log.Fine(":%s|", TaskName);
-					Task.SetThreadName(TaskName);
-					Task.subscribeStateChange(TaskStateChanges);
-					try {
-						Task.Start(0);
-						GoodTasks.add(Task);
-					} catch (Throwable e) {
-						BadTasks.add(Task);
-						Log.logExcept(e, "Exception while starting task '%s'", TaskName);
-						// Eat exception
-					}
-				});
-				if (BadTasks.size() > 0) Log.Warn("%d tasks failed to start", BadTasks.size());
-				Log.Finer("*@<");
-				JoinTasks.retainAll(GoodTasks);
-			}
-			
-			if (!JoinTasks.isEmpty()) {
-				Log.Finer("*+Joining %d tasks...", JoinTasks.size());
-				super.doTask();
-				Log.Finer("*@<");
-			}
-		}
-	}
-	
-	@Override
-	protected boolean Poll() {
-		synchronized (JoinTasks) {
-			Collection<TaskRun> Reached = TaskCollection.FilterTasksByState(JoinTasks, State.TERMINATED);
-			Reached.forEach(Task -> {
-				Log.Finest("Task '%s' has reached state %s", Task.getName(), State.TERMINATED);
-				while (true) {
-					try {
-						// Since it is already in terminated state, the thread will finish very soon
-						if (Task.Join(-1)) break;
-						Thread.yield();
-					} catch (InterruptedException e) {
-						if (GlobalConfig.DEBUG_CHECK) {
-							Log.Warn("Join interrupted: %s", e.getMessage());
-						}
-					}
-				}
-			});
-			JoinTasks.removeAll(Reached);
-		}
-		return !JoinTasks.isEmpty();
-	}
-	
-	@Override
-	protected void postTask(State RefState) {
-		if (!JoinTasks.isEmpty()) {
-			Log.Finer("Waiting for %d tasks...", JoinTasks.size());
-			// We must wait for all join task to finish
-			while (Poll()) {
-				PollWait();
-			}
-		}
-		
-		super.postTask(RefState);
-	}
-	
-	@Override
-	protected void postRun() {
-		if (ReturnTask != null) {
-			Object Ret = ReturnTask.GetReturn();
-			if (Ret == null) {
-				Log.Warn("Task '%s' does not provide return value!", ReturnTask.getName());
-			} else {
-				SetReturn(Ret);
-			}
-		}
-		
-		super.postRun();
-	}
-	
-	@Override
-	protected void doTerm(State PrevState) {
-		synchronized (JoinTasks) {
-			Log.Finer("+Terminating %d tasks...", TermTasks.size());
-			TermTasks.forEach(Task -> {
-				Log.Fine(":%s|", Task.getName());
-				try {
-					Task.Terminate(0);
-				} catch (Throwable e) {
-					Log.logExcept(e, "Exception while terminating task '%s'", Task.getName());
-					// Eat exception
-				}
-			});
-			Log.Finer("*@<");
-		}
-		
-		super.doTerm(PrevState);
 	}
 	
 	@Override
@@ -740,9 +578,367 @@ public class TaskHost extends Poller {
 		return ConfigData.ReadOnly.class;
 	}
 	
+	@Override
+	protected void PreStartConfigUpdate(Poller.ConfigData.ReadOnly NewConfig) {
+		super.PreStartConfigUpdate(NewConfig);
+		Config = ConfigData.ReadOnly.class.cast(NewConfig);
+	}
+	
+	protected MobilityController NeedRPC() {
+		return (RPCHandler == null)? RPCHandler = MobilityRPC.newController() : RPCHandler;
+	}
+	
+	private static final Pattern RemoteTaskToken = Pattern.compile("@");
+	
+	protected TaskRunnable CreateTaskRunnable(String TaskName, String ClassDesc, DataMap TaskConfig) {
+		// Handles local and remote tasks differently
+		String[] TaskTokens = RemoteTaskToken.split(ClassDesc, 2);
+		if (TaskTokens.length > 1)
+			return CreateRemoteTaskRunnable(TaskName, TaskTokens[1], TaskTokens[0], TaskConfig);
+		else
+			return CreateLocalTaskRunnable(TaskName, ClassDesc, TaskConfig);
+	}
+	
+	protected IClassSolver ResolveLocalTaskRunnable(String ClassDesc) {
+		IClassSolver TaskClassRef = null;
+		try {
+			while (true) {
+				{ // Try lookup task alias
+					String TaskClassName = LookupTaskAlias(ClassDesc);
+					if (TaskClassName != null) {
+						TaskClassRef = new DirectClassSolver(TaskClassName);
+						ILog.Fine("Task class alias '%s' resolved as %s", ClassDesc, TaskClassRef.fullName());
+						break;
+					}
+				}
+				
+				{ // Try lookup short-hand
+					if (Config.TaskClassDict.isKnown(ClassDesc)) {
+						TaskClassRef = Config.TaskClassDict.Get(ClassDesc);
+						ILog.Fine("Task class short-hand '%s' resolved as %s", ClassDesc,
+								TaskClassRef.fullName());
+						break;
+					}
+				}
+				
+				// Finally, just directly look up from class loader
+				TaskClassRef = new DirectClassSolver(ClassDesc);
+				if (!TaskRunnable.class.isAssignableFrom(TaskClassRef.toClass()))
+					Misc.FAIL("Class '%s' is not runnable task (does not implement %s interface)", ClassDesc,
+							TaskRunnable.class.getSimpleName());
+				ILog.Fine("Task class loaded from %s", ClassDesc);
+				break;
+			}
+		} catch (Throwable e) {
+			Misc.CascadeThrow(e, "Error resolving task class descriptor '%s'", ClassDesc);
+		}
+		Misc.ASSERT(TaskClassRef != null, "Unable to resolve class descriptor (should not reach)");
+		return TaskClassRef;
+	}
+	
+	protected TaskRunnable CreateTaskRunnable(String TaskName, IClassSolver ClassRef,
+			DataMap TaskConfig) {
+		// Construct a task instance
+		TaskRunnable Task = null;
+		try {
+			@SuppressWarnings("unchecked")
+			Class<TaskRunnable> TaskClass = (Class<TaskRunnable>) ClassRef.toClass();
+			Task = TaskClass.getDeclaredConstructor(String.class).newInstance(TaskName);
+		} catch (Throwable e) {
+			if (e instanceof InvocationTargetException)
+				e = ((InvocationTargetException) e).getTargetException();
+			Misc.CascadeThrow(e);
+		}
+		
+		// Send configurations (if applicable)
+		if (TaskConfig != null) {
+			ILog.Fine("Sending task configurations...");
+			Configurable Configurable = (Configurable) Task;
+			try {
+				Configurable.setConfiguration(TaskConfig);
+			} catch (Throwable e) {
+				Misc.CascadeThrow(e);
+			}
+		}
+		
+		return Task;
+	}
+	
+	protected TaskRunnable CreateLocalTaskRunnable(String TaskName, String ClassDesc,
+			DataMap TaskConfig) {
+		return CreateTaskRunnable(TaskName, ResolveLocalTaskRunnable(ClassDesc), TaskConfig);
+	}
+	
+	public static TaskHost GetServingTaskHost(MobilityController RPCSession) {
+		return HostDirectory.get(RPCSession);
+	}
+	
+	public static class RemoteTaskRunnableLookup implements Callable<String> {
+		
+		protected final String ClassDesc;
+		
+		public RemoteTaskRunnableLookup(String classDesc) {
+			ClassDesc = classDesc;
+		}
+		
+		@Override
+		public String call() throws Exception {
+			MobilitySession RemoteSession = MobilityContext.getCurrentSession();
+			MobilityController RemoteServHost = RemoteSession.getMobilityController();
+			TaskHost RemoteTaskHost = TaskHost.GetServingTaskHost(RemoteServHost);
+			return RemoteTaskHost.ResolveLocalTaskRunnable(ClassDesc).fullName();
+		}
+		
+	}
+	
+	protected TaskRunnable CreateRemoteTaskRunnable(String TaskName, String RemoteName,
+			String ClassDesc, DataMap TaskConfig) {
+		InetSocketAddress RemoteAddress = Config.RemoteTaskServers.get(RemoteName);
+		if (RemoteAddress == null) Misc.FAIL("Undefined remote server '%s'", RemoteName);
+		
+		// Lookup task class on remote server
+		ILog.Fine("Looking up task class '%s' from remote server %s (%s)...", ClassDesc, RemoteName,
+				ConfigData.StringFromInetSocketAddress.parseOrFail(RemoteAddress));
+				
+		MobilitySession RPCSession = NeedRPC().newSession();
+		try {
+			ConnectionId RPCConnection =
+					new ConnectionId(RemoteAddress.getAddress().getHostAddress(), RemoteAddress.getPort());
+			String RemoteClassName =
+					RPCSession.execute(RPCConnection, new RemoteTaskRunnableLookup(ClassDesc));
+			ILog.Fine("Task class %s found on remote server", RemoteClassName);
+			
+			RemoteClassLoaders.viaMobilityRPC RPCClassLoader =
+					new RemoteClassLoaders.viaMobilityRPC(RPCSession, RemoteAddress);
+			IClassSolver RemoteClassSolver =
+					new DirectClassSolver(RPCClassLoader.loadClass(RemoteClassName));
+					
+			return CreateTaskRunnable(TaskName, RemoteClassSolver, TaskConfig);
+		} catch (ClassNotFoundException e) {
+			Misc.CascadeThrow(e);
+		} finally {
+			RPCSession.release();
+		}
+		return null;
+	}
+	
+	@Override
+	protected void preTask() {
+		super.preTask();
+		
+		Map<String, TaskRunnable> Tasks = new HashMap<>();
+		ILog.Fine("+Creating hosted tasks...");
+		try {
+			// Pass 1: Create the hosted task instances
+			Config.HostedTaskRecs.forEach((TaskName, HostedTask) -> {
+				ILog.Fine("+Instantiating %s Task '%s'", HostedTask.TaskType, TaskName);
+				
+				TaskRunnable Task =
+						CreateTaskRunnable(TaskName, HostedTask.ClassDesc, HostedTask.ConfigData);
+				Tasks.put(TaskName, Task);
+				
+				TaskRunner TaskWrap = null;
+				switch (HostedTask.TaskType) {
+					case NORMAL:
+						if (HostedTask.TaskPriority == null) {
+							TaskWrap = new TaskRunner(Task);
+						} else {
+							TaskWrap = new TaskRunner(Task, HostedTask.TaskPriority);
+						}
+						break;
+					case DAEMON:
+						if (HostedTask.TaskPriority == null) {
+							TaskWrap = new DaemonRunner(Task);
+						} else {
+							TaskWrap = new DaemonRunner(Task, HostedTask.TaskPriority);
+						}
+						break;
+					case GRACEDAEMON:
+						if (HostedTask.TaskPriority == null) {
+							TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task);
+						} else {
+							TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task, HostedTask.TaskPriority);
+						}
+						break;
+					default:
+						Misc.FAIL(UnsupportedOperationException.class, "Unrecognized task type: %s",
+								HostedTask.TaskType);
+				}
+				RunTasks.put(TaskName, TaskWrap);
+				ILog.Fine("*@<");
+			});
+		} catch (Throwable e) {
+			Misc.CascadeThrow(e, "Failed to instantiate all hosted tasks.");
+		}
+		
+		ILog.Fine("*+Resolving dependencies...");
+		try {
+			// Pass 2: Resolve dependencies
+			Config.HostedTaskRecs.forEach((TaskName, HostedTask) -> {
+				if (HostedTask.TaskDep != null) {
+					Dependency Dependent = (Dependency) Tasks.get(TaskName);
+					HostedTask.TaskDep.forEach(DepTaskName -> {
+						if (DepTaskName == null) {
+							Dependent.AddDependency(this);
+						} else
+							Dependent.AddDependency(Tasks.get(DepTaskName));
+					});
+				}
+			});
+			
+			// Now resolve join dependency
+			JoinTasks
+					.addAll(Config.JoinTaskNames.stream().map(RunTasks::get).collect(Collectors.toList()));
+					
+			// Now resolve termination dependency
+			TermTasks
+					.addAll(Config.TermTaskNames.stream().map(RunTasks::get).collect(Collectors.toList()));
+					
+			if (Config.ReturnTaskName != null) ReturnTask = RunTasks.get(Config.ReturnTaskName);
+		} catch (Throwable e) {
+			Misc.CascadeThrow(e, "Error while resolving task dependencies");
+		}
+		ILog.Fine("*@<");
+		
+		if (RunTasks.isEmpty()) Misc.ERROR("No task to run");
+		
+		if (JoinTasks.isEmpty()) ILog.Warn("No join task specified");
+		
+		if (Config.HostingAddress != null) {
+			ILog.Info("Starting task hosting on %s",
+					ConfigData.StringFromInetSocketAddress.parseOrFail(Config.HostingAddress),
+					EmbeddedMobilityServer.DEFAULT_PORT);
+			MobilityController RPC = NeedRPC();
+			RPC.getConnectionManager().bindConnectionListener(new ConnectionId(
+					Config.HostingAddress.getAddress().getHostAddress(), Config.HostingAddress.getPort()));
+			HostDirectory.put(RPC, this);
+		}
+	}
+	
+	protected ISubscription<State> TaskStateChanges = Payload -> {
+		if (Payload.isTerminating() || Payload.hasTerminated()) {
+			TaskHost.this.Wakeup();
+		}
+	};
+	
+	@Override
+	protected void doTask() {
+		// Start all hosted tasks
+		Collection<TaskRunner> TaskRunners = RunTasks.values();
+		if (!TaskRunners.isEmpty()) {
+			synchronized (JoinTasks) {
+				List<TaskRun> GoodTasks = new ArrayList<>();
+				Collection<TaskRunner> BadTasks = new ArrayList<>();
+				ILog.Finer("+Starting %d tasks...", TaskRunners.size());
+				TaskRunners.forEach(Task -> {
+					String TaskName = Task.getName();
+					ILog.Fine(":%s|", TaskName);
+					Task.SetThreadName(TaskName);
+					Task.subscribeStateChange(TaskStateChanges);
+					try {
+						Task.Start(0);
+						GoodTasks.add(Task);
+					} catch (Throwable e) {
+						BadTasks.add(Task);
+						ILog.logExcept(e, "Exception while starting task '%s'", TaskName);
+						// Eat exception
+					}
+				});
+				if (BadTasks.size() > 0) ILog.Warn("%d tasks failed to start", BadTasks.size());
+				ILog.Finer("*@<");
+				JoinTasks.retainAll(GoodTasks);
+			}
+			
+			if (!JoinTasks.isEmpty()) {
+				ILog.Finer("*+Joining %d tasks...", JoinTasks.size());
+				super.doTask();
+				ILog.Finer("*@<");
+			}
+		}
+	}
+	
+	@Override
+	protected boolean Poll() {
+		synchronized (JoinTasks) {
+			Collection<TaskRun> Reached = TaskCollection.FilterTasksByState(JoinTasks, State.TERMINATED);
+			Reached.forEach(Task -> {
+				ILog.Finest("Task '%s' has reached state %s", Task.getName(), State.TERMINATED);
+				while (true) {
+					try {
+						// Since it is already in terminated state, the thread will finish very soon
+						if (Task.Join(-1)) break;
+						Thread.yield();
+					} catch (InterruptedException e) {
+						if (GlobalConfig.DEBUG_CHECK) {
+							ILog.Warn("Join interrupted: %s", e.getMessage());
+						}
+					}
+				}
+			});
+			JoinTasks.removeAll(Reached);
+		}
+		return !JoinTasks.isEmpty();
+	}
+	
+	@Override
+	protected void postTask(State RefState) {
+		if (!JoinTasks.isEmpty()) {
+			ILog.Finer("Waiting for %d tasks...", JoinTasks.size());
+			// We must wait for all join task to finish
+			while (Poll()) {
+				PollWait();
+			}
+		}
+		
+		if (RPCHandler != null) {
+			ILog.Info("Stopping task hosting...");
+			HostDirectory.remove(RPCHandler);
+			RPCHandler.destroy();
+		}
+		
+		super.postTask(RefState);
+	}
+	
+	@Override
+	protected void postRun() {
+		if (ReturnTask != null) {
+			Object Ret = ReturnTask.GetReturn();
+			if (Ret == null) {
+				ILog.Warn("Task '%s' does not provide return value!", ReturnTask.getName());
+			} else {
+				SetReturn(Ret);
+			}
+		}
+		
+		super.postRun();
+	}
+	
+	@Override
+	protected void doTerm(State PrevState) {
+		synchronized (JoinTasks) {
+			ILog.Finer("+Terminating %d tasks...", TermTasks.size());
+			TermTasks.forEach(Task -> {
+				ILog.Fine(":%s|", Task.getName());
+				try {
+					Task.Terminate(0);
+				} catch (Throwable e) {
+					ILog.logExcept(e, "Exception while terminating task '%s'", Task.getName());
+					// Eat exception
+				}
+			});
+			ILog.Finer("*@<");
+		}
+		
+		super.doTerm(PrevState);
+	}
+	
+	public ITask LookupTask(String Name) {
+		return RunTasks.get(Name).GetTask();
+	}
+	
 	// ======= Static Service Functions ======= //
 	
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	public static TaskHost CreateTaskHost(String Name, String[] CmdArgs, File ConfigFile,
 			String Prefix) {
@@ -751,7 +947,7 @@ public class TaskHost extends Poller {
 			TaskHost.setConfiguration(ConfigFile, Prefix);
 			return TaskHost;
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Failed to instantiate task host");
+			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
 	}
@@ -763,7 +959,7 @@ public class TaskHost extends Poller {
 			TaskHost.setConfiguration(ConfigStr, Prefix);
 			return TaskHost;
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Failed to instantiate task host");
+			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
 	}
@@ -775,7 +971,7 @@ public class TaskHost extends Poller {
 			TaskHost.setConfiguration(ConfigArgs, Prefix);
 			return TaskHost;
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Failed to instantiate task host");
+			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
 	}
@@ -787,7 +983,7 @@ public class TaskHost extends Poller {
 			TaskHost.setConfiguration(ConfigMap, Prefix);
 			return TaskHost;
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Failed to instantiate task host");
+			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
 	}
@@ -796,7 +992,7 @@ public class TaskHost extends Poller {
 	private static final String ConfigKeyBase = TaskHost.class.getSimpleName();
 	
 	synchronized protected static TaskHost GlobalTaskHost(String[] Args) {
-		return (TaskHostTask == null? TaskHostTask = CreateTaskHost(LogGroup + "GlobalHost", Args,
+		return (TaskHostTask == null? TaskHostTask = CreateTaskHost("GlobalTaskHost", Args,
 				ConfigData.ConfigFile, ConfigKeyBase) : TaskHostTask);
 	}
 	
@@ -843,7 +1039,7 @@ public class TaskHost extends Poller {
 				if (Ret instanceof Integer) {
 					ReturnCode = (Integer) Ret;
 				} else {
-					ClassLog.Warn("Return value '%s' is not an integer", Ret);
+					CLog.Warn("Return value '%s' is not an integer", Ret);
 				}
 			}
 		}

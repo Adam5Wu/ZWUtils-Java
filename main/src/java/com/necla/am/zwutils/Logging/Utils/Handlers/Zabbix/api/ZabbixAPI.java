@@ -54,6 +54,7 @@ import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.SizeUnit;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
@@ -80,7 +81,7 @@ public interface ZabbixAPI {
 		
 		public static final String LogGroup = "ZWUtils.Logging.Zabbix.API";
 		
-		protected static final GroupLogger Log = new GroupLogger(LogGroup);
+		protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 		
 		public static class ConfigData {
 			
@@ -139,20 +140,20 @@ public interface ZabbixAPI {
 					
 					@Override
 					public void validateFields() {
-						Log.Fine("Checking Server Address...");
+						ILog.Fine("Checking Server Address...");
 						try {
 							InetAddress.getByName(ServerAddr);
 						} catch (UnknownHostException e) {
 							Misc.CascadeThrow(e, "Problem resolving server address");
 						}
 						
-						Log.Fine("Checking Ports...");
+						ILog.Fine("Checking Ports...");
 						if ((APIPort <= 0) || (APIPort > MAX_PORTNUM))
 							Misc.ERROR("Invalid API port number (%d)", APIPort);
 						if ((ReportPort <= 0) || (ReportPort > MAX_PORTNUM))
 							Misc.ERROR("Invalid report port number (%d)", ReportPort);
 							
-						Log.Fine("Checking timeout Period...");
+						ILog.Fine("Checking timeout Period...");
 						if ((NetTimeout < MIN_TIMEOUT) || (NetTimeout > MAX_TIMEOUT))
 							Misc.ERROR("Invalid timeout period (%d)",
 									TimeUnit.MSEC.Convert(NetTimeout, TimeUnit.SEC));
@@ -207,7 +208,7 @@ public interface ZabbixAPI {
 				public final String Password;
 				public final int NetTimeout;
 				
-				public ReadOnly(GroupLogger Logger, Mutable Source) {
+				public ReadOnly(IGroupLogger Logger, Mutable Source) {
 					super(Logger, Source);
 					
 					// Copy all fields from Source
@@ -254,7 +255,7 @@ public interface ZabbixAPI {
 			if (!response.has("result")) Misc.FAIL("Unable to logon to Zabbix server - %s", response);
 			String auth = response.get("result").getAsString();
 			if (auth == null || auth.isEmpty()) Misc.FAIL("Unable to obtain authorization");
-			Log.Config("Logged in as '%s'", Config.UserName);
+			CLog.Config("Logged in as '%s'", Config.UserName);
 			return auth;
 		}
 		
@@ -268,10 +269,10 @@ public interface ZabbixAPI {
 			UserID = UserData.get("userid").getAsString();
 			String AutoLogout = UserData.get("autologout").getAsString();
 			if (AutoLogout.equals("0")) {
-				Log.Fine("User has auto-logout disabled");
+				CLog.Fine("User has auto-logout disabled");
 				return;
 			}
-			Log.Warn("Auto-logout of %s sec enabled for user '%s'", AutoLogout, Config.UserName);
+			CLog.Warn("Auto-logout of %s sec enabled for user '%s'", AutoLogout, Config.UserName);
 			ZabbixRequest UserUpdateQuery = ZabbixRequest.Factory.UserUpdateTemplate(UserID);
 			UserUpdateQuery.putParam("autologout", "0");
 			JsonObject UserUpdateRet = call(UserUpdateQuery).get("result").getAsJsonObject();
@@ -281,7 +282,7 @@ public interface ZabbixAPI {
 			String UpdateUserID = UpdateUsers.get(0).getAsString();
 			if (!UpdateUserID.equals(UserID))
 				Misc.FAIL("Expect update of user #%s, received #%s", UserID, UpdateUserID);
-			Log.Warn("Disabled auto-logout of %s sec for user '%s'", AutoLogout, Config.UserName);
+			CLog.Warn("Disabled auto-logout of %s sec for user '%s'", AutoLogout, Config.UserName);
 		}
 		
 		@Override
@@ -327,7 +328,7 @@ public interface ZabbixAPI {
 			
 			try (InputStream Data = Request.getInputStream()) {
 				int RespCode = Request.getResponseCode();
-				Log.Fine("Received response code %d", RespCode);
+				CLog.Fine("Received response code %d", RespCode);
 				
 				// Check for content-length header
 				String StrRespLen = Request.getHeaderField(HEADER_CONTENTLEN);

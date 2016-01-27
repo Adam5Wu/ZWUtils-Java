@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.i18n.Messages;
 
@@ -56,18 +57,18 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public class DataMap {
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	protected final Map<String, String> DataMap = new HashMap<>();
 	
 	/**
 	 * Create empty configuration data
 	 */
 	public DataMap(String Name) {
-		Log = new GroupLogger(Name + '.' + getClass().getSimpleName());
+		ILog = new GroupLogger.PerInst(Name + '.' + getClass().getSimpleName());
 	}
 	
-	public DataMap(GroupLogger RefLog, String Suffix) {
-		Log = Suffix == null? RefLog : new GroupLogger(RefLog.GroupName() + '.' + Suffix);
+	public DataMap(IGroupLogger RefLog, String Suffix) {
+		ILog = Suffix == null? RefLog : new GroupLogger.PerInst(RefLog.GroupName() + '.' + Suffix);
 	}
 	
 	/**
@@ -158,13 +159,16 @@ public class DataMap {
 	/**
 	 * Create configuration data from another configuration data with prefix key filter
 	 */
-	public DataMap(String Suffix, DataMap dataMap, String Prefix) {
-		this(dataMap.Log, Suffix);
+	public DataMap(String LogGroupSuffix, DataMap dataMap, String Prefix) {
+		this(dataMap.ILog, LogGroupSuffix);
 		
-		dataMap.keySet(Prefix).forEach(confKey -> {
-			String Key = confKey.substring(Prefix.length()).trim();
-			DataMap.put(Key, dataMap.getText(confKey));
-		});
+		if (Prefix != null) {
+			dataMap.keySet(Prefix).forEach(confKey -> {
+				String Key = confKey.substring(Prefix.length()).trim();
+				DataMap.put(Key, dataMap.getText(confKey));
+			});
+		} else
+			DataMap.putAll(dataMap.getDataMap());
 	}
 	
 	public Map<String, String> getDataMap() {
@@ -265,7 +269,7 @@ public class DataMap {
 	public void SetEnvSubstitution(boolean Enable) {
 		if (EnvSubstitute != Enable) {
 			EnvSubstitute = Enable;
-			Log.Config(Messages.Localize("Config.DataMap.ENV_EXPANSION_STATE"), //$NON-NLS-1$
+			ILog.Config(Messages.Localize("Config.DataMap.ENV_EXPANSION_STATE"), //$NON-NLS-1$
 					Enable? Messages.Localize("Config.DataMap.STATE_ON") : Messages //$NON-NLS-1$
 							.Localize("Config.DataMap.STATE_OFF"));   //$NON-NLS-1$
 		}
@@ -289,36 +293,36 @@ public class DataMap {
 				
 				if (!Matched) {
 					Matched = true;
-					Log.Finer(Messages.Localize("Config.DataMap.ENV_EXPANSION_START")); //$NON-NLS-1$
+					ILog.Finer(Messages.Localize("Config.DataMap.ENV_EXPANSION_START")); //$NON-NLS-1$
 				}
 				String EnvMatch = EnvMatcher.group(1);
 				String RepMatch = EnvMatcher.group();
-				Log.Finest(Messages.Localize("Config.DataMap.MATCH_ENV"), EnvMatch); //$NON-NLS-1$
+				ILog.Finest(Messages.Localize("Config.DataMap.MATCH_ENV"), EnvMatch); //$NON-NLS-1$
 				String EnvReplace = System.getenv(EnvMatch);
 				if (EnvReplace != null) {
 					EnvMatcher.reset(EnvReplace);
 					if (EnvMatcher.find()) {
-						Log.Warn(Messages.Localize("Config.DataMap.RECURSIVE_ENV_EXPAND"), EnvMatch, //$NON-NLS-1$
+						ILog.Warn(Messages.Localize("Config.DataMap.RECURSIVE_ENV_EXPAND"), EnvMatch, //$NON-NLS-1$
 								EnvMatcher.group(1));
-						Log.Warn(Messages.Localize("Config.DataMap.RECURSIVE_ENV_EXPAND_FAIL")); //$NON-NLS-1$
+						ILog.Warn(Messages.Localize("Config.DataMap.RECURSIVE_ENV_EXPAND_FAIL")); //$NON-NLS-1$
 						break;
 					}
 				} else {
 					String EnvDefault = EnvMatcher.group(2);
 					if (EnvDefault != null) {
 						Value = EnvDefault.substring(1);
-						Log.Fine(Messages.Localize("Config.DataMap.ENV_EXPANSION_DEFAULT"), Value); //$NON-NLS-1$
+						ILog.Fine(Messages.Localize("Config.DataMap.ENV_EXPANSION_DEFAULT"), Value); //$NON-NLS-1$
 					} else {
 						Value = null;
-						Log.Warn(Messages.Localize("Config.DataMap.ENV_NOT_FOUND"), EnvMatch); //$NON-NLS-1$
+						ILog.Warn(Messages.Localize("Config.DataMap.ENV_NOT_FOUND"), EnvMatch); //$NON-NLS-1$
 					}
 					break;
 				}
-				Log.Finer(Messages.Localize("Config.DataMap.ENV_EXPAND_VALUE"), EnvMatch, EnvReplace); //$NON-NLS-1$
+				ILog.Finer(Messages.Localize("Config.DataMap.ENV_EXPAND_VALUE"), EnvMatch, EnvReplace); //$NON-NLS-1$
 				Value = Value.replace(RepMatch, EnvReplace);
 			}
 			if (Matched) {
-				Log.Finer("*@<"); //$NON-NLS-1$
+				ILog.Finer("*@<"); //$NON-NLS-1$
 			}
 			
 			// Uncover delayed environmental variable expansion
@@ -332,16 +336,16 @@ public class DataMap {
 					
 					if (!Matched) {
 						Matched = true;
-						Log.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION")); //$NON-NLS-1$
+						ILog.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION")); //$NON-NLS-1$
 					}
 					String DelayEnvMatch = EnvDelayMatcher.group();
 					String DelayEnvReplace = '%' + EnvDelayMatcher.group(1) + '%';
-					Log.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION_RECOVER"), DelayEnvMatch, //$NON-NLS-1$
+					ILog.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION_RECOVER"), DelayEnvMatch, //$NON-NLS-1$
 							DelayEnvReplace);
 					Value = Value.replace(DelayEnvMatch, DelayEnvReplace);
 				}
 				if (Matched) {
-					Log.Finer("*@<"); //$NON-NLS-1$
+					ILog.Finer("*@<"); //$NON-NLS-1$
 				}
 			}
 		}
@@ -363,7 +367,7 @@ public class DataMap {
 		T Ret = null;
 		if (Value != null) {
 			Ret = Parser.parseOrFail(Value);
-			Log.Config(":%s => '%s' (%s)", Key, Value, RevParser.parseOrFail(Ret)); //$NON-NLS-1$
+			ILog.Config(":%s => '%s' (%s)", Key, Value, RevParser.parseOrFail(Ret)); //$NON-NLS-1$
 		}
 		return Ret;
 	}
@@ -387,10 +391,10 @@ public class DataMap {
 		T Ret = null;
 		if (Value != null) {
 			Ret = Parser.parseOrDefault(Value, Default);
-			Log.Config(":%s => '%s' (%s)", Key, Value, RevParser.parseOrFail(Ret)); //$NON-NLS-1$
+			ILog.Config(":%s => '%s' (%s)", Key, Value, RevParser.parseOrFail(Ret)); //$NON-NLS-1$
 		} else {
 			Ret = Default;
-			Log.Config(":%s :: [%s]", Key, RevParser.parseOrFail(Ret)); //$NON-NLS-1$
+			ILog.Config(":%s :: [%s]", Key, RevParser.parseOrFail(Ret)); //$NON-NLS-1$
 		}
 		return Ret;
 	}
@@ -407,7 +411,7 @@ public class DataMap {
 	 */
 	public <T> void setObject(String Key, T Value, Parsers.IParseString<T> RevParser) {
 		DataMap.put(Key, RevParser.parseOrFail(Value));
-		Log.Config(":%s <= '%s'", Key, RevParser.parseOrFail(Value)); //$NON-NLS-1$
+		ILog.Config(":%s <= '%s'", Key, RevParser.parseOrFail(Value)); //$NON-NLS-1$
 	}
 	
 	// Getter and setting of basic types

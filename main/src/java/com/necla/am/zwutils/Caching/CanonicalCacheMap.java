@@ -46,6 +46,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.i18n.Messages;
 
@@ -65,7 +66,7 @@ import com.necla.am.zwutils.i18n.Messages;
 public abstract class CanonicalCacheMap<K, V> {
 	
 	public static final String LogGroup = "ZWUtils.Caching.CMap"; //$NON-NLS-1$
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	public static final int DEF_MAPSIZE = 256;
 	protected Map<IKeyRef, IValueRef<V>> Cache;
@@ -157,7 +158,7 @@ public abstract class CanonicalCacheMap<K, V> {
 	
 	public CanonicalCacheMap(String Name, int mapsize, int cleaningcycles, int staledelay,
 			int bgdecaydelay) {
-		Log = new GroupLogger(LogGroup + '[' + Name + ']');
+		ILog = new GroupLogger.PerInst(LogGroup + '[' + Name + ']');
 		Cache = new ConcurrentHashMap<>(mapsize);
 		CleanCycle = cleaningcycles;
 		ExpiredKeys = MakeKeyQueue();
@@ -227,7 +228,7 @@ public abstract class CanonicalCacheMap<K, V> {
 				String ExpStatStr =
 						(ExpCnt == 0)? Messages.Localize("Caching.CanonicalCacheMap.NOT_APPLICABLE") : //$NON-NLS-1$
 						String.format("@%s", Misc.FormatDeltaTime(ExpRefAge / ExpCnt)); //$NON-NLS-1$
-				Log.Info(Messages.Localize("Caching.CanonicalCacheMap.MAP_STATISTICS"),  //$NON-NLS-1$
+				ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.MAP_STATISTICS"),  //$NON-NLS-1$
 						StrongCnt, StrongRate, StrongStatStr, //
 						WeakCnt, WeakStatStr, ExpCnt, ExpStatStr, DecayCount);
 			}
@@ -244,13 +245,13 @@ public abstract class CanonicalCacheMap<K, V> {
 			V Ret = RefObj.Get();
 			// If object expired, clean the key from the map
 			if (Ret == null) {
-				// Log.Warn("Value entry of key had expired (should be uncommon!)");
+				//ILog.Warn("Value entry of key had expired (should be uncommon!)");
 				NearHitCounter.incrementAndGet();
 				// Force expire the key (Enqueue key for removal)
 				if (ExpireKeyRef(RefObj)) {
 					RushFreeCounter.incrementAndGet();
 				} else {
-					// Log.Warn("Ineffective key expiration (should be extremely rare!)");
+					//ILog.Warn("Ineffective key expiration (should be extremely rare!)");
 				}
 			} else {
 				if (HitCounter.incrementAndGet() % CleanCycle == 0) {
@@ -349,7 +350,7 @@ public abstract class CanonicalCacheMap<K, V> {
 			
 			RushInsertCounter.incrementAndGet();
 			// Concurrently inserted
-			// Log.Warn("New key concurrently inserted (should be uncommon!)");
+			//ILog.Warn("New key concurrently inserted (should be uncommon!)");
 			// And has not expired
 			V Ret = iRet.Get();
 			if (Ret != null) {
@@ -358,11 +359,11 @@ public abstract class CanonicalCacheMap<K, V> {
 			}
 			
 			// Concurrently inserted and then expired
-			// Log.Warn("Concurrent inserted key had expired (should be rare!)");
+			//ILog.Warn("Concurrent inserted key had expired (should be rare!)");
 			if (ExpireKeyRef(iRet)) {
 				RushFreeCounter.incrementAndGet();
 			} else {
-				// Log.Warn("Ineffective key expiration (should be extremely rare!)");
+				//ILog.Warn("Ineffective key expiration (should be extremely rare!)");
 			}
 		}
 	}
@@ -435,7 +436,7 @@ public abstract class CanonicalCacheMap<K, V> {
 		// First, check all expired values, and expire their keys
 		int ExpCnt = CheckExpiredValues();
 		if (ExpCnt > 0)
-			Log.Fine(Messages.Localize("Caching.CanonicalCacheMap.DISCOVER_EXPIRED"), ExpCnt); //$NON-NLS-1$
+			ILog.Fine(Messages.Localize("Caching.CanonicalCacheMap.DISCOVER_EXPIRED"), ExpCnt); //$NON-NLS-1$
 		// Then perform actual cleaning
 		return DoCleaning();
 	}
@@ -467,7 +468,7 @@ public abstract class CanonicalCacheMap<K, V> {
 		}
 		
 		if (Cleaned > 0) {
-			Log.Info(Messages.Localize("Caching.CanonicalCacheMap.CLEAN_EXPIRED"), //$NON-NLS-1$
+			ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.CLEAN_EXPIRED"), //$NON-NLS-1$
 					Cleaned, Count, Misc.FormatDeltaTime(ExpAge / Cleaned));
 			ExpireCounter.addAndGet(Cleaned);
 		}
@@ -475,7 +476,7 @@ public abstract class CanonicalCacheMap<K, V> {
 		// Kick-in map shrinking if necessary
 		Size = Cache.size();
 		if (Size < (Watermark >>> 1)) {
-			Log.Fine(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_START")); //$NON-NLS-1$
+			ILog.Fine(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_START")); //$NON-NLS-1$
 			InsertionLock.lock();
 			while (InsertWorker.get() != InsertWaiter.get())
 				Thread.yield();
@@ -485,10 +486,10 @@ public abstract class CanonicalCacheMap<K, V> {
 				Size = Cache.size();
 				if (HighWatermark.compareAndSet(Watermark, Size)) {
 					Cache = new ConcurrentHashMap<>(Cache);
-					Log.Info(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_COMPLETE"), //$NON-NLS-1$
+					ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_COMPLETE"), //$NON-NLS-1$
 							Watermark, Size);
 				} else
-					Log.Info(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_ABORT"), //$NON-NLS-1$
+					ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_ABORT"), //$NON-NLS-1$
 							HighWatermark.get());
 			} finally {
 				InsertionLock.unlock();
@@ -501,7 +502,7 @@ public abstract class CanonicalCacheMap<K, V> {
 		long Insert = InsertCounter.get();
 		double HitRatio = Hit * 100D / (Hit + Miss + NearHit);
 		double NewRatio = Insert * 100D / (Miss + NearHit);
-		Log.Info(Messages.Localize("Caching.CanonicalCacheMap.LOOKUP_STATISTICS"), //$NON-NLS-1$
+		ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.LOOKUP_STATISTICS"), //$NON-NLS-1$
 				Size, Hit, HitRatio, Miss, NearHit, NewRatio, RushInsertCounter.get(), ExpireCounter.get(),
 				RushFreeCounter.get());
 				

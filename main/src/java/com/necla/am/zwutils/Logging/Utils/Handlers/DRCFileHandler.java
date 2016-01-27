@@ -228,7 +228,7 @@ public class DRCFileHandler extends Handler {
 						}
 						RotLogFile.delete();
 					} catch (Throwable e) {
-						DebugLog.Log.logExcept(e, "Failed to compress rotated log file '%s'", RotLogFile);
+						DebugLog.Logger.logExcept(e, "Failed to compress rotated log file '%s'", RotLogFile);
 					}
 				}
 			} else {

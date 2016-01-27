@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.logging.Level;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.i18n.Messages;
 
@@ -64,14 +65,14 @@ import com.necla.am.zwutils.i18n.Messages;
 public class Canonicalizer {
 	
 	public static final String LogGroup = "ZWUtils.Caching.Canonicalizer"; //$NON-NLS-1$
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	protected static final Set<Class<?>> PClass = new HashSet<>();
 	protected Map<Class<?>, Constructor<?>> CClass = new HashMap<>();
 	protected Set<Class<?>> AClass = new HashSet<>();
 	
 	public Canonicalizer(String Name) {
-		Log = new GroupLogger(LogGroup + (Name != null? '.' + Name : "")); //$NON-NLS-1$
+		ILog = new GroupLogger.PerInst(LogGroup + (Name != null? '.' + Name : "")); //$NON-NLS-1$
 		
 		// Some objects are supported out-of-box
 		Register(String.class, String.class);
@@ -110,7 +111,7 @@ public class Canonicalizer {
 					if (Pending.contains(CP)) Misc.FAIL(IllegalStateException.class,
 							Messages.Localize("Caching.Canonicalizer.NOAC_TYPERECURSIVE"), PIdx, CP.getName()); //$NON-NLS-1$
 							
-					Log.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_PARAM"), PIdx, CP.getName()); //$NON-NLS-1$
+					ILog.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_PARAM"), PIdx, CP.getName()); //$NON-NLS-1$
 					Pending.add(CP);
 					Register(CP, Pending);
 					Pending.remove(CP);
@@ -118,8 +119,8 @@ public class Canonicalizer {
 			}
 			CC.setAccessible(true);
 		} else {
-			if (Log.isLoggable(Level.CONFIG))
-				Log.Warn(Messages.Localize("Caching.Canonicalizer.SELF_CANONICAL"), C.getName()); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.CONFIG))
+				ILog.Warn(Messages.Localize("Caching.Canonicalizer.SELF_CANONICAL"), C.getName()); //$NON-NLS-1$
 			// Detected self-canonicalizing class
 			AClass.add(C);
 		}
@@ -129,13 +130,13 @@ public class Canonicalizer {
 	@SuppressWarnings("unchecked")
 	protected void Register(Class<?> C, Set<Class<?>> Pending) {
 		if (PClass.contains(C)) {
-			if (Log.isLoggable(Level.CONFIG))
-				Log.Info(Messages.Localize("Caching.Canonicalizer.PRIMITIVE_TYPE"), C.getSimpleName()); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.CONFIG))
+				ILog.Info(Messages.Localize("Caching.Canonicalizer.PRIMITIVE_TYPE"), C.getSimpleName()); //$NON-NLS-1$
 			return;
 		}
 		if (CClass.containsKey(C)) {
-			if (Log.isLoggable(Level.CONFIG))
-				Log.Info(Messages.Localize("Caching.Canonicalizer.KNOWN_CLASS"), C.getName()); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.CONFIG))
+				ILog.Info(Messages.Localize("Caching.Canonicalizer.KNOWN_CLASS"), C.getName()); //$NON-NLS-1$
 			return;
 		}
 		
@@ -176,28 +177,28 @@ public class Canonicalizer {
 			}
 		}
 		if (CCC == null)
-			Log.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_NOCONSTRUCT"), C.getName()); //$NON-NLS-1$
+			ILog.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_NOCONSTRUCT"), C.getName()); //$NON-NLS-1$
 		else if (CCC.getClass().equals(Constructor.class)) {
 			// Although Hint is not provided, since there is only one candidate, we try anyway
 			Constructor<?> CC = (Constructor<?>) CCC;
-			if (Log.isLoggable(Level.CONFIG)) {
+			if (ILog.isLoggable(Level.CONFIG)) {
 				List<String> CPS = new ArrayList<>();
 				for (Class<?> CP : CC.getParameterTypes())
 					CPS.add(CP.getSimpleName());
-				Log.Config(Messages.Localize("Caching.Canonicalizer.CONSTRUCT_AUTOSEL"), CPS); //$NON-NLS-1$
+				ILog.Config(Messages.Localize("Caching.Canonicalizer.CONSTRUCT_AUTOSEL"), CPS); //$NON-NLS-1$
 			}
 			Register(C, CC, Pending);
 			return;
 		} else {
-			Log.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_MULTICONSTRUCT"), C.getName()); //$NON-NLS-1$
-			if (Log.isLoggable(Level.CONFIG)) {
+			ILog.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_MULTICONSTRUCT"), C.getName()); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.CONFIG)) {
 				List<Constructor<?>> CCL = (List<Constructor<?>>) CCC;
 				for (int CIdx = 0; CIdx < CCL.size(); CIdx++) {
 					Constructor<?> CC = CCL.get(CIdx);
 					List<String> CPS = new ArrayList<>();
 					for (Class<?> CP : CC.getParameterTypes())
 						CPS.add(CP.getSimpleName());
-					Log.Info("%d. %s", CIdx, CPS); //$NON-NLS-1$
+					ILog.Info("%d. %s", CIdx, CPS); //$NON-NLS-1$
 				}
 			}
 		}
@@ -277,7 +278,7 @@ public class Canonicalizer {
 	@SuppressWarnings("unchecked")
 	public <T> AutoMagic<T> Instance(Class<T> C) {
 		if (!CClass.containsKey(C)) {
-			Log.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_CLASS"), C.getName()); //$NON-NLS-1$
+			ILog.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_CLASS"), C.getName()); //$NON-NLS-1$
 			Register(C);
 		}
 		

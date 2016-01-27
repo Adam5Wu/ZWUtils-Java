@@ -42,6 +42,7 @@ import com.necla.am.zwutils.Caching.Canonicalizer;
 import com.necla.am.zwutils.Debugging.SMTPEmail;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeSystem;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
@@ -50,10 +51,10 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 
 public class MiscTest {
 	
-	protected static final GroupLogger Log = new GroupLogger("Main");
+	protected static final IGroupLogger CLog = new GroupLogger("Main");
 	
 	static void CascadeFailureTest(int i) {
-		Log.Entry("+CascadeFailureTest");
+		CLog.Entry("+CascadeFailureTest");
 		if (i > 1) {
 			Misc.FAIL("Test Failure");
 		} else {
@@ -63,11 +64,11 @@ public class MiscTest {
 				Misc.CascadeThrow(e);
 			}
 		}
-		Log.Exit("*CascadeFailureTest");
+		CLog.Exit("*CascadeFailureTest");
 	}
 	
 	static void CascadeErrorTest(int i) {
-		Log.Entry("+CascadeErrorTest");
+		CLog.Entry("+CascadeErrorTest");
 		if (i > 1) {
 			Misc.ERROR("Test Error");
 		} else {
@@ -77,7 +78,7 @@ public class MiscTest {
 				Misc.CascadeThrow(e);
 			}
 		}
-		Log.Exit("*CascadeErrorTest");
+		CLog.Exit("*CascadeErrorTest");
 	}
 	
 	public static class TestObj {
@@ -155,88 +156,88 @@ public class MiscTest {
 	
 	public void Go(String[] args) {
 		
-		Log.Info("#---------- Test Cascade Failure");
+		CLog.Info("#---------- Test Cascade Failure");
 		try {
 			CascadeFailureTest(0);
 		} catch (Throwable e) {
-			Log.logExcept(e);
+			CLog.logExcept(e);
 		}
-		Log.Info("#---------- Test Cascade Error");
+		CLog.Info("#---------- Test Cascade Error");
 		try {
 			CascadeErrorTest(0);
 		} catch (Throwable e) {
-			Log.logExcept(e);
+			CLog.logExcept(e);
 		}
-		Log.Info("#---------- Test Time Conversion");
+		CLog.Info("#---------- Test Time Conversion");
 		try {
 			long TimeDay = 2;
 			long TimeHr = TimeUnit.DAY.Convert(TimeDay, TimeUnit.HR);
-			Log.Info("* %d days = %d hours", TimeDay, TimeHr);
+			CLog.Info("* %d days = %d hours", TimeDay, TimeHr);
 			
 			TimeDay = TimeUnit.HR.Convert(TimeHr, TimeUnit.DAY);
-			Log.Info("* %d hours = %d days", TimeHr, TimeDay);
+			CLog.Info("* %d hours = %d days", TimeHr, TimeDay);
 			
 			long TimeMin = TimeUnit.DAY.Convert(TimeDay, TimeUnit.MIN);
-			Log.Info("* %d days = %d minutes", TimeDay, TimeMin);
+			CLog.Info("* %d days = %d minutes", TimeDay, TimeMin);
 			
 			TimeDay = TimeUnit.MIN.Convert(TimeMin, TimeUnit.DAY);
-			Log.Info("* %d minutes = %d days", TimeMin, TimeDay);
+			CLog.Info("* %d minutes = %d days", TimeMin, TimeDay);
 			
 			TimeHr = TimeUnit.MIN.Convert(TimeMin, TimeUnit.HR);
-			Log.Info("* %d minutes = %d hours", TimeMin, TimeHr);
+			CLog.Info("* %d minutes = %d hours", TimeMin, TimeHr);
 			
 			long TimeMS = TimeUnit.DAY.Convert(TimeDay, TimeUnit.MSEC);
-			Log.Info("* %d days = %d milliseconds", TimeDay, TimeMS);
+			CLog.Info("* %d days = %d milliseconds", TimeDay, TimeMS);
 			
 			long TDUNIX = TimeSystem.GREGORIAN.Convert(TimeDay, TimeUnit.DAY, TimeSystem.UNIX);
-			Log.Info("* Gregorian %d days = Unix %d days", TimeDay, TDUNIX);
+			CLog.Info("* Gregorian %d days = Unix %d days", TimeDay, TDUNIX);
 			
 			long DeltaMS = TimeUnit.DAY.Convert(5, TimeUnit.MSEC)+ TimeUnit.HR.Convert(4, TimeUnit.MSEC)
 											+ TimeUnit.MIN.Convert(3, TimeUnit.MSEC)
 											+ TimeUnit.SEC.Convert(2, TimeUnit.MSEC)
 											+ TimeUnit.MSEC.Convert(100, TimeUnit.MSEC);
-			Log.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
 		} catch (Throwable e) {
-			Log.logExcept(e);
+			CLog.logExcept(e);
 		}
-		Log.Info("#---------- Test SMTP Email");
+		CLog.Info("#---------- Test SMTP Email");
 		try {
 			String MailServer = "amsec12-01";
 			String ToEmail = "adamwu@nec-labs.com";
 			SMTPEmail Mailer = new SMTPEmail(MailServer, 25, "ZWUtils-Test@nec-labs.com", ToEmail);
 			Mailer.Send("Test", "This is just a test!");
-			Log.Info("* Sent test email to '%s' via '%s'", ToEmail, MailServer);
+			CLog.Info("* Sent test email to '%s' via '%s'", ToEmail, MailServer);
 		} catch (Throwable e) {
-			Log.logExcept(e);
+			CLog.logExcept(e);
 		}
-		Log.Info("#---------- Test Canonicalizer");
+		CLog.Info("#---------- Test Canonicalizer");
 		try {
 			Canonicalizer CTest = new Canonicalizer("Test");
 			Canonicalizer.AutoMagic<TestCObj> CMagic = CTest.Instance(TestCObj.class);
 			TestCObj I1 = CMagic.Cast(123L, 123, CTest.CCreate(String.class, "Test"),
 					CTest.CCreate(UUID.class, 123L, 123L));
-			Log.Info("* TestObj I1 @%x", System.identityHashCode(I1));
+			CLog.Info("* TestObj I1 @%x", System.identityHashCode(I1));
 			TestCObj I2 = CMagic.Cast(123L, 123, CTest.CCreate(String.class, "Test"),
 					CTest.CCreate(UUID.class, 123L, 123L));
-			Log.Info("* TestObj I2 @%x", System.identityHashCode(I2));
+			CLog.Info("* TestObj I2 @%x", System.identityHashCode(I2));
 			TestCObj I3 = CMagic.Cast(123L, 321, CTest.CCreate(String.class, "Test"),
 					CTest.CCreate(UUID.class, 123L, 123L));
-			Log.Info("* TestObj I3 @%x", System.identityHashCode(I3));
+			CLog.Info("* TestObj I3 @%x", System.identityHashCode(I3));
 			TestCObj I4 = Canonicalizer.Global.CCreate(TestCObj.class, 123L, 321,
 					Canonicalizer.Global.CCreate(String.class, "Test"),
 					Canonicalizer.Global.CCreate(UUID.class, 123L, 123L));
-			Log.Info("* TestObj I4 @%x", System.identityHashCode(I4));
+			CLog.Info("* TestObj I4 @%x", System.identityHashCode(I4));
 			
 			// Performance test
 			ITimeStamp Start, End;
 			long SMem, EMem;
 			Random R = new Random();
 			
-			Log.Info("+ Performance test: construction (fully duplicate)");
+			CLog.Info("+ Performance test: construction (fully duplicate)");
 			{
 				List<TestObj> List0 = new ArrayList<>();
 				List<TestCObj> List1 = new ArrayList<>();
-				Log.Info("Before Start GC");
+				CLog.Info("Before Start GC");
 				GC();
 				SMem = runtime.totalMemory();
 				{
@@ -245,10 +246,10 @@ public class MiscTest {
 						List0.add(new TestObj(123L, 123, new String("Test"), new UUID(123L, 123L)));
 					End = ITimeStamp.Impl.Now();
 				}
-				Log.Info("Intermediary GC");
+				CLog.Info("Intermediary GC");
 				GC();
 				EMem = runtime.totalMemory();
-				Log.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
+				CLog.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
 						
 				SMem = runtime.totalMemory();
@@ -259,33 +260,33 @@ public class MiscTest {
 								CTest.CCreate(UUID.class, 123L, 123L)));
 					End = ITimeStamp.Impl.Now();
 				}
-				Log.Info("After Finish GC");
+				CLog.Info("After Finish GC");
 				GC();
 				EMem = runtime.totalMemory();
-				Log.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
+				CLog.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
 						
-				Log.Info("+ Set lookup");
+				CLog.Info("+ Set lookup");
 				Set<TestObj> Set1 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
 				for (int i = 0; i < 8000000; i++)
 					Set1.add(List0.get(i));
 				End = ITimeStamp.Impl.Now();
 				EMem = runtime.totalMemory();
-				Log.Info("Plain @ %d ms", End.MillisecondsFrom(Start));
+				CLog.Info("Plain @ %d ms", End.MillisecondsFrom(Start));
 				
 				Set<TestCObj> Set2 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
 				for (int i = 0; i < 8000000; i++)
 					Set2.add(List1.get(i));
 				End = ITimeStamp.Impl.Now();
-				Log.Info("** Canonicalized @ %d ms", End.MillisecondsFrom(Start));
+				CLog.Info("** Canonicalized @ %d ms", End.MillisecondsFrom(Start));
 			}
 			
-			Log.Info("+ Performance test: construction (fully distinct)");
+			CLog.Info("+ Performance test: construction (fully distinct)");
 			{
 				List<TestObj> List2 = new ArrayList<>();
-				Log.Info("Before Start GC");
+				CLog.Info("Before Start GC");
 				GC();
 				SMem = runtime.totalMemory();
 				{
@@ -295,14 +296,14 @@ public class MiscTest {
 								new TestObj(R.nextLong(), R.nextInt(), new String("Test"), new UUID(123L, 123L)));
 					End = ITimeStamp.Impl.Now();
 				}
-				Log.Info("After Finish GC");
+				CLog.Info("After Finish GC");
 				GC();
 				EMem = runtime.totalMemory();
-				Log.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
+				CLog.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
 						
 				List<TestCObj> List3 = new ArrayList<>();
-				Log.Info("Before Start GC");
+				CLog.Info("Before Start GC");
 				GC();
 				SMem = runtime.totalMemory();
 				{
@@ -312,14 +313,14 @@ public class MiscTest {
 								new String("Test").intern(), CTest.CCreate(UUID.class, 123L, 123L)));
 					End = ITimeStamp.Impl.Now();
 				}
-				Log.Info("After Finish GC");
+				CLog.Info("After Finish GC");
 				GC();
 				EMem = runtime.totalMemory();
-				Log.Info("*+ Canonicalized (String.Intern) @ %d ms, %s", End.MillisecondsFrom(Start),
+				CLog.Info("*+ Canonicalized (String.Intern) @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
 						
 				List<TestCObj> List4 = new ArrayList<>();
-				Log.Info("Before Start GC");
+				CLog.Info("Before Start GC");
 				GC();
 				SMem = runtime.totalMemory();
 				{
@@ -329,27 +330,27 @@ public class MiscTest {
 								CTest.CCreate(String.class, "Test"), CTest.CCreate(UUID.class, 123L, 123L)));
 					End = ITimeStamp.Impl.Now();
 				}
-				Log.Info("After Finish GC");
+				CLog.Info("After Finish GC");
 				GC();
 				EMem = runtime.totalMemory();
-				Log.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
+				CLog.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
 			}
 		} catch (Throwable e) {
-			Log.logExcept(e);
+			CLog.logExcept(e);
 		}
 	}
 	
 	public static void main(String[] args) {
-		Log.Info("========== Misc Test");
+		CLog.Info("========== Misc Test");
 		try {
 			MiscTest Main = new MiscTest();
 			Main.Go(args);
 		} catch (Throwable e) {
-			DebugLog.Log.logExcept(e);
+			DebugLog.Logger.logExcept(e);
 		}
-		Log.Info("#@~<");
-		Log.Info("========== Done");
+		CLog.Info("#@~<");
+		CLog.Info("========== Done");
 	}
 	
 }

@@ -32,6 +32,7 @@
 package com.necla.am.zwutils.Tasks.Wrappers;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
 import com.necla.am.zwutils.Tasks.ITask;
@@ -48,7 +49,7 @@ import com.necla.am.zwutils.Tasks.ITask;
  */
 public class TaskRunner implements ITask.TaskRun {
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	protected final ITask Task;
 	protected final Thread TaskThread;
 	
@@ -59,7 +60,7 @@ public class TaskRunner implements ITask.TaskRun {
 	 *          - Task interface instance
 	 */
 	public TaskRunner(ITask.TaskRunnable Task) {
-		Log = new GroupLogger(Task.getName() + '.' + getClass().getSimpleName());
+		ILog = new GroupLogger.PerInst(Task.getName() + '.' + getClass().getSimpleName());
 		
 		this.Task = Task;
 		TaskThread = new Thread(Task, Task.getName());

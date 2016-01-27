@@ -107,7 +107,7 @@ public final class DebugLog {
 	
 	// Fake the base logger as a group logger (for PushLog functions)
 	static private final Logger LogBase;
-	static public final GroupLogger Log;
+	static public final IGroupLogger Logger;
 	
 	static public final String LogGroup = "ZWUtils.Logging.DebugLog";
 	
@@ -130,7 +130,7 @@ public final class DebugLog {
 	public static void setGlobalLevel(Level LogLevel) {
 		if (!GlobalLevel.equals(LogLevel)) {
 			GlobalLevel = LogLevel;
-			Log.Config("Switching global log level to '%s'", LogLevel);
+			Logger.Config("Switching global log level to '%s'", LogLevel);
 			LogBase.setLevel(LogLevel);
 		}
 	}
@@ -164,10 +164,10 @@ public final class DebugLog {
 				|| ((GroupLevel != null) && !GroupLevel.equals(LogLevel))) {
 			LogGroup.setLevel(LogLevel);
 			if ((LogLevel == null) && (LogGroup.getParent() == null)) {
-				Log.Config("Reset group '%s' log level to '%s'", LogGroup.getName(), GlobalLevel);
+				Logger.Config("Reset group '%s' log level to '%s'", LogGroup.getName(), GlobalLevel);
 				logGroupSetImplicitLevel(LogGroup, GlobalLevel);
 			} else {
-				Log.Config("Switched group '%s' log level to '%s'", LogGroup.getName(), LogLevel);
+				Logger.Config("Switched group '%s' log level to '%s'", LogGroup.getName(), LogLevel);
 			}
 		}
 	}
@@ -185,7 +185,7 @@ public final class DebugLog {
 			Misc.FAIL("Logger already configured");
 		}
 		if (DaemonTask == null) {
-			Log.Config("Creating log daemon...");
+			Logger.Config("Creating log daemon...");
 			DaemonTask = new Daemon(LogGroup + '.' + Daemon.class.getSimpleName());
 			for (Handler LogHandler : LogBase.getHandlers()) {
 				if (LogHandler != preConfigBuffer) {
@@ -209,7 +209,7 @@ public final class DebugLog {
 	 * @return Log handler
 	 */
 	public static Handler createConsoleHandler() {
-		Log.Config("Creating console log handler...");
+		Logger.Config("Creating console log handler...");
 		Handler LogHandler = new ConsoleHandler();
 		LogHandler.setLevel(Level.ALL);
 		LogHandler.setFormatter(new LogFormatter.Delegator(LogHandler, LogGroup));
@@ -225,10 +225,10 @@ public final class DebugLog {
 		Handler Ret = null;
 		try {
 			if (!logFile.Features.contains(Feature.DailyRotate)) {
-				Log.Config("Creating file log handler '%s'...", logFile.FileName);
+				Logger.Config("Creating file log handler '%s'...", logFile.FileName);
 				Ret = new FileHandler(logFile.FileName, logFile.Features.contains(Feature.Append));
 			} else {
-				Log.Config("Creating daily rotating file log handler '%s'...", logFile.FileName);
+				Logger.Config("Creating daily rotating file log handler '%s'...", logFile.FileName);
 				Ret = new DRCFileHandler(logFile.FileName, logFile.Features.contains(Feature.Append),
 						logFile.Features.contains(Feature.CompressRotated));
 			}
@@ -297,7 +297,7 @@ public final class DebugLog {
 		} else {
 			DaemonTask.Sink.addHandler(FileHandler);
 		}
-		Log.Config("File log handler attached");
+		Logger.Config("File log handler attached");
 	}
 	
 	/**
@@ -313,7 +313,7 @@ public final class DebugLog {
 		} else {
 			DaemonTask.Sink.addHandler(Log4jHandler);
 		}
-		Log.Config("Log4J forwarding handler attached");
+		Logger.Config("Log4J forwarding handler attached");
 	}
 	
 	/**
@@ -380,9 +380,9 @@ public final class DebugLog {
 	 * @return Output redirection stream
 	 */
 	private static OutStream createConsoleOutStream(String Name) {
-		GroupLogger Log = new GroupLogger("Console." + Name);
-		Log.AddFrameDepth(3);
-		return new OutStream(Name, Log);
+		GroupLogger _Log = new GroupLogger("Console." + Name);
+		_Log.AddFrameDepth(3);
+		return new OutStream(Name, _Log);
 	}
 	
 	protected static PrintStream StdErr = null;
@@ -394,7 +394,7 @@ public final class DebugLog {
 		if (StdErr == null) {
 			StdErr = System.err;
 			System.setErr(new PrintStream(createConsoleOutStream("STDERR")));
-			Log.Config("Redirected StdErr to log");
+			Logger.Config("Redirected StdErr to log");
 		} else {
 			Misc.ASSERT(false, "StdErr already redirected");
 		}
@@ -409,7 +409,7 @@ public final class DebugLog {
 		if (StdOut == null) {
 			StdOut = System.out;
 			System.setOut(new PrintStream(createConsoleOutStream("STDOUT")));
-			Log.Config("Redirected StdOut to log");
+			Logger.Config("Redirected StdOut to log");
 		} else {
 			Misc.ASSERT(false, "StdOut already redirected");
 		}
@@ -436,7 +436,7 @@ public final class DebugLog {
 				RootLogger.removeHandler(LogHandler);
 			}
 			RootLogger.addHandler(ForwardHandler);
-			Log.Config("Root logger captured");
+			Logger.Config("Root logger captured");
 		} else {
 			Misc.ASSERT(false, "Root logger already captured");
 		}
@@ -454,7 +454,7 @@ public final class DebugLog {
 				RootLogger.addHandler(LogHandler);
 			}
 			RootHandlers = null;
-			Log.Config("Root logger released");
+			Logger.Config("Root logger released");
 		} else {
 			Misc.ASSERT(false, "Root logger not captured");
 		}
@@ -522,7 +522,7 @@ public final class DebugLog {
 				try {
 					LogDaemon.Join(-1);
 				} catch (Throwable e) {
-					Log.logExcept(e, "Log daemon termination join failed");
+					Logger.logExcept(e, "Log daemon termination join failed");
 				}
 			}
 			
@@ -594,14 +594,14 @@ public final class DebugLog {
 					LogHandler.setLevel(Level.ALL);
 				}
 			} else {
-				Log.Fine("Starting log daemon thread...");
+				Logger.Fine("Starting log daemon thread...");
 				LogDaemon = DaemonRunner.LowPriorityTaskDaemon(DaemonTask);
 				try {
 					LogDaemon.Start(-1);
 				} catch (InterruptedException e) {
 					Misc.CascadeThrow(e);
 				}
-				Log.Fine("Log daemon thread started");
+				Logger.Fine("Log daemon thread started");
 				// Wait for the daemon to become idle
 				DaemonTask.Queue.flush();
 				// Perform the log handler switch
@@ -619,7 +619,7 @@ public final class DebugLog {
 			preConfigBuffer.flush();
 			preConfigBuffer.close();
 			preConfigBuffer = null;
-			Log.Fine("Flushed pre-configuration log buffer");
+			Logger.Fine("Flushed pre-configuration log buffer");
 			
 			if (LogGroupBufferMap != null) {
 				// Flush and close all logging group buffer handlers
@@ -723,8 +723,8 @@ public final class DebugLog {
 				LogLevel = Level.parse(confMap.getTextDef(CONFIG_LOGLEVEL, LogLevel.getName()));
 				LogConsole = confMap.getBoolDef(CONFIG_CONSOLE, LogConsole);
 				if (confMap.containsKey(CONFIG_FILE)) {
-					LogFile = confMap.getObject(CONFIG_FILE, Support.StringToGroupLogFile,
-							Support.StringFromGroupLogFile);
+					LogFile = confMap.getObject(CONFIG_FILE, Support.GroupLogFile.FromString,
+							Support.GroupLogFile.ToString);
 				}
 				Log4J = confMap.getBoolDef(CONFIG_LOG4J, Log4J);
 				LogStdErr = confMap.getBoolDef(CONFIG_STDERR, LogStdErr);
@@ -746,8 +746,8 @@ public final class DebugLog {
 					String ConfigKey = String.class.cast(Key);
 					if (ConfigKey.startsWith(ConfigGroupFileKeyBase)) {
 						String SubKey = ConfigKey.substring(ConfigGroupFileKeyBase.length());
-						GroupFiles.put(SubKey, confMap.getObject(ConfigKey, Support.StringToGroupLogFile,
-								Support.StringFromGroupLogFile));
+						GroupFiles.put(SubKey, confMap.getObject(ConfigKey, Support.GroupLogFile.FromString,
+								Support.GroupLogFile.ToString));
 					}
 				});
 			}
@@ -768,7 +768,7 @@ public final class DebugLog {
 					}
 					
 					if (LogFile != null) {
-						Log.Fine("Checking log output file '%s'...", LogFile);
+						Logger.Fine("Checking log output file '%s'...", LogFile);
 						File LogOutputFile = new File(LogFile.FileName);
 						if (!LogOutputFile.exists()) try {
 							LogOutputFile.createNewFile();
@@ -783,7 +783,8 @@ public final class DebugLog {
 					GroupFiles.keySet().forEach(LogGroup -> {
 						Support.GroupLogFile GLogEntry = GroupFiles.get(LogGroup);
 						if (!GLogEntry.FileName.isEmpty()) {
-							Log.Fine("Checking log group '%s' output file '%s'...", LogGroup, GLogEntry.FileName);
+							Logger.Fine("Checking log group '%s' output file '%s'...", LogGroup,
+									GLogEntry.FileName);
 							File LogOutputFile = new File(GLogEntry.FileName);
 							try {
 								LogOutputFile.createNewFile();
@@ -809,7 +810,7 @@ public final class DebugLog {
 			
 			public final String ZabbixScope;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				// Apply configurations
@@ -856,7 +857,7 @@ public final class DebugLog {
 									GLogFile.Features.contains(Feature.Append));
 							LogGroupBufferMap.put(getLogGroup(LogGroup), GroupLogBuffer);
 							
-							Log.Fine("Logging group '%s' to output file '%s'", LogGroup, GLogFile.FileName);
+							Logger.Fine("Logging group '%s' to output file '%s'", LogGroup, GLogFile.FileName);
 						}
 					});
 				}
@@ -1031,7 +1032,7 @@ public final class DebugLog {
 		LogGroup.setFilter(new GroupFilter(LogGroup));
 		
 		if (isConfigured()) {
-			Log.Fine("Log group '%s' created", LogGrp);
+			Logger.Fine("Log group '%s' created", LogGrp);
 		}
 		return LogGroup;
 	}
@@ -1178,7 +1179,7 @@ public final class DebugLog {
 				e.printStackTrace(DirectErrOut());
 				Misc.CascadeThrow(e);
 			}
-			Log = _Log;
+			Logger = _Log;
 		}
 		
 		ConfigData.ReadOnly Config = null;
@@ -1192,7 +1193,7 @@ public final class DebugLog {
 			Misc.CascadeThrow(e);
 		}
 		
-		Log.Entry("+Initializing...");
+		Logger.Entry("+Initializing...");
 		try {
 			// Now we are configured
 			setConfigured(Config);
@@ -1202,7 +1203,7 @@ public final class DebugLog {
 			e.printStackTrace(DirectErrOut());
 			Misc.CascadeThrow(e);
 		}
-		Log.Exit("*Initialized");
+		Logger.Exit("*Initialized");
 	}
 	
 	/**

@@ -54,10 +54,9 @@ import java.util.regex.Pattern;
 import com.necla.am.zwutils.Caching.CanonicalCacheMap;
 import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary.DirectSuffixClassSolver;
-import com.necla.am.zwutils.Debugging.SuffixClassDictionary.ISuffixClassSolver;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Logging.Utils.Support;
 import com.necla.am.zwutils.Logging.Utils.Formatters.LogFormatter;
 import com.necla.am.zwutils.Logging.Utils.Formatters.SlimFormatter;
@@ -67,6 +66,9 @@ import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Misc.Parsers.IParse;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
+import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
+import com.necla.am.zwutils.Reflection.SuffixClassDictionary.DirectSuffixClassSolver;
+import com.necla.am.zwutils.Reflection.SuffixClassDictionary.ISuffixClassSolver;
 import com.necla.am.zwutils.Tasks.ITask;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
 import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
@@ -86,7 +88,7 @@ import com.necla.am.zwutils.i18n.Messages;
 public class ObjectTrap {
 	
 	public static final String LogGroup = "ZWUtils.Debugging.OTap"; //$NON-NLS-1$
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	protected final SuffixClassDictionary ClassDict;
 	protected final Class<?> ObjClass;
@@ -173,8 +175,8 @@ public class ObjectTrap {
 			try {
 				return F.get(obj);
 			} catch (Throwable e) {
-				if (Log.isLoggable(Level.FINE))
-					Log.Fine(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), F.getName()); //$NON-NLS-1$
+				if (ILog.isLoggable(Level.FINE))
+					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), F.getName()); //$NON-NLS-1$
 				LastError.set(e);
 				return null;
 			}
@@ -278,8 +280,8 @@ public class ObjectTrap {
 			try {
 				return Type().cast(obj);
 			} catch (Throwable e) {
-				if (Log.isLoggable(Level.FINE))
-					Log.Fine(Messages.Localize("Debugging.ObjectTrap.CAST_VALUE_FAILED"), //$NON-NLS-1$
+				if (ILog.isLoggable(Level.FINE))
+					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.CAST_VALUE_FAILED"), //$NON-NLS-1$
 							T.CLASS.getSimpleName());
 				LastError.set(e);
 				return null;
@@ -351,8 +353,8 @@ public class ObjectTrap {
 			} catch (Throwable e) {
 				if (e instanceof InvocationTargetException)
 					e = ((InvocationTargetException) e).getTargetException();
-				if (Log.isLoggable(Level.FINE))
-					Log.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), M.getName()); //$NON-NLS-1$
+				if (ILog.isLoggable(Level.FINE))
+					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), M.getName()); //$NON-NLS-1$
 				LastError.set(e);
 				return null;
 			}
@@ -1752,7 +1754,7 @@ public class ObjectTrap {
 	
 	public class Fork implements IFork {
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		
 		public final String Name;
 		public final IScope S;
@@ -1762,7 +1764,7 @@ public class ObjectTrap {
 		protected int UnmatchNext;
 		
 		public Fork(String name, IScope scope, String condition) {
-			Log = new GroupLogger(name, ObjectTrap.this.Log.GroupName());
+			ILog = new GroupLogger.PerInst(ObjectTrap.this.ILog.GroupName() + '.' + name);
 			Name = name;
 			S = scope;
 			H = HookMaker.Create(S.Type(), condition);
@@ -1778,10 +1780,10 @@ public class ObjectTrap {
 				if (Error != null) return Result.Error;
 				return H.Latch(Scoped)? Result.Match : Result.Unmatch;
 			} catch (Throwable e) {
-				if (Log.isLoggable(Level.FINER))
-					Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION")); //$NON-NLS-1$
-				else if (Log.isLoggable(Level.FINE))
-					Log.Warn(Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION_LT"), e); //$NON-NLS-1$
+				if (ILog.isLoggable(Level.FINER))
+					ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION")); //$NON-NLS-1$
+				else if (ILog.isLoggable(Level.FINE))
+					ILog.Warn(Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION_LT"), e); //$NON-NLS-1$
 				return Result.Error;
 			}
 		}
@@ -1894,7 +1896,7 @@ public class ObjectTrap {
 	}
 	
 	public ObjectTrap(Class<?> c, String pkgname, ClassLoader loader) {
-		Log = new GroupLogger(LogGroup + String.format(".%s", c.getSimpleName())); //$NON-NLS-1$
+		ILog = new GroupLogger.PerInst(LogGroup + String.format(".%s", c.getSimpleName())); //$NON-NLS-1$
 		ObjClass = c;
 		
 		ClassDict = new SuffixClassDictionary(pkgname, loader);
@@ -1924,35 +1926,35 @@ public class ObjectTrap {
 			try {
 				Watcher.Stop(-1);
 			} catch (InterruptedException e) {
-				Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_STOP_ERROR")); //$NON-NLS-1$
+				ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_STOP_ERROR")); //$NON-NLS-1$
 			}
 			Watcher = null;
 		} else {
 			if (WatchFileName == null) {
-				Log.Warn(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_UNDEFINED")); //$NON-NLS-1$
+				ILog.Warn(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_UNDEFINED")); //$NON-NLS-1$
 				return;
 			}
 			
-			Poller ConfigPoller = new Poller(Log.GroupName()) {
+			Poller ConfigPoller = new Poller(ILog.GroupName()) {
 				
 				ITimeStamp ConfigTS = new ITimeStamp.Impl(0);
 				
 				@Override
 				protected boolean Poll() {
-					DataFile TapConfig = new DataFile(Log.GroupName(), WatchFileName);
+					DataFile TapConfig = new DataFile(ILog.GroupName(), WatchFileName);
 					ITimeStamp TapTS = TapConfig.lastModified();
 					if (!TapTS.equals(ConfigTS)) {
-						Log.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
+						ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
 								WatchFileName, TapTS);
 						try {
 							ConfigTS = TapTS;
 							DataMap TapDesc = new DataMap(TapConfig);
 							TapDesc.SetEnvSubstitution(false);
 							Update(TapDesc);
-							Log.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), Count()); //$NON-NLS-1$
+							ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), Count()); //$NON-NLS-1$
 							notifier.Configured(Count());
 						} catch (Throwable e) {
-							Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
+							ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
 						}
 					}
 					return true;
@@ -1972,12 +1974,12 @@ public class ObjectTrap {
 			try {
 				Watcher.Start(-1);
 			} catch (InterruptedException e) {
-				Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
+				ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
 				while (!Watcher.tellState().hasTerminated()) {
 					try {
 						Watcher.Stop(-1);
 					} catch (InterruptedException e1) {
-						Log.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
+						ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
 					}
 				}
 				Watcher = null;
@@ -2105,7 +2107,7 @@ public class ObjectTrap {
 	public void Update(DataMap config) {
 		List<IFork> InstTrap = new ArrayList<>();
 		Map<String, Collection<IFork>> ForkGroups = new HashMap<>();
-		Log.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_START")); //$NON-NLS-1$
+		ILog.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_START")); //$NON-NLS-1$
 		for (String name : new TreeSet<>(config.keySet())) {
 			String[] keytoks = DEM_CGROUP.split(name, 2);
 			String Group = keytoks.length > 1? keytoks[0] : null;
@@ -2121,7 +2123,7 @@ public class ObjectTrap {
 					Collection<IFork> FG = ForkGroups.get(Group);
 					FG.add(F);
 				} else {
-					Log.Config(":%s", F); //$NON-NLS-1$
+					ILog.Config(":%s", F); //$NON-NLS-1$
 					InstTrap.add(F);
 				}
 			} catch (Throwable e) {
@@ -2135,12 +2137,12 @@ public class ObjectTrap {
 				Fork GF = (Fork) F;
 				GF.MatchNext = GIdx > 1? 1 : 0;
 				GF.UnmatchNext = GIdx > 1? GIdx : 1;
-				Log.Config(Messages.Localize("Debugging.ObjectTrap.FORK_GROUP_LABEL"), GF); //$NON-NLS-1$
+				ILog.Config(Messages.Localize("Debugging.ObjectTrap.FORK_GROUP_LABEL"), GF); //$NON-NLS-1$
 				InstTrap.add(GF);
 				GIdx--;
 			}
 		}
-		Log.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_FINISH"), //$NON-NLS-1$
+		ILog.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_FINISH"), //$NON-NLS-1$
 				InstTrap.size(), ForkGroups.size());
 		Trap = InstTrap.isEmpty()? null : InstTrap;
 	}

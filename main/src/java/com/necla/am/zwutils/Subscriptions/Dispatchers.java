@@ -46,6 +46,7 @@ import java.util.logging.Level;
 
 import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Subscriptions.ISubscription.Categorized;
 
@@ -65,7 +66,7 @@ public class Dispatchers {
 	 */
 	public static class STDispatcher<X> implements IDispatcher<X> {
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		
 		protected static class SubscriptionDispatchRec<X> {
 			List<WeakReference<ISubscription<X>>> Subscribers = null;
@@ -93,7 +94,7 @@ public class Dispatchers {
 		protected SubscriptionDispatchRec<X> CommonSubscriptions = new SubscriptionDispatchRec<>();
 		
 		public STDispatcher(String Name) {
-			Log = new GroupLogger(Name);
+			ILog = new GroupLogger.PerInst(Name);
 		}
 		
 		protected STDispatcher(String Name, X InitPayload) {
@@ -119,12 +120,12 @@ public class Dispatchers {
 			Subscribers.add(SubscriptionRef);
 			
 			// Non-functional logging code
-			if (GlobalConfig.DEBUG_CHECK && Log.isLoggable(Level.FINE)) {
+			if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
 				if (ISubscription.Named.class.isInstance(Subscriber)) {
 					ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-					Log.Fine("Subscription '%s' attached", NamedSubscription.GetName());
+					ILog.Fine("Subscription '%s' attached", NamedSubscription.GetName());
 				} else {
-					Log.Fine("Anonymous subscription (%s) attached", Subscriber.getClass().getName());
+					ILog.Fine("Anonymous subscription (%s) attached", Subscriber.getClass().getName());
 				}
 			}
 			if (Payload != null) Subscriber.onSubscription(Payload);
@@ -152,12 +153,13 @@ public class Dispatchers {
 							Iter.remove();
 							
 							// Non-functional logging code
-							if (GlobalConfig.DEBUG_CHECK && Log.isLoggable(Level.FINE)) {
+							if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
 								if (ISubscription.Named.class.isInstance(Subscriber)) {
 									ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-									Log.Fine("Subscription '%s' detached", NamedSubscription.GetName());
+									ILog.Fine("Subscription '%s' detached", NamedSubscription.GetName());
 								} else {
-									Log.Fine("Anonymous subscription (%s) detached", Subscriber.getClass().getName());
+									ILog.Fine("Anonymous subscription (%s) detached",
+											Subscriber.getClass().getName());
 								}
 							}
 							// Signal subscriber removed
@@ -169,7 +171,7 @@ public class Dispatchers {
 						ExpRef++;
 					}
 					// Clean up expired subscribers
-					if (ExpRef > 0) Log.Fine("Removed %d expired subscriptions", ExpRef);
+					if (ExpRef > 0) ILog.Fine("Removed %d expired subscriptions", ExpRef);
 				}
 			}
 			
@@ -199,7 +201,7 @@ public class Dispatchers {
 			if (Subscribers == null) return;
 			
 			// Non-functional logging code
-			// if (Log.isLoggable(Level.FINER)) Log.Fine("+Dispatching payload...");
+			// if (ILog.isLoggable(Level.FINER))ILog.Fine("+Dispatching payload...");
 			
 			Collection<WeakReference<ISubscription<X>>> ExpSubscribers = null;
 			for (int idx = 0; idx < Subscribers.size(); idx++) {
@@ -208,12 +210,12 @@ public class Dispatchers {
 				ISubscription<X> LSubscriber = SubscriptionRef.get();
 				if (LSubscriber != null) {
 					// Non-functional logging code
-					// if (GlobalConfig.DEBUG_CHECK && Log.isLoggable(Level.FINER)) {
+					// if (GlobalConfig.DEBUG_CHECK &&ILog.isLoggable(Level.FINER)) {
 					// if (ISubscription.Named.class.isInstance(LSubscriber)) {
 					// ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) LSubscriber;
-					// Log.Finer("*+Subscription '%s'...", NamedSubscription.GetName());
+					//ILog.Finer("*+Subscription '%s'...", NamedSubscription.GetName());
 					// } else {
-					// Log.Finer("*+Anonymous Subscription (%s)...", LSubscriber.getClass().getName());
+					//ILog.Finer("*+Anonymous Subscription (%s)...", LSubscriber.getClass().getName());
 					// }
 					// }
 					LSubscriber.onSubscription(NewPayload);
@@ -225,15 +227,15 @@ public class Dispatchers {
 			
 			// Clean up expired subscribers
 			if (ExpSubscribers != null) {
-				Log.Fine("Removing %d expired subscriptions", ExpSubscribers.size());
+				ILog.Fine("Removing %d expired subscriptions", ExpSubscribers.size());
 				Subscribers.removeAll(ExpSubscribers);
 			}
 			
 			// Non-functional logging code
-			// if (Log.isLoggable(Level.FINER))
-			// Log.Fine("*Dispatch done");
+			// if (ILog.isLoggable(Level.FINER))
+			//ILog.Fine("*Dispatch done");
 			// else
-			// Log.Fine("Payload dispatched");
+			//ILog.Fine("Payload dispatched");
 		}
 		
 	}
@@ -316,16 +318,16 @@ public class Dispatchers {
 					CategorySubscriptions = CategorizedSubscriptions.get(Category);
 					if (CategorySubscriptions == null) break;
 					
-					// Log.Finer("*+Categorized payload dispatch on '%s'", Category);
+					//ILog.Finer("*+Categorized payload dispatch on '%s'", Category);
 					CategorySubscriptions.UpdatePayload(NewPayload);
 					
 					Dispatch(CategorySubscriptions, NewPayload);
 					break;
 				} finally {
-					// Log.Finer("*@<");
+					//ILog.Finer("*@<");
 				}
 				
-			// Log.Finer("+Uncategorized payload dispatch");
+			//ILog.Finer("+Uncategorized payload dispatch");
 			Dispatch(CommonSubscriptions, NewPayload);
 		}
 		
@@ -336,7 +338,7 @@ public class Dispatchers {
 	 */
 	public static class Dispatcher<X> implements IDispatcher<X> {
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		
 		protected static class SubscriptionDispatchRec<X> {
 			private Collection<WeakReference<ISubscription<X>>> Subscribers = null;
@@ -383,7 +385,7 @@ public class Dispatchers {
 		protected SubscriptionDispatchRec<X> CommonSubscriptions = new SubscriptionDispatchRec<>();
 		
 		public Dispatcher(String Name) {
-			Log = new GroupLogger(Name);
+			ILog = new GroupLogger.PerInst(Name);
 		}
 		
 		protected Dispatcher(String Name, X InitPayload) {
@@ -421,12 +423,12 @@ public class Dispatchers {
 					
 					// Non-functional logging code, but have to be inside the synchronized section for
 					// correct ordering
-					if (GlobalConfig.DEBUG_CHECK && Log.isLoggable(Level.FINE)) {
+					if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
 						if (ISubscription.Named.class.isInstance(Subscriber)) {
 							ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-							Log.Fine("Subscription '%s' attached", NamedSubscription.GetName());
+							ILog.Fine("Subscription '%s' attached", NamedSubscription.GetName());
 						} else {
-							Log.Fine("Anonymous subscription (%s) attached", Subscriber.getClass().getName());
+							ILog.Fine("Anonymous subscription (%s) attached", Subscriber.getClass().getName());
 						}
 					}
 				}
@@ -456,12 +458,13 @@ public class Dispatchers {
 							Iter.remove();
 							// Non-functional logging code, but have to be inside the synchronized section for
 							// correct ordering
-							if (GlobalConfig.DEBUG_CHECK && Log.isLoggable(Level.FINE)) {
+							if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
 								if (ISubscription.Named.class.isInstance(Subscriber)) {
 									ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-									Log.Fine("Subscription '%s' detached", NamedSubscription.GetName());
+									ILog.Fine("Subscription '%s' detached", NamedSubscription.GetName());
 								} else {
-									Log.Fine("Anonymous subscription (%s) detached", Subscriber.getClass().getName());
+									ILog.Fine("Anonymous subscription (%s) detached",
+											Subscriber.getClass().getName());
 								}
 							}
 							// Signal subscriber removed
@@ -473,7 +476,7 @@ public class Dispatchers {
 						ExpRef++;
 					}
 					// Clean up expired subscribers
-					if (ExpRef > 0) Log.Fine("Removed %d expired subscriptions", ExpRef);
+					if (ExpRef > 0) ILog.Fine("Removed %d expired subscriptions", ExpRef);
 				}
 			}
 			
@@ -523,7 +526,7 @@ public class Dispatchers {
 				if (Unlock) Subscriptions.UnlockPayload();
 				
 				// Non-functional logging code, but have to be synchronized for correct ordering
-				// if (Log.isLoggable(Level.FINER)) Log.Fine("+Dispatching payload...");
+				// if (ILog.isLoggable(Level.FINER))ILog.Fine("+Dispatching payload...");
 				
 				int ExpRef = 0;
 				for (Iterator<WeakReference<ISubscription<X>>> Iter = Subscribers.iterator(); Iter
@@ -538,12 +541,12 @@ public class Dispatchers {
 						ISubscription<X> LSubscriber = SubscriptionRef.get();
 						if (LSubscriber != null) {
 							// Non-functional logging code, but have to be synchronized for correct ordering
-							// if (GlobalConfig.DEBUG_CHECK && Log.isLoggable(Level.FINER)) {
+							// if (GlobalConfig.DEBUG_CHECK &&ILog.isLoggable(Level.FINER)) {
 							// if (ISubscription.Named.class.isInstance(LSubscriber)) {
 							// ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) LSubscriber;
-							// Log.Finer("*+Subscription '%s'...", NamedSubscription.GetName());
+							//ILog.Finer("*+Subscription '%s'...", NamedSubscription.GetName());
 							// } else {
-							// Log.Finer("*+Anonymous Subscription (%s)...", LSubscriber.getClass().getName());
+							//ILog.Finer("*+Anonymous Subscription (%s)...", LSubscriber.getClass().getName());
 							// }
 							// }
 							LSubscriber.onSubscription(NewPayload);
@@ -554,13 +557,13 @@ public class Dispatchers {
 					}
 				}
 				// Clean up expired subscribers
-				if (ExpRef > 0) Log.Fine("Removed %d expired subscriptions", ExpRef);
+				if (ExpRef > 0) ILog.Fine("Removed %d expired subscriptions", ExpRef);
 				
 				// Non-functional logging code, but have to be synchronized for correct ordering
-				// if (Log.isLoggable(Level.FINER))
-				// Log.Fine("*Dispatch done");
+				// if (ILog.isLoggable(Level.FINER))
+				//ILog.Fine("*Dispatch done");
 				// else
-				// Log.Fine("Payload dispatched");
+				//ILog.Fine("Payload dispatched");
 			}
 		}
 		
@@ -572,9 +575,9 @@ public class Dispatchers {
 		 * @return Latest payload
 		 */
 		protected final X Hold(boolean WaitDispatch) {
-			Log.Finer("+Payload update pausing...");
+			ILog.Finer("+Payload update pausing...");
 			X Payload = _Hold(CommonSubscriptions, WaitDispatch);
-			Log.Finer("*+Payload update paused");
+			ILog.Finer("*+Payload update paused");
 			return Payload;
 		}
 		
@@ -585,14 +588,14 @@ public class Dispatchers {
 			X Payload = Subscriptions.LockGetPayload();
 			
 			if (WaitDispatch) {
-				if (Log.isLoggable(Level.FINER)) Log.Finer("+Waiting for pending dispatching...");
+				if (ILog.isLoggable(Level.FINER)) ILog.Finer("+Waiting for pending dispatching...");
 				
 				Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
 				if (Subscribers != null) {
-					if (Log.isLoggable(Level.FINER)) {
-						Log.Finer("*Pending dispatching finished");
+					if (ILog.isLoggable(Level.FINER)) {
+						ILog.Finer("*Pending dispatching finished");
 					} else {
-						Log.Finer("Pending dispatching done");
+						ILog.Finer("Pending dispatching done");
 					}
 				}
 			}
@@ -603,7 +606,7 @@ public class Dispatchers {
 		 * Resume the payload updating
 		 */
 		protected final void Release() {
-			Log.Finer("*Payload update resumed");
+			ILog.Finer("*Payload update resumed");
 			_Release(CommonSubscriptions);
 		}
 		
@@ -707,17 +710,17 @@ public class Dispatchers {
 						if (CategorySubscriptions == null) break;
 					}
 					
-					// Log.Finer("*+Categorized payload dispatch on '%s'", Category);
+					//ILog.Finer("*+Categorized payload dispatch on '%s'", Category);
 					CategorySubscriptions.LockUpdatePayload(NewPayload);
 					if (!Unlock) CategorySubscriptions.UnlockPayload();
 					
 					Dispatch(CategorySubscriptions, NewPayload, Unlock);
 					break;
 				} finally {
-					Log.Finer("*@<");
+					ILog.Finer("*@<");
 				}
 				
-			// Log.Finer("+Uncategorized payload dispatch");
+			//ILog.Finer("+Uncategorized payload dispatch");
 			Dispatch(CommonSubscriptions, NewPayload, Unlock);
 		}
 		
@@ -731,9 +734,9 @@ public class Dispatchers {
 		 * @return Latest payload
 		 */
 		protected final X Hold(C Category, boolean waitClear) {
-			Log.Finer("+Payload update on category '%s' pausing...", Category);
+			ILog.Finer("+Payload update on category '%s' pausing...", Category);
 			X Payload = _Hold(GetCategorySubscriptions(Category), waitClear);
-			Log.Finer("+Payload update on category '%s' paused", Category);
+			ILog.Finer("+Payload update on category '%s' paused", Category);
 			return Payload;
 		}
 		
@@ -744,7 +747,7 @@ public class Dispatchers {
 		 *          - Subscription Category
 		 */
 		protected final void Release(C Category) {
-			Log.Finer("*Payload update on category '%s' resumed", Category);
+			ILog.Finer("*Payload update on category '%s' resumed", Category);
 			_Release(GetCategorySubscriptions(Category));
 		}
 		

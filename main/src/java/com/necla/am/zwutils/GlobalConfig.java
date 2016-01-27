@@ -39,6 +39,7 @@ import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.i18n.Messages;
 
@@ -55,7 +56,7 @@ import com.necla.am.zwutils.i18n.Messages;
 public class GlobalConfig {
 	
 	static private final String LogGroup = "ZWUtils.GlobalConfig"; //$NON-NLS-1$
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	public static class Mutable extends Data.Mutable {
 		
@@ -94,7 +95,7 @@ public class GlobalConfig {
 		public final boolean NO_ASSERT;
 		public final boolean DISABLE_LOG;
 		
-		public ReadOnly(GroupLogger Logger, Mutable Source) {
+		public ReadOnly(IGroupLogger Logger, Mutable Source) {
 			super(Logger, Source);
 			
 			// Copy all fields from Source
@@ -118,7 +119,7 @@ public class GlobalConfig {
 	
 	// Load constant configurations
 	static {
-		ClassLog.Entry(Messages.Localize("GlobalConfig.INIT_START")); //$NON-NLS-1$
+		CLog.Entry(Messages.Localize("GlobalConfig.INIT_START")); //$NON-NLS-1$
 		
 		{
 			ReadOnly _Config = null;
@@ -136,7 +137,7 @@ public class GlobalConfig {
 			DISABLE_LOG = _Config.DISABLE_LOG;
 		}
 		
-		ClassLog.Exit(Messages.Localize("GlobalConfig.INIT_FINISH")); //$NON-NLS-1$
+		CLog.Exit(Messages.Localize("GlobalConfig.INIT_FINISH")); //$NON-NLS-1$
 	}
 	
 }

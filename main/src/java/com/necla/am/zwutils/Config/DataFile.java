@@ -41,6 +41,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.i18n.Messages;
@@ -76,12 +77,12 @@ public class DataFile extends Properties {
 		return new File("conf/" + Prefix + Misc.stripPackageName(ClassName) + ".properties"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	protected ITimeStamp lastModified;
 	
 	public DataFile(String Name) {
 		super();
-		Log = new GroupLogger(Name + '.' + getClass().getSimpleName());
+		ILog = new GroupLogger.PerInst(Name + '.' + getClass().getSimpleName());
 		lastModified = ITimeStamp.Impl.Now();
 	}
 	
@@ -91,7 +92,7 @@ public class DataFile extends Properties {
 		try {
 			InputStream Conf = null;
 			try {
-				Log.Finer(Messages.Localize("Config.DataFile.CHECK_CURDIR")); //$NON-NLS-1$
+				ILog.Finer(Messages.Localize("Config.DataFile.CHECK_CURDIR")); //$NON-NLS-1$
 				File ConfigFile = Misc.probeFile(INIFileName);
 				if ((ConfigFile != null) && ConfigFile.canRead()) {
 					INIFileName = ConfigFile.getPath();
@@ -107,11 +108,11 @@ public class DataFile extends Properties {
 				
 				if (Conf != null) {
 					load(Conf);
-					Log.Fine(Messages.Localize("Config.DataFile.OPEN_FILE"), INIFileName, //$NON-NLS-1$
+					ILog.Fine(Messages.Localize("Config.DataFile.OPEN_FILE"), INIFileName, //$NON-NLS-1$
 							(ConfigFile != null? "file" : "resource")); //$NON-NLS-1$ //$NON-NLS-2$
 				} else {
-					if (Log.isLoggable(Level.CONFIG))
-						Log.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_WARN"), INIFileName); //$NON-NLS-1$
+					if (ILog.isLoggable(Level.CONFIG))
+						ILog.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_WARN"), INIFileName); //$NON-NLS-1$
 					lastModified = new ITimeStamp.Impl(0);
 				}
 			} finally {
@@ -120,10 +121,10 @@ public class DataFile extends Properties {
 				}
 			}
 		} catch (Throwable e) {
-			if (Log.isLoggable(Level.FINE))
-				Log.logExcept(e, Messages.Localize("Config.DataFile.OPEN_FILE_FAIL"), INIFileName); //$NON-NLS-1$
-			else if (Log.isLoggable(Level.CONFIG))
-				Log.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_FAIL_LT"), INIFileName, e); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.FINE))
+				ILog.logExcept(e, Messages.Localize("Config.DataFile.OPEN_FILE_FAIL"), INIFileName); //$NON-NLS-1$
+			else if (ILog.isLoggable(Level.CONFIG))
+				ILog.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_FAIL_LT"), INIFileName, e); //$NON-NLS-1$
 		}
 	}
 	
@@ -132,12 +133,12 @@ public class DataFile extends Properties {
 		
 		try {
 			load(INIData);
-			Log.Fine(Messages.Localize("Config.DataFile.LOADED_STREAM")); //$NON-NLS-1$
+			ILog.Fine(Messages.Localize("Config.DataFile.LOADED_STREAM")); //$NON-NLS-1$
 		} catch (Throwable e) {
-			if (Log.isLoggable(Level.FINE))
-				Log.logExcept(e, Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL")); //$NON-NLS-1$
-			else if (Log.isLoggable(Level.CONFIG))
-				Log.Warn(Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL_LT"), e); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.FINE))
+				ILog.logExcept(e, Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL")); //$NON-NLS-1$
+			else if (ILog.isLoggable(Level.CONFIG))
+				ILog.Warn(Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL_LT"), e); //$NON-NLS-1$
 		}
 	}
 	
@@ -146,17 +147,17 @@ public class DataFile extends Properties {
 	}
 	
 	public String getName() {
-		return Log.GroupName();
+		return ILog.GroupName();
 	}
 	
 	public void saveAs(String INIFileName, String Comments) throws IOException {
 		store(new FileOutputStream(INIFileName), Comments);
-		Log.Fine(Messages.Localize("Config.DataFile.SAVE_FILE"), Misc.stripPathName(INIFileName)); //$NON-NLS-1$
+		ILog.Fine(Messages.Localize("Config.DataFile.SAVE_FILE"), Misc.stripPathName(INIFileName)); //$NON-NLS-1$
 	}
 	
 	public void saveAs(OutputStream INIData, String Comments) throws IOException {
 		store(INIData, Comments);
-		Log.Fine(Messages.Localize("Config.DataFile.SAVE_STREAM")); //$NON-NLS-1$
+		ILog.Fine(Messages.Localize("Config.DataFile.SAVE_STREAM")); //$NON-NLS-1$
 	}
 	
 }

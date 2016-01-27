@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Parsers;
 
@@ -54,7 +55,7 @@ import com.necla.am.zwutils.Misc.Parsers;
 public class Support {
 	
 	public static final String LogGroup = "ZWUtils.Logging.Support";
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	/**
 	 * String to log level parser
@@ -94,75 +95,75 @@ public class Support {
 			FileName = fileName;
 			Features = Collections.unmodifiableSet(features);
 		}
-	}
-	
-	/**
-	 * String to group log file record
-	 */
-	public static class StringToGroupLogFile extends Parsers.SimpleStringParse<GroupLogFile> {
 		
-		protected static final char GROUPFILE_FORWARD = '~';
-		protected static final char GROUPFILE_APPEND = '+';
-		protected static final char GROUPFILE_DAILYROTATE = '@';
-		protected static final char GROUPFILE_COMPRESSROTATED = '#';
-		protected static final Pattern GROUPFILE_DELIM = Pattern.compile("\\$");
-		
-		@Override
-		public GroupLogFile parseOrFail(String From) {
-			if (From == null) {
-				Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
-			}
+		/**
+		 * String to group log file record
+		 */
+		public static class StringToGroupLogFile extends Parsers.SimpleStringParse<GroupLogFile> {
 			
-			EnumSet<GroupLogFile.Feature> Features = EnumSet.noneOf(GroupLogFile.Feature.class);
-			String[] Tokens = GROUPFILE_DELIM.split(From.trim(), 2);
-			if (Tokens.length > 1) {
-				final int len = Tokens[1].length();
-				for (int i = 0; i < len; i++) {
-					switch (Tokens[1].charAt(i)) {
-						case GROUPFILE_FORWARD:
-							Features.add(GroupLogFile.Feature.Forward);
-							break;
-						case GROUPFILE_APPEND:
-							Features.add(GroupLogFile.Feature.Append);
-							break;
-						case GROUPFILE_DAILYROTATE:
-							Features.add(GroupLogFile.Feature.DailyRotate);
-							break;
-						case GROUPFILE_COMPRESSROTATED:
-							Features.add(GroupLogFile.Feature.CompressRotated);
-							break;
-						default:
-							ClassLog.Warn("Ignored unrecognized modifier '%s' for log file '%s'",
-									Tokens[1].charAt(i), Tokens[0]);
-					}
+			protected static final char GROUPFILE_FORWARD = '~';
+			protected static final char GROUPFILE_APPEND = '+';
+			protected static final char GROUPFILE_DAILYROTATE = '@';
+			protected static final char GROUPFILE_COMPRESSROTATED = '#';
+			protected static final Pattern GROUPFILE_DELIM = Pattern.compile("\\$");
+			
+			@Override
+			public GroupLogFile parseOrFail(String From) {
+				if (From == null) {
+					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 				}
-			} else
-				Features.add(GroupLogFile.Feature.Forward);
 				
-			return new GroupLogFile(Tokens[0], Features);
+				EnumSet<GroupLogFile.Feature> Features = EnumSet.noneOf(GroupLogFile.Feature.class);
+				String[] Tokens = GROUPFILE_DELIM.split(From.trim(), 2);
+				if (Tokens.length > 1) {
+					final int len = Tokens[1].length();
+					for (int i = 0; i < len; i++) {
+						switch (Tokens[1].charAt(i)) {
+							case GROUPFILE_FORWARD:
+								Features.add(GroupLogFile.Feature.Forward);
+								break;
+							case GROUPFILE_APPEND:
+								Features.add(GroupLogFile.Feature.Append);
+								break;
+							case GROUPFILE_DAILYROTATE:
+								Features.add(GroupLogFile.Feature.DailyRotate);
+								break;
+							case GROUPFILE_COMPRESSROTATED:
+								Features.add(GroupLogFile.Feature.CompressRotated);
+								break;
+							default:
+								CLog.Warn("Ignored unrecognized modifier '%s' for log file '%s'",
+										Tokens[1].charAt(i), Tokens[0]);
+						}
+					}
+				} else
+					Features.add(GroupLogFile.Feature.Forward);
+					
+				return new GroupLogFile(Tokens[0], Features);
+			}
 		}
-	}
-	
-	/**
-	 * String from group log file record
-	 */
-	public static class StringFromGroupLogFile extends Parsers.SimpleParseString<GroupLogFile> {
 		
-		@Override
-		public String parseOrFail(GroupLogFile From) {
-			if (From == null) {
-				Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+		/**
+		 * String from group log file record
+		 */
+		public static class StringFromGroupLogFile extends Parsers.SimpleParseString<GroupLogFile> {
+			
+			@Override
+			public String parseOrFail(GroupLogFile From) {
+				if (From == null) {
+					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+				}
+				
+				if (From.FileName.isEmpty())
+					return "<No File>";
+				else
+					return String.format("%s [%s]", From.FileName, From.Features);
 			}
 			
-			if (From.FileName.isEmpty())
-				return "<No File>";
-			else
-				return String.format("%s [%s]", From.FileName, From.Features);
 		}
 		
+		public static final StringToGroupLogFile FromString = new StringToGroupLogFile();
+		public static final StringFromGroupLogFile ToString = new StringFromGroupLogFile();
 	}
-	
-	public static final StringToGroupLogFile StringToGroupLogFile = new StringToGroupLogFile();
-	public static final StringFromGroupLogFile StringFromGroupLogFile = new StringFromGroupLogFile();
 	
 }

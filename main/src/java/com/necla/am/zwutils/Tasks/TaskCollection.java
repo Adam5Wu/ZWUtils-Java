@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 
 
@@ -50,7 +51,7 @@ import com.necla.am.zwutils.Misc.Misc;
  */
 public class TaskCollection<T extends ITask> implements Iterable<T> {
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	protected final ITask HostTask;
 	protected final Set<T> Tasks;
@@ -58,7 +59,7 @@ public class TaskCollection<T extends ITask> implements Iterable<T> {
 	public TaskCollection(String Name, ITask Task) {
 		super();
 		
-		Log = new GroupLogger(Name);
+		ILog = new GroupLogger.PerInst(Name);
 		
 		HostTask = Task;
 		Tasks = new HashSet<>();
@@ -117,7 +118,7 @@ public class TaskCollection<T extends ITask> implements Iterable<T> {
 		
 		@Override
 		public void AddDependency(ITask Task) {
-			if (!AddTask(Task)) Log.Warn("Task '%s' already in colllection", Task.getName());
+			if (!AddTask(Task)) ILog.Warn("Task '%s' already in colllection", Task.getName());
 		}
 		
 		@Override

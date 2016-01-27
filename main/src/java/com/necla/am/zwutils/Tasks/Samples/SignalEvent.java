@@ -34,7 +34,7 @@ package com.necla.am.zwutils.Tasks.Samples;
 import java.util.Collection;
 
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.SignalHelper;
 import com.necla.am.zwutils.Misc.SignalHelper.InstallMode;
@@ -107,16 +107,16 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 					
 					// Validate signal name
 					if (SignalName.length() > 0) {
-						Log.Fine("Checking signal name...");
+						ILog.Fine("Checking signal name...");
 						Signal = new Signal(SignalName);
 					} else
 						Signal = null;
 						
 					Mode = InstallMode.valueOf(StrMode);
 					
-					Log.Fine("Checking signal event...");
+					ILog.Fine("Checking signal event...");
 					if (MessageCategories.Lookup(Event) == null) {
-						Log.Warn("Unregistered category '%s'", Event);
+						ILog.Warn("Unregistered category '%s'", Event);
 					}
 				}
 				
@@ -135,7 +135,7 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 			protected InstallMode Mode;
 			public final String Event;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				Signal = Source.Signal;
@@ -198,19 +198,19 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 		
 		if (Config.Signal != null) {
 			SignalHelper = new SignalHelper(Config.Signal, EventDo, Config.Mode);
-			Log.Config("Registered signal handler '%s'", Config.Signal);
+			ILog.Config("Registered signal handler '%s'", Config.Signal);
 		} else {
 			MessageDispatcher.RegisterSubscription(EVENT_TASK_SIGNAL, SignalCascader = TaskTerm -> {
 				ITask SenderTask = TaskTerm.GetSender();
 				if (SenderTask != null) {
-					Log.Entry("+Signal event from %s", SenderTask);
+					ILog.Entry("+Signal event from %s", SenderTask);
 				} else {
-					Log.Entry("+Signal event received");
+					ILog.Entry("+Signal event received");
 				}
 				EventDo.run();
-				Log.Exit("*Signal event handled");
+				ILog.Exit("*Signal event handled");
 			});
-			Log.Config("Cascade signal mode");
+			ILog.Config("Cascade signal mode");
 		}
 	}
 	
@@ -228,13 +228,13 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 	@Override
 	protected void postTask(State RefState) {
 		if (Signaled()) {
-			Log.Config("Signal event triggered");
+			ILog.Config("Signal event triggered");
 			SignalTasks.GetTasks().forEach(SignalTask -> {
-				Log.Fine("Signaling task '%s'...", SignalTask.getName());
+				ILog.Fine("Signaling task '%s'...", SignalTask.getName());
 				try {
 					Notifiable.class.cast(SignalTask).onSubscription(SignalEvent);
 				} catch (Throwable e) {
-					Log.logExcept(e, "Exception while signaling task '%s'", SignalTask.getName());
+					ILog.logExcept(e, "Exception while signaling task '%s'", SignalTask.getName());
 					// Eat exception
 				}
 			});

@@ -33,7 +33,7 @@ package com.necla.am.zwutils.Tasks.Samples;
 
 import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Tasks.ConfigurableTask;
@@ -78,18 +78,18 @@ public abstract class Poller
 				
 				@Override
 				public void validateFields() throws Throwable {
-					Log.Fine("Checking time resolution...");
+					ILog.Fine("Checking time resolution...");
 					if (TimeRes > 0) {
 						if (TimeRes < MIN_TIMERES) {
-							Log.Warn("Time resolution %dms too small, clipped to %dms", TimeRes, MIN_TIMERES);
+							ILog.Warn("Time resolution %dms too small, clipped to %dms", TimeRes, MIN_TIMERES);
 							TimeRes = (int) MIN_TIMERES;
 						} else if (TimeRes > MAX_TIMERES) {
-							Log.Warn("Time resolution %dms too large, clipped to %dms", TimeRes, MAX_TIMERES);
+							ILog.Warn("Time resolution %dms too large, clipped to %dms", TimeRes, MAX_TIMERES);
 							TimeRes = (int) MAX_TIMERES;
 						}
 					} else {
 						if (TimeRes == 0) {
-							Log.Config("Periodic polling disabled");
+							ILog.Config("Periodic polling disabled");
 						} else {
 							Misc.FAIL(IllegalArgumentException.class, "Invalid time resolution %d", TimeRes);
 						}
@@ -108,7 +108,7 @@ public abstract class Poller
 			
 			public final int TimeRes;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				TimeRes = Source.TimeRes == 0? -1 : Source.TimeRes;

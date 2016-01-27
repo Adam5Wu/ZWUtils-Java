@@ -278,7 +278,7 @@ public class Misc {
 				} catch (NoSuchMethodException e) {
 					Class<?> SuperClass = FailType.getSuperclass();
 					if (RuntimeException.class.isAssignableFrom(SuperClass)) {
-						DebugLog.Log.Warn("Could not construct Exception %s, try generaizing...",
+						DebugLog.Logger.Warn("Could not construct Exception %s, try generaizing...",
 								FailType.getSimpleName());
 						FailType = (Class<? extends RuntimeException>) SuperClass;
 					} else {
@@ -328,7 +328,7 @@ public class Misc {
 				} catch (NoSuchMethodException e) {
 					Class<?> SuperClass = FailType.getSuperclass();
 					if (RuntimeException.class.isAssignableFrom(SuperClass)) {
-						DebugLog.Log.Warn("Could not construct Exception %s, try generaizing...",
+						DebugLog.Logger.Warn("Could not construct Exception %s, try generaizing...",
 								FailType.getSimpleName());
 						FailType = (Class<? extends RuntimeException>) SuperClass;
 					} else {
@@ -996,7 +996,7 @@ public class Misc {
 			try {
 				Str = In.readLine();
 			} catch (IOException e) {
-				DebugLog.Log.Fine("Reader exception: %s", e.getMessage());
+				DebugLog.Logger.Fine("Reader exception: %s", e.getMessage());
 				break;
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e);

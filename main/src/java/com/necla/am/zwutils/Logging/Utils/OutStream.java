@@ -36,6 +36,7 @@ import java.io.OutputStream;
 
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 
 
@@ -52,9 +53,9 @@ import com.necla.am.zwutils.Misc.Misc;
 public class OutStream extends OutputStream {
 	
 	public static final String LogGroup = "ZWUtils.Logging.OutStream";
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
-	private final GroupLogger LogSink;
+	private final IGroupLogger LogSink;
 	
 	private String Name;
 	private StringBuilder StrBuffer;
@@ -70,11 +71,11 @@ public class OutStream extends OutputStream {
 	 * @param log
 	 *          - Logger to attach to
 	 */
-	public OutStream(String name, GroupLogger log) {
+	public OutStream(String name, IGroupLogger Logger) {
 		super();
 		
 		AttachOutput(name);
-		LogSink = log;
+		LogSink = Logger;
 	}
 	
 	/**
@@ -101,7 +102,7 @@ public class OutStream extends OutputStream {
 	private void AttachOutput(String name) {
 		Name = name;
 		StrBuffer = new StringBuilder();
-		ClassLog.Fine("%s: Output stream attached", Name);
+		CLog.Fine("%s: Output stream attached", Name);
 	}
 	
 	/**
@@ -109,7 +110,7 @@ public class OutStream extends OutputStream {
 	 *
 	 * @return LoggedClass logger
 	 */
-	public GroupLogger getLog() {
+	public IGroupLogger getLog() {
 		return LogSink;
 	}
 	
@@ -120,7 +121,7 @@ public class OutStream extends OutputStream {
 	 */
 	@Override
 	synchronized public void close() {
-		ClassLog.Fine("%s: Output stream detached", Name);
+		CLog.Fine("%s: Output stream detached", Name);
 		StrBuffer = null;
 	}
 	

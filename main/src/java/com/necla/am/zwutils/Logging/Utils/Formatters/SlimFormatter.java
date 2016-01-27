@@ -154,7 +154,7 @@ public final class SlimFormatter extends LogFormatter {
 		}
 		if (NestDepthMax != Val) {
 			NestDepthMax = Val;
-			Log.Config("Log message level nesting limit: %d", NestDepthMax);
+			ILog.Config("Log message level nesting limit: %d", NestDepthMax);
 		}
 	}
 	
@@ -166,7 +166,7 @@ public final class SlimFormatter extends LogFormatter {
 			LogPad = null;
 			EllipsisMethod = null;
 			MethodIdentWidth = Val;
-			Log.Config("Log message method identifier %s",
+			ILog.Config("Log message method identifier %s",
 					MethodIdentWidth < MIN_MethodIdentWidth? "disabled" : String.format("clip width: %d",
 							MethodIdentWidth));
 		}
@@ -180,7 +180,7 @@ public final class SlimFormatter extends LogFormatter {
 			LogPad = null;
 			EllipsisGroup = null;
 			LogGroupWidth = Val;
-			Log.Config("Log message group %s", LogGroupWidth < MIN_LogGroupWidth? "disabled" : String
+			ILog.Config("Log message group %s", LogGroupWidth < MIN_LogGroupWidth? "disabled" : String
 					.format("clip width: %d", LogGroupWidth));
 		}
 	}
@@ -188,7 +188,7 @@ public final class SlimFormatter extends LogFormatter {
 	public void setExceptStack(boolean Val) {
 		if (ExceptStack != Val) {
 			ExceptStack = Val;
-			Log.Config("Exception stack trace printing %s", ExceptStack? "enabled" : "disabled");
+			ILog.Config("Exception stack trace printing %s", ExceptStack? "enabled" : "disabled");
 		}
 	}
 	
@@ -196,35 +196,35 @@ public final class SlimFormatter extends LogFormatter {
 		if (MsgTime != Val) {
 			MsgTime = Val;
 			LogPad = null;
-			Log.Config("Message time stamp %s", MsgTime? "enabled" : "disabled");
+			ILog.Config("Message time stamp %s", MsgTime? "enabled" : "disabled");
 		}
 	}
 	
 	public void setMsgHdr(boolean Val) {
 		if (MsgHdr != Val) {
 			MsgHdr = Val;
-			Log.Config("Message header information %s", MsgHdr? "enabled" : "disabled");
+			ILog.Config("Message header information %s", MsgHdr? "enabled" : "disabled");
 		}
 	}
 	
 	public void setMsgSrc(boolean Val) {
 		if (MsgSrc != Val) {
 			MsgSrc = Val;
-			Log.Config("Message source information %s", MsgSrc? "enabled" : "disabled");
+			ILog.Config("Message source information %s", MsgSrc? "enabled" : "disabled");
 		}
 	}
 	
 	public void setAutoWarn(boolean Val) {
 		if (AutoWarn != Val) {
 			AutoWarn = Val;
-			Log.Config("Automatic warning enhancement %s", AutoWarn? "enabled" : "disabled");
+			ILog.Config("Automatic warning enhancement %s", AutoWarn? "enabled" : "disabled");
 		}
 	}
 	
 	public void setShortHandFmt(boolean Val) {
 		if (ShortHandFmt != Val) {
 			ShortHandFmt = Val;
-			Log.Config("Short-hand format notation %s", AutoWarn? "enabled" : "disabled");
+			ILog.Config("Short-hand format notation %s", AutoWarn? "enabled" : "disabled");
 		}
 	}
 	

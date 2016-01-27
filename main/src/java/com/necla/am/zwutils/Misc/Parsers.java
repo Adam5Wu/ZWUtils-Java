@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.logging.Level;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 
 
 /**
@@ -48,7 +49,7 @@ import com.necla.am.zwutils.Logging.GroupLogger;
 public final class Parsers {
 	
 	static public final String LogGroup = "ZWUtils.Parsers";
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	/**
 	 * Generic parser interface from one object to another
@@ -82,8 +83,8 @@ public final class Parsers {
 			try {
 				Ret = parseOrFail(From);
 			} catch (Throwable e) {
-				if (ClassLog.isLoggable(Level.FINE)) {
-					ClassLog.logExcept(e, ERROR_PARSE_FALLBACK, From);
+				if (CLog.isLoggable(Level.FINE)) {
+					CLog.logExcept(e, ERROR_PARSE_FALLBACK, From);
 				}
 			}
 			
@@ -155,8 +156,8 @@ public final class Parsers {
 			try {
 				Ret = parseOrFail(From);
 			} catch (Throwable e) {
-				if (ClassLog.isLoggable(Level.FINE)) {
-					ClassLog.logExcept(e, ERROR_PARSE_FALLBACK, From);
+				if (CLog.isLoggable(Level.FINE)) {
+					CLog.logExcept(e, ERROR_PARSE_FALLBACK, From);
 				}
 			}
 			

@@ -39,7 +39,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Parsers;
 
@@ -121,7 +121,7 @@ public class ProcStats extends Companion {
 				
 				LogInterval = confMap.getIntDef(CONFIG_LOGINTERVAL, LogInterval);
 				
-				Log.Fine("Loading stats types descripter...");
+				ILog.Fine("Loading stats types descripter...");
 				String StatStr = confMap.getTextDef(CONFIG_TYPES, "").trim();
 				if (!StatStr.isEmpty()) {
 					Stats.clear();
@@ -143,16 +143,16 @@ public class ProcStats extends Companion {
 				public void validateFields() throws Throwable {
 					super.validateFields();
 					
-					Log.Fine("Checking log interval...");
-					if (LogInterval > 0) Log.Info("Logging interval: %s", Misc.FormatDeltaTime(LogInterval));
+					ILog.Fine("Checking log interval...");
+					if (LogInterval > 0) ILog.Info("Logging interval: %s", Misc.FormatDeltaTime(LogInterval));
 					
-					Log.Fine("Checking stats descriptor...");
+					ILog.Fine("Checking stats descriptor...");
 					if (Stats.isEmpty()) {
 						Misc.FAIL(NoSuchElementException.class, "Missing stats types descriptor");
 					}
 					
 					if (OutputFile != null) {
-						Log.Fine("Checking stats output file '%s'...", OutputFile);
+						ILog.Fine("Checking stats output file '%s'...", OutputFile);
 						File StatsOutputFile = new File(OutputFile);
 						try {
 							StatsOutputFile.createNewFile();
@@ -180,7 +180,7 @@ public class ProcStats extends Companion {
 			public final Set<StatType> Stats;
 			public final PrintStream FileOut;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				LogInterval = Source.LogInterval;
@@ -251,7 +251,7 @@ public class ProcStats extends Companion {
 				long TimePeriod = CurTime - StartTime;
 				String StatStr =
 						String.format("Up-time: %s | %d", Misc.FormatDeltaTime(TimePeriod), TimePeriod);
-				Log.Info(StatStr);
+				ILog.Info(StatStr);
 			}
 		}
 		if (Config.Stats.contains(ConfigData.StatType.MAXMEM)) {
@@ -259,7 +259,7 @@ public class ProcStats extends Companion {
 			MaxMem = Math.max(CurMem, MaxMem);
 			if (DoLog) {
 				String StatStr = String.format("Current-Memory: %s | %d", Misc.FormatSize(CurMem), CurMem);
-				Log.Info(StatStr);
+				ILog.Info(StatStr);
 			}
 		}
 		super.PollWait();
@@ -274,14 +274,14 @@ public class ProcStats extends Companion {
 			String StatStr =
 					String.format("Run-time: %s | %d", Misc.FormatDeltaTime(TimePeriod), TimePeriod);
 					
-			Log.Info(StatStr);
+			ILog.Info(StatStr);
 			if (Config.FileOut != null) {
 				Config.FileOut.println(StatStr);
 			}
 		}
 		if (Config.Stats.contains(ConfigData.StatType.MAXMEM)) {
 			String StatStr = String.format("Max-Memory: %s | %d", Misc.FormatSize(MaxMem), MaxMem);
-			Log.Info(StatStr);
+			ILog.Info(StatStr);
 			if (Config.FileOut != null) {
 				Config.FileOut.println(StatStr);
 			}

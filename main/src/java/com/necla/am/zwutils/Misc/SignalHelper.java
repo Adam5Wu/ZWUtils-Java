@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Misc;
 
 import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
@@ -49,7 +50,7 @@ public class SignalHelper implements SignalHandler {
 	
 	public static final String LogGroup = "ZWUtils.SignalHelper";
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	protected final Signal Capture;
 	protected final Runnable Task;
@@ -66,19 +67,19 @@ public class SignalHelper implements SignalHandler {
 	protected boolean Bypass = false;
 	
 	public SignalHelper(Signal signal, Runnable task, InstallMode mode) {
-		Log = new GroupLogger(LogGroup + '.' + signal.getName());
+		ILog = new GroupLogger.PerInst(LogGroup + '.' + signal.getName());
 		
 		Capture = signal;
 		Task = task;
 		Mode = mode;
-		Log.Fine("Registering handler for signal '%s'", signal);
+		ILog.Fine("Registering handler for signal '%s'", signal);
 		Cascade = Signal.handle(signal, this);
 	}
 	
 	@Override
 	public void handle(Signal signal) {
 		if (!Bypass) {
-			Log.Info("Received signal '%s'", signal);
+			ILog.Info("Received signal '%s'", signal);
 			try {
 				if (GlobalConfig.DEBUG_CHECK) if (signal != Capture)
 					Misc.ERROR("Unexpected signal received, expect '%s', received '%s'", Capture, signal);
@@ -89,7 +90,7 @@ public class SignalHelper implements SignalHandler {
 					case NoDefault:
 						if (Cascade == SIG_DFL) break;
 					case Cascade:
-						Log.Info("Cascading signal '%s'", signal);
+						ILog.Info("Cascading signal '%s'", signal);
 						Cascade.handle(signal);
 						break;
 					case Override:
@@ -98,10 +99,10 @@ public class SignalHelper implements SignalHandler {
 						Misc.ERROR("Unrecognized installation mode '%s'", Mode);
 				}
 			} catch (Throwable e) {
-				Log.logExcept(e);
+				ILog.logExcept(e);
 			}
 		} else {
-			Log.Info("Bypassing signal '%s'", signal);
+			ILog.Info("Bypassing signal '%s'", signal);
 			Cascade.handle(signal);
 		}
 	}

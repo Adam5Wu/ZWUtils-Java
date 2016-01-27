@@ -34,7 +34,7 @@ package com.necla.am.zwutils.Tasks.Samples;
 import java.util.Collection;
 
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
 import com.necla.am.zwutils.Subscriptions.Message.IMessage;
@@ -86,16 +86,16 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 					super.validateFields();
 					
 					if (TimeOut != null) {
-						Log.Fine("Checking timeout value...");
+						ILog.Fine("Checking timeout value...");
 						if (TimeOut < 0) {
 							Misc.FAIL(IllegalArgumentException.class, "Invalid timeout %d (must be non-negative)",
 									TimeOut);
 						}
 					}
 					
-					Log.Fine("Checking timeout event...");
+					ILog.Fine("Checking timeout event...");
 					if (MessageCategories.Lookup(Event) == null) {
-						Log.Warn("Unregistered category '%s'", Event);
+						ILog.Warn("Unregistered category '%s'", Event);
 					}
 				}
 				
@@ -113,7 +113,7 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 			public final Integer TimeOut;
 			public final String Event;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				TimeOut = Source.TimeOut;
@@ -174,20 +174,20 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 		StartTime = System.currentTimeMillis();
 		if (Config.TimeOut != null) {
 			DeltaTimeout = Config.TimeOut;
-			Log.Config("Timeout set at %s", Misc.FormatDeltaTime(DeltaTimeout, false));
+			ILog.Config("Timeout set at %s", Misc.FormatDeltaTime(DeltaTimeout, false));
 		} else {
 			MessageDispatcher.RegisterSubscription(EVENT_TASK_TIMEOUT, SignalCascader = TaskTerm -> {
 				ITask SenderTask = TaskTerm.GetSender();
 				if (SenderTask != null) {
-					Log.Entry("+Timeout event from %s", SenderTask);
+					ILog.Entry("+Timeout event from %s", SenderTask);
 				} else {
-					Log.Entry("+Timeout event received");
+					ILog.Entry("+Timeout event received");
 				}
 				CreateTimeoutMessage();
 				TimedEvent.this.Wakeup();
-				Log.Exit("*Timeout event handled");
+				ILog.Exit("*Timeout event handled");
 			});
-			Log.Config("Cascade timeout mode");
+			ILog.Config("Cascade timeout mode");
 		}
 	}
 	
@@ -225,13 +225,13 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 	@Override
 	protected void postTask(State RefState) {
 		if (TimedOut()) {
-			Log.Config("Timeout event triggered");
+			ILog.Config("Timeout event triggered");
 			TimeoutTasks.GetTasks().forEach(TimeoutTask -> {
-				Log.Fine("Signaling task '%s'...", TimeoutTask.getName());
+				ILog.Fine("Signaling task '%s'...", TimeoutTask.getName());
 				try {
 					Notifiable.class.cast(TimeoutTask).onSubscription(TimeoutEvent);
 				} catch (Throwable e) {
-					Log.logExcept(e, "Exception while signaling task '%s'", TimeoutTask.getName());
+					ILog.logExcept(e, "Exception while signaling task '%s'", TimeoutTask.getName());
 					// Eat exception
 				}
 			});

@@ -36,6 +36,7 @@ import java.util.logging.Level;
 
 import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Subscriptions.Dispatchers;
@@ -55,9 +56,11 @@ import com.necla.am.zwutils.Subscriptions.Message.IMessage;
 public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		implements ITask.TaskRunnable {
 		
+	public static final String LogGroupPfx = "ZWUtils.Tasks.Runnable.";
+	
 	private Object[] WaitBar = null;
 	
-	protected final GroupLogger Log;
+	protected final IGroupLogger ILog;
 	
 	private Throwable FatalException = null;
 	private Object Return = null;
@@ -69,7 +72,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		
 		@Override
 		public void onSubscription(State NewState) {
-			Log.Fine("Task state transited to %s", NewState);
+			ILog.Fine("Task state transited to %s", NewState);
 			
 			// Synchronize on outer this for consistent WaitBar list creation
 			synchronized (RunnableTask.this) {
@@ -97,7 +100,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	protected RunnableTask(String Name) {
 		super(Name + ".State", State.CONSTRUCTION);
 		
-		Log = new GroupLogger("ZWUtils.Tasks.Runnable." + Name);
+		ILog = new GroupLogger.PerInst(LogGroupPfx + Name);
 		
 		RegisterSubscription(StateNotifier);
 		
@@ -112,7 +115,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 					Misc.FAIL(IllegalStateException.class, "Illegal task state: %s", CurState);
 				}
 				if (CurState.hasTerminated()) {
-					Log.Warn("Task marked as should-not-start");
+					ILog.Warn("Task marked as should-not-start");
 				}
 			} finally {
 				CommonSubscriptions.UnlockPayload();
@@ -150,14 +153,14 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 					
 				case TERMINATING:
 				case TERMINATED:
-					Log.Warn("Task terminated before running");
+					ILog.Warn("Task terminated before running");
 					break;
 					
 				default:
 					Misc.FAIL(IllegalStateException.class, "Illegal task state: %s", CurState);
 			}
 		} catch (Throwable e) {
-			Log.logExcept(e, "Terminated by unhandled exception");
+			ILog.logExcept(e, "Terminated by unhandled exception");
 			FatalException = e;
 		} finally {
 			tryEnterState(State.TERMINATING);
@@ -239,7 +242,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	
 	@Override
 	public final String getName() {
-		return Log.GroupName();
+		return ILog.GroupName();
 	}
 	
 	@Override
@@ -311,7 +314,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 			Sleeping = false;
 			
 			Interrupted = Thread.interrupted();
-			if (GlobalConfig.DEBUG_CHECK && Interrupted) Log.Warn("Sleep interrupted");
+			if (GlobalConfig.DEBUG_CHECK && Interrupted) ILog.Warn("Sleep interrupted");
 		} else
 			// Zero sleep = yield
 			Thread.yield();
@@ -323,7 +326,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		if (Sleeping) {
 			Sleeping = false;
 			if (WorkerThread == null) {
-				if (Log.isLoggable(Level.FINE)) Log.Warn("Task thread already terminated");
+				if (ILog.isLoggable(Level.FINE)) ILog.Warn("Task thread already terminated");
 			} else
 				LockSupport.unpark(WorkerThread);
 		}
@@ -362,7 +365,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		if (BeforeTerminate != null) {
 			doTerm(BeforeTerminate);
 			if (!BeforeTerminate.hasStarted()) {
-				Log.Warn("Task terminated before start");
+				ILog.Warn("Task terminated before start");
 				tryEnterState(State.TERMINATED);
 			}
 		}
@@ -370,7 +373,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		try {
 			return waitFor(State.TERMINATED, Timeout);
 		} catch (InterruptedException e) {
-			Log.Warn("Task termination wait interrupted");
+			ILog.Warn("Task termination wait interrupted");
 			return tellState().equals(State.TERMINATED);
 		}
 	}

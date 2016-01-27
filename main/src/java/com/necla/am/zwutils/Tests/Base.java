@@ -36,7 +36,7 @@ import java.util.logging.Handler;
 
 import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Logging.Utils.Formatters.LogFormatter;
 import com.necla.am.zwutils.Logging.Utils.Formatters.SlimFormatter;
 import com.necla.am.zwutils.Misc.Misc;
@@ -83,10 +83,10 @@ public abstract class Base
 				@Override
 				public void validateFields() {
 					if (LOGTOFILE) {
-						Log.Config("Creating file log handler '%s'...", LOGFILE_NAME);
+						ILog.Config("Creating file log handler '%s'...", LOGFILE_NAME);
 						try {
 							LogHandler = new FileHandler(LOGFILE_NAME);
-							LogFormatter Formatter = new LogFormatter.Delegator(null, Log.GroupName());
+							LogFormatter Formatter = new LogFormatter.Delegator(null, ILog.GroupName());
 							Formatter.ConfigLogMessage(SlimFormatter.CONFIG_PFX + SlimFormatter.CONFIG_MSGHDR,
 									"False");
 							LogHandler.setFormatter(Formatter);
@@ -111,7 +111,7 @@ public abstract class Base
 			
 			public final Handler LogHandler;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				// Copy all derived fields from Source
@@ -140,9 +140,9 @@ public abstract class Base
 	protected void preTask() {
 		super.preTask();
 		
-		Log.Info("Initialzing...");
+		ILog.Info("Initialzing...");
 		if (Config.LogHandler != null) {
-			Log.setHandler(Config.LogHandler, true);
+			ILog.setHandler(Config.LogHandler, true);
 		}
 	}
 	
@@ -154,7 +154,7 @@ public abstract class Base
 	 */
 	protected boolean Check(String Desc, boolean Cond) {
 		CheckCnt += 1;
-		Log.Info("(%s) %s", Cond? "PASS" : "FAIL", Desc);
+		ILog.Info("(%s) %s", Cond? "PASS" : "FAIL", Desc);
 		PassCnt += Cond? 1 : 0;
 		return Cond;
 	}
@@ -170,18 +170,18 @@ public abstract class Base
 	
 	@Override
 	protected void doTask() {
-		Log.Info("Test started");
+		ILog.Info("Test started");
 		try {
 			SetReturn(doTest());
-			Log.Info("Test finished");
+			ILog.Info("Test finished");
 		} catch (Throwable e) {
 			SetReturn(-1);
-			Log.logExcept(e);
-			Log.Warn("Test aborted");
+			ILog.logExcept(e);
+			ILog.Warn("Test aborted");
 		}
 		
 		if (CheckCnt != PassCnt) {
-			Log.Warn("Checked %d, passed %d", CheckCnt, PassCnt);
+			ILog.Warn("Checked %d, passed %d", CheckCnt, PassCnt);
 		}
 	}
 	
@@ -193,7 +193,7 @@ public abstract class Base
 	@Override
 	protected void postRun() {
 		if (Config.LogHandler != null) {
-			Log.setHandler(null, true);
+			ILog.setHandler(null, true);
 			Config.LogHandler.close();
 		}
 		super.postRun();
@@ -201,17 +201,17 @@ public abstract class Base
 	
 	@Override
 	protected void doTerm(State PrevState) {
-		Log.Warn("#Terminating... (grace period %d seconds)", TERMINATION_GRACETIME);
+		ILog.Warn("#Terminating... (grace period %d seconds)", TERMINATION_GRACETIME);
 		SetReturn(-2);
 		super.doTerm(PrevState);
 		
 		// Wait for the grace time
 		try {
 			if (!waitFor(State.TERMINATED, TERMINATION_GRACETIME * 1000)) {
-				Log.Warn("Grace period expired, force termination...");
+				ILog.Warn("Grace period expired, force termination...");
 			}
 		} catch (InterruptedException e) {
-			Log.Warn("Termination wait interrupted");
+			ILog.Warn("Termination wait interrupted");
 		}
 		
 		// If the state hasn't reached termination, we pretend that we are

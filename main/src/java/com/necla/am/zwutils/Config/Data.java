@@ -35,7 +35,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.i18n.Messages;
 
@@ -58,7 +58,7 @@ public class Data {
 	 */
 	public static class Mutable {
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		
 		// Declare mutable configurable fields (public)
 		// Declare automatic populated fields (protected)
@@ -71,7 +71,7 @@ public class Data {
 		 */
 		protected Mutable() {
 			// This field will be filled by reflection
-			Log = null;
+			ILog = null;
 		}
 		
 		/**
@@ -81,8 +81,8 @@ public class Data {
 		 *       type of construction will be performed. <br>
 		 *       To implemented the relevant functionality, override the invoked method.
 		 */
-		private Mutable(GroupLogger Logger) {
-			Log = Logger;
+		private Mutable(IGroupLogger Logger) {
+			ILog = Logger;
 			loadDefaults();
 		}
 		
@@ -101,11 +101,11 @@ public class Data {
 		 *       To implemented the relevant functionality, override the invoked method.
 		 */
 		@SuppressWarnings("unused")
-		private Mutable(GroupLogger Logger, DataMap confMap) {
+		private Mutable(IGroupLogger Logger, DataMap confMap) {
 			this(Logger);
-			Log.Config(Messages.Localize("Config.Data.LOADING")); //$NON-NLS-1$
+			ILog.Config(Messages.Localize("Config.Data.LOADING")); //$NON-NLS-1$
 			loadFields(confMap);
-			Log.Config(Messages.Localize("Config.Data.LOADED")); //$NON-NLS-1$
+			ILog.Config(Messages.Localize("Config.Data.LOADED")); //$NON-NLS-1$
 		}
 		
 		/**
@@ -160,8 +160,8 @@ public class Data {
 		 *       To implemented the relevant functionality, override the invoked method.
 		 */
 		@SuppressWarnings("unused")
-		private Mutable(GroupLogger Logger, Mutable Source) {
-			Log = Logger;
+		private Mutable(IGroupLogger Logger, Mutable Source) {
+			ILog = Logger;
 			copyFields(Source);
 		}
 		
@@ -183,8 +183,8 @@ public class Data {
 		 *       To implemented the relevant functionality, override the invoked method.
 		 */
 		@SuppressWarnings("unused")
-		private Mutable(GroupLogger Logger, ReadOnly Source) {
-			Log = Logger;
+		private Mutable(IGroupLogger Logger, ReadOnly Source) {
+			ILog = Logger;
 			copyFields(Source);
 		}
 		
@@ -203,19 +203,19 @@ public class Data {
 		protected final void Sanitize() throws Throwable {
 			Validation Validation = needValidation();
 			if (Validation != null) {
-				Log.Config(Messages.Localize("Config.Data.VALIDATING")); //$NON-NLS-1$
+				ILog.Config(Messages.Localize("Config.Data.VALIDATING")); //$NON-NLS-1$
 				Validation.validateFields();
 			}
 			Population Population = needPopulation();
 			if (Population != null) {
 				if (Validation != null) {
-					Log.Config("*@<"); //$NON-NLS-1$
+					ILog.Config("*@<"); //$NON-NLS-1$
 				}
-				Log.Config(Messages.Localize("Config.Data.POPULATE")); //$NON-NLS-1$
+				ILog.Config(Messages.Localize("Config.Data.POPULATE")); //$NON-NLS-1$
 				Population.populateFields();
 			}
 			if ((Validation != null) || (Population != null)) {
-				Log.Config(Messages.Localize("Config.Data.VALIDATED")); //$NON-NLS-1$
+				ILog.Config(Messages.Localize("Config.Data.VALIDATED")); //$NON-NLS-1$
 			}
 		}
 		
@@ -229,10 +229,10 @@ public class Data {
 		// Declare read-only configurable fields (public)
 		// Declare read-only automatic populated fields (public)
 		
-		protected final GroupLogger Log;
+		protected final IGroupLogger ILog;
 		
-		private ReadOnly(GroupLogger Logger) {
-			Log = Logger;
+		private ReadOnly(IGroupLogger Logger) {
+			ILog = Logger;
 		}
 		
 		/**
@@ -244,7 +244,7 @@ public class Data {
 		 *       constructors.<br>
 		 *       To implemented the relevant functionality, override this method.
 		 */
-		protected ReadOnly(GroupLogger Logger, Mutable Source) {
+		protected ReadOnly(IGroupLogger Logger, Mutable Source) {
 			this(Logger);
 			// Copy all fields from Source
 		}
@@ -257,7 +257,7 @@ public class Data {
 		 *       constructors.<br>
 		 *       To implemented the relevant functionality, override this method.
 		 */
-		protected ReadOnly(GroupLogger Logger, ReadOnly Source) {
+		protected ReadOnly(IGroupLogger Logger, ReadOnly Source) {
 			this(Logger);
 			// Copy all fields from Source
 		}
@@ -266,10 +266,10 @@ public class Data {
 		 * Save configurations to a data map
 		 */
 		public final DataMap save() {
-			Log.Config(Messages.Localize("Config.Data.SAVING")); //$NON-NLS-1$
-			DataMap confMap = new DataMap(Log.GroupName());
+			ILog.Config(Messages.Localize("Config.Data.SAVING")); //$NON-NLS-1$
+			DataMap confMap = new DataMap(ILog.GroupName());
 			putFields(confMap);
-			Log.Config(Messages.Localize("Config.Data.SAVED")); //$NON-NLS-1$
+			ILog.Config(Messages.Localize("Config.Data.SAVED")); //$NON-NLS-1$
 			return confMap;
 		}
 		
@@ -290,11 +290,11 @@ public class Data {
 	 * @return A mutable configuration instance with all default values
 	 * @since 0.3
 	 */
-	public static <M extends Mutable> M defaults(Class<M> MClass, GroupLogger Logger) {
+	public static <M extends Mutable> M defaults(Class<M> MClass, IGroupLogger Logger) {
 		M Ret = null;
 		try {
 			Ret = MClass.newInstance();
-			Field LogField = Mutable.class.getDeclaredField("Log"); //$NON-NLS-1$
+			Field LogField = Mutable.class.getDeclaredField("ILog"); //$NON-NLS-1$
 			LogField.setAccessible(true);
 			LogField.set(Ret, Logger);
 			Method LoadDefaults = Mutable.class.getDeclaredMethod("loadDefaults"); //$NON-NLS-1$
@@ -313,7 +313,7 @@ public class Data {
 	 * @return A mutable configuration instance loaded from file
 	 * @since 0.25
 	 */
-	public static <M extends Mutable> M load(Class<M> MClass, DataMap confMap, GroupLogger Logger) {
+	public static <M extends Mutable> M load(Class<M> MClass, DataMap confMap, IGroupLogger Logger) {
 		M Ret = defaults(MClass, Logger);
 		Logger.Config(Messages.Localize("Config.Data.LOADING")); //$NON-NLS-1$
 		try {
@@ -336,12 +336,12 @@ public class Data {
 	 * @since 0.2
 	 */
 	@SuppressWarnings("unchecked")
-	public static <M extends Mutable> M mirror(M Source, GroupLogger Logger) {
+	public static <M extends Mutable> M mirror(M Source, IGroupLogger Logger) {
 		Class<M> MClass = (Class<M>) Source.getClass();
 		M Ret = null;
 		try {
 			Ret = MClass.newInstance();
-			Field LogField = Mutable.class.getDeclaredField("Log"); //$NON-NLS-1$
+			Field LogField = Mutable.class.getDeclaredField("ILog"); //$NON-NLS-1$
 			LogField.setAccessible(true);
 			LogField.set(Ret, Logger);
 			Method CopyFields = Mutable.class.getDeclaredMethod("copyFields", Mutable.class); //$NON-NLS-1$
@@ -365,11 +365,11 @@ public class Data {
 	 * @since 0.2
 	 */
 	public static <R extends ReadOnly, M extends Mutable> R reflect(M Source, Class<R> RClass,
-			GroupLogger Logger) throws Throwable {
+			IGroupLogger Logger) throws Throwable {
 		R Ret = null;
 		Source.Sanitize();
 		try {
-			Ret = RClass.getDeclaredConstructor(GroupLogger.class, Source.getClass()).newInstance(Logger,
+			Ret = RClass.getDeclaredConstructor(IGroupLogger.class, Source.getClass()).newInstance(Logger,
 					Source);
 		} catch (Throwable e) {
 			if (e instanceof InvocationTargetException)
@@ -390,11 +390,11 @@ public class Data {
 	 * @since 0.2
 	 */
 	public static <M extends Mutable, R extends ReadOnly> M mirror(R Source, Class<M> MClass,
-			GroupLogger Logger) {
+			IGroupLogger Logger) {
 		M Ret = null;
 		try {
 			Ret = MClass.newInstance();
-			Field LogField = Mutable.class.getDeclaredField("Log"); //$NON-NLS-1$
+			Field LogField = Mutable.class.getDeclaredField("ILog"); //$NON-NLS-1$
 			LogField.setAccessible(true);
 			LogField.set(Ret, Logger);
 			Method CopyFields = Mutable.class.getDeclaredMethod("copyFields", ReadOnly.class); //$NON-NLS-1$
@@ -415,11 +415,11 @@ public class Data {
 	 * @since 0.2
 	 */
 	@SuppressWarnings("unchecked")
-	public static <R extends ReadOnly> R reflect(R Source, GroupLogger Logger) {
+	public static <R extends ReadOnly> R reflect(R Source, IGroupLogger Logger) {
 		Class<R> RClass = (Class<R>) Source.getClass();
 		R Ret = null;
 		try {
-			Ret = RClass.getDeclaredConstructor(GroupLogger.class, RClass).newInstance(Logger, Source);
+			Ret = RClass.getDeclaredConstructor(IGroupLogger.class, RClass).newInstance(Logger, Source);
 		} catch (Throwable e) {
 			if (e instanceof InvocationTargetException)
 				e = ((InvocationTargetException) e).getTargetException();

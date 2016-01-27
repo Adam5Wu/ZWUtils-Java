@@ -38,56 +38,57 @@ import com.necla.am.zwutils.FileSystem.BaseFileIterable;
 import com.necla.am.zwutils.FileSystem.SingleDirFileIterable;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 
 
 public class FileSystemTest {
 	
-	protected static final GroupLogger Log = new GroupLogger("Main");
+	protected static final IGroupLogger CLog = new GroupLogger("Main");
 	
 	public void Go(String[] args) {
 		
-		Log.Info("---------- Test Enumerate Single Dir (File)");
+		CLog.Info("---------- Test Enumerate Single Dir (File)");
 		for (File Item : new SingleDirFileIterable(".", new BaseFileIterable.SimpleFileFilter())) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
-		Log.Info("---------- Test Enumerate Single Dir (Dir)");
+		CLog.Info("---------- Test Enumerate Single Dir (Dir)");
 		for (File Item : new SingleDirFileIterable(".", new BaseFileIterable.SimpleDirFilter())) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
-		Log.Info("---------- Test Enumerate Single Dir (All)");
+		CLog.Info("---------- Test Enumerate Single Dir (All)");
 		for (File Item : new SingleDirFileIterable(".")) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
 		
-		Log.Info("---------- Test Enumerate BFS Dir (File)");
+		CLog.Info("---------- Test Enumerate BFS Dir (File)");
 		for (File Item : new BFSDirFileIterable(".", new BaseFileIterable.SimpleFileFilter())) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
-		Log.Info("---------- Test Enumerate BFS Dir (Dir)");
+		CLog.Info("---------- Test Enumerate BFS Dir (Dir)");
 		for (File Item : new BFSDirFileIterable(".", new BaseFileIterable.SimpleDirFilter())) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
-		Log.Info("---------- Test Enumerate BFS Dir (All)");
+		CLog.Info("---------- Test Enumerate BFS Dir (All)");
 		for (File Item : new BFSDirFileIterable(".")) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
-		Log.Info("---------- Test Enumerate BFS Dir (All-NoRoot)");
+		CLog.Info("---------- Test Enumerate BFS Dir (All-NoRoot)");
 		for (File Item : new BFSDirFileIterable(".", null, false)) {
-			Log.Info(":%s|", Item.getAbsolutePath());
+			CLog.Info(":%s|", Item.getAbsolutePath());
 		}
 		
 	}
 	
 	public static void main(String[] args) {
-		Log.Info("========== FileSystem Test");
+		CLog.Info("========== FileSystem Test");
 		try {
 			FileSystemTest Main = new FileSystemTest();
 			Main.Go(args);
 		} catch (Throwable e) {
-			DebugLog.Log.logExcept(e);
+			DebugLog.Logger.logExcept(e);
 		}
-		Log.Info("#@~<");
-		Log.Info("========== Done");
+		CLog.Info("#@~<");
+		CLog.Info("========== Done");
 	}
 	
 }

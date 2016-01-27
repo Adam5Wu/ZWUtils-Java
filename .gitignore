@@ -16,3 +16,6 @@ hs_err_pid*
 .settings/
 bin/
 build/
+
+Debug.log*
+RunStat.log

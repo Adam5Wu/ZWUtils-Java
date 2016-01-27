@@ -40,6 +40,7 @@ import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
 import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 
 
@@ -47,7 +48,7 @@ public class ConfigTest {
 	
 	public static final String LogGroup = "Main";
 	
-	protected static final GroupLogger ClassLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	public static class TestConfig {
 		public static class Mutable extends Data.Mutable {
@@ -113,7 +114,7 @@ public class ConfigTest {
 			// Declare read-only automatic populated fields (public)
 			public final int TestSqr;
 			
-			public ReadOnly(GroupLogger Logger, Mutable Source) {
+			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				// Copy all fields from Source
@@ -147,27 +148,27 @@ public class ConfigTest {
 		try {
 			Test = TestConfig.Create();
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Failed to load configurations");
+			CLog.logExcept(e, "Failed to load configurations");
 			return;
 		}
 		
 		TestConfig.ReadOnly Config = Test.reflect();
-		ClassLog.Info("Test = %d", Config.Test);
-		ClassLog.Info("TestSqr = %d", Config.TestSqr);
+		CLog.Info("Test = %d", Config.Test);
+		CLog.Info("TestSqr = %d", Config.TestSqr);
 		
-		ClassLog.Info("Modifying 'Test' to %d", Config.Test + 1);
+		CLog.Info("Modifying 'Test' to %d", Config.Test + 1);
 		TestConfig.Mutable MConfig = Test.mirror();
 		MConfig.Test = MConfig.Test + 1;
-		ClassLog.Info("Applying changes...");
+		CLog.Info("Applying changes...");
 		try {
 			Test.set(MConfig);
 		} catch (Throwable e) {
-			ClassLog.logExcept(e, "Failed to apply configurations");
+			CLog.logExcept(e, "Failed to apply configurations");
 		}
 		
 		Config = Test.reflect();
-		ClassLog.Info("Test = %d", Config.Test);
-		ClassLog.Info("TestSqr = %d", Config.TestSqr);
+		CLog.Info("Test = %d", Config.Test);
+		CLog.Info("TestSqr = %d", Config.TestSqr);
 		try {
 			String OutFile = TestConfig.ConfigFile.getPath();
 			try {
@@ -177,21 +178,21 @@ public class ConfigTest {
 			}
 			TestConfig.Save(Test, OutFile, "Just a Test!");
 		} catch (IOException e) {
-			ClassLog.logExcept(e, "Failed to save configurations");
+			CLog.logExcept(e, "Failed to save configurations");
 		}
 		
 	}
 	
 	public static void main(String[] args) {
-		ClassLog.Info("========== Config Test");
+		CLog.Info("========== Config Test");
 		try {
 			ConfigTest Main = new ConfigTest();
 			Main.Go(args);
 		} catch (Throwable e) {
-			DebugLog.Log.logExcept(e);
+			DebugLog.Logger.logExcept(e);
 		}
-		ClassLog.Info("#@~<");
-		ClassLog.Info("========== Done");
+		CLog.Info("#@~<");
+		CLog.Info("========== Done");
 	}
 	
 }
