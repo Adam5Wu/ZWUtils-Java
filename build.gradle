@@ -46,7 +46,7 @@ repositories {
 }
 
 //configurations.all {
-//    exclude group: 'com.esotericsoftware', module: 'kryo'
+//	exclude group: 'com.esotericsoftware', module: 'kryo'
 //}
 
 dependencies {
@@ -88,3 +88,4 @@ artifacts {
 	archives sourcesJar
 	archives javadocJar
 }
+
