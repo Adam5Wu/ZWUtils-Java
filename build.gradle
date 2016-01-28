@@ -5,7 +5,7 @@ buildscript {
 		}
 	}
 	dependencies {
-		classpath "gradle.plugin.com.zoltu.gradle.plugin:git-versioning:1.0.13"
+		classpath "gradle.plugin.com.zoltu.gradle.plugin:git-versioning:2.0.1"
 	}
 }
 
