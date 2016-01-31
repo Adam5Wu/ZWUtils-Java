@@ -37,6 +37,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -73,6 +74,7 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.Reflection.IClassSolver;
 import com.necla.am.zwutils.Reflection.IClassSolver.Impl.DirectClassSolver;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
+import com.necla.am.zwutils.Reflection.PackageClassIterable.IClassFilter;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Tasks.ITask;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
@@ -240,6 +242,21 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				Handlers = new HashMap<>();
 			}
 			
+			public static class WebHandlerFilter implements IClassFilter {
+				
+				protected static final int UnacceptableModifiers =
+						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
+						
+				@Override
+				public boolean Accept(Class<?> Entry) {
+					int ClassModifiers = Entry.getModifiers();
+					if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
+					if (!WebHandler.class.isAssignableFrom(Entry)) return false;
+					return true;
+				}
+				
+			}
+			
 			@Override
 			public void loadFields(DataMap confMap) {
 				super.loadFields(confMap);
@@ -256,19 +273,17 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				SSLWantClientAuth = confMap.getBoolDef("SSL.WantClientAuth", SSLWantClientAuth);
 				SSLNeedClientAuth = confMap.getBoolDef("SSL.NeedClientAuth", SSLNeedClientAuth);
 				
-				SuffixClassDictionary HandlerDict = new SuffixClassDictionary(LogGroup + ".HandlerDict");
+				SuffixClassDictionary HandlerDict =
+						new SuffixClassDictionary(LogGroup + ".HandlerDict", this.getClass().getClassLoader());
 				DataMap ClsSearchMap = new DataMap("ClsSearch", confMap, String.valueOf(CLSSEARCHPKG_PFX));
 				for (String SearchKey : ClsSearchMap.keySet()) {
 					String pkgname = ClsSearchMap.getText(SearchKey);
 					try {
 						int ClassCount = 0;
 						ClassLoader CL = this.getClass().getClassLoader();
-						for (String cname : new PackageClassIterable(pkgname, CL)) {
-							Class<?> PkgClass = Class.forName(cname);
-							if (WebHandler.class.isAssignableFrom(PkgClass)) {
-								HandlerDict.Add(cname);
-								ClassCount++;
-							}
+						for (String cname : PackageClassIterable.Create(pkgname, CL, new WebHandlerFilter())) {
+							HandlerDict.Add(cname);
+							ClassCount++;
 						}
 						ILog.Fine("Loaded %d handler classes from %s:'%s'", ClassCount, SearchKey, pkgname);
 					} catch (Throwable e) {

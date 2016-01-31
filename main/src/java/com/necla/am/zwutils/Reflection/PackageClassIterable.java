@@ -36,10 +36,15 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import com.googlecode.mobilityrpc.network.ConnectionId;
+import com.googlecode.mobilityrpc.session.MobilitySession;
 import com.necla.am.zwutils.FileSystem.BFSDirFileIterable;
 import com.necla.am.zwutils.Misc.Misc;
 
@@ -58,35 +63,89 @@ public class PackageClassIterable implements Iterable<String> {
 	
 	protected final Iterable<String> DelegateIterable;
 	
-	public PackageClassIterable(URL res, String pkgname) throws IOException {
+	@FunctionalInterface
+	public static interface IClassFilter {
+		boolean Accept(Class<?> Entry);
+	}
+	
+	public PackageClassIterable(URL res, String pkgname, IClassFilter filter) throws IOException {
 		String resPath = res.getPath();
 		switch (res.getProtocol()) {
 			case "jar":
 				if (!resPath.startsWith("file:")) Misc.FAIL("Unable to handle Jar with path '%s'", resPath);
 				resPath = resPath.substring(5).replaceFirst("[.]jar[!].*", ".jar");
-				DelegateIterable = new JarClassIterable(resPath, pkgname);
+				DelegateIterable = new JarClassIterable(resPath, pkgname, filter);
 				break;
 				
 			case "file":
-				DelegateIterable = new FileClassIterable(resPath, pkgname);
+				DelegateIterable = new FileClassIterable(resPath, pkgname, filter);
 				break;
 				
 			default:
-				Misc.FAIL("Unrecognized URL: '%s'", res);
+				Misc.FAIL("Unrecognized package resource URL: '%s'", res);
 				DelegateIterable = null;
 		}
 	}
 	
-	public PackageClassIterable(Package pkg) throws IOException {
-		this(pkg.getName());
+	public static class RemotePackageEnumeration implements Callable<List<String>> {
+		
+		protected final String Path;
+		protected final IClassFilter Filter;
+		
+		public RemotePackageEnumeration(String packagePath, IClassFilter classFilter) {
+			Path = packagePath;
+			Filter = classFilter;
+		}
+		
+		@Override
+		public List<String> call() throws Exception {
+			List<String> Ret = new LinkedList<>(); // ArrayList is not usable due to https://github.com/npgall/mobility-rpc/issues/13
+			PackageClassIterable LocalPCIterable = PackageClassIterable.Create(Path, Filter);
+			LocalPCIterable.forEach(Ret::add);
+			return Ret;
+		}
+		
 	}
 	
-	public PackageClassIterable(String pkgname) throws IOException {
-		this(pkgname, ClassLoader.getSystemClassLoader());
+	public PackageClassIterable(String PackagePath, IClassFilter ClassFilter,
+			MobilitySession RPCSession, ConnectionId RPCConnection) {
+		DelegateIterable =
+				RPCSession.execute(RPCConnection, new RemotePackageEnumeration(PackagePath, ClassFilter));
 	}
 	
-	public PackageClassIterable(String pkgname, ClassLoader loader) throws IOException {
-		this(loader.getResource(pkgname.replace('.', '/')), pkgname);
+	public static PackageClassIterable Create(Package pkg) throws IOException {
+		return Create(pkg, null);
+	}
+	
+	public static PackageClassIterable Create(Package pkg, IClassFilter filter) throws IOException {
+		return Create(pkg.getName(), filter);
+	}
+	
+	public static PackageClassIterable Create(String pkgname) throws IOException {
+		return Create(pkgname, (IClassFilter) null);
+	}
+	
+	public static PackageClassIterable Create(String pkgname, IClassFilter filter)
+			throws IOException {
+		return Create(pkgname, ClassLoader.getSystemClassLoader(), filter);
+	}
+	
+	public static PackageClassIterable Create(String pkgname, ClassLoader loader) throws IOException {
+		return Create(pkgname, loader, null);
+	}
+	
+	public static PackageClassIterable Create(String pkgname, ClassLoader loader, IClassFilter filter)
+			throws IOException {
+		if (loader instanceof RemoteClassLoaders.viaMobilityRPC) {
+			// Special remote package iteration
+			RemoteClassLoaders.viaMobilityRPC RemoteLoader = (RemoteClassLoaders.viaMobilityRPC) loader;
+			return new PackageClassIterable(pkgname.replace('.', '/'), filter, RemoteLoader.RPCSession,
+					RemoteLoader.RPCConnection);
+		} else {
+			// Local package iteration
+			return new PackageClassIterable(loader.getResource(pkgname.replace('.', '/')), pkgname,
+					filter);
+		}
 	}
 	
 	@Override
@@ -98,14 +157,17 @@ public class PackageClassIterable implements Iterable<String> {
 		
 		protected final String BasePath;
 		protected final JarFile Jar;
+		protected final IClassFilter Filter;
 		
-		public JarClassIterable(String respath, String pkgname) throws IOException {
-			this(new File(respath), pkgname);
+		public JarClassIterable(String respath, String pkgname, IClassFilter filter)
+				throws IOException {
+			this(new File(respath), pkgname, filter);
 		}
 		
-		public JarClassIterable(File jarfile, String pkgname) throws IOException {
+		public JarClassIterable(File jarfile, String pkgname, IClassFilter filter) throws IOException {
 			BasePath = pkgname.replace('.', '/');
 			Jar = new JarFile(jarfile);
+			Filter = filter;
 		}
 		
 		public class JarClassIterator implements Iterator<String> {
@@ -120,11 +182,18 @@ public class PackageClassIterable implements Iterable<String> {
 			
 			protected String FindNext() {
 				while (Entries.hasMoreElements()) {
-					JarEntry entry = Entries.nextElement();
-					String entryName = entry.getName();
-					if (entryName.endsWith(".class")&& entryName.startsWith(BasePath)
-							&& entryName.length() > (BasePath.length() + "/".length())) {
-						return entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
+					try {
+						JarEntry entry = Entries.nextElement();
+						String entryName = entry.getName();
+						if (entryName.endsWith(".class")&& entryName.startsWith(BasePath)
+								&& entryName.length() > (BasePath.length() + "/".length())) {
+							String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
+							if ((Filter != null) && !Filter.Accept(Class.forName(Ret))) continue;
+							return Ret;
+						}
+					} catch (Throwable e) {
+						// Eat exception
+						continue;
 					}
 				}
 				return null;
@@ -162,17 +231,20 @@ public class PackageClassIterable implements Iterable<String> {
 		protected final int BasePathLen;
 		protected final String BaseName;
 		protected final Iterable<File> FileIterable;
+		protected final IClassFilter Filter;
 		
-		public FileClassIterable(String respath, String pkgname) throws IOException {
-			this(new File(respath), pkgname);
+		public FileClassIterable(String respath, String pkgname, IClassFilter filter)
+				throws IOException {
+			this(new File(respath), pkgname, filter);
 		}
 		
-		public FileClassIterable(File resdir, String pkgname) throws IOException {
+		public FileClassIterable(File resdir, String pkgname, IClassFilter filter) throws IOException {
 			BasePathLen = resdir.getCanonicalPath().length();
 			BaseName = pkgname;
 			FileIterable = new BFSDirFileIterable(resdir, pathname -> {
 				return pathname.getName().endsWith(".class");
 			});
+			Filter = filter;
 		}
 		
 		public class FileClassIterator implements Iterator<String> {
@@ -186,14 +258,17 @@ public class PackageClassIterable implements Iterable<String> {
 			}
 			
 			protected String FindNext() {
-				try {
-					while (FileIterator.hasNext()) {
+				while (FileIterator.hasNext()) {
+					try {
 						File ClassFile = FileIterator.next();
 						String entryName = BaseName + ClassFile.getCanonicalPath().substring(BasePathLen);
-						return entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
+						String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
+						if ((Filter != null) && !Filter.Accept(Class.forName(Ret))) continue;
+						return Ret;
+					} catch (Throwable e) {
+						// Eat exception
+						continue;
 					}
-				} catch (IOException e) {
-					Misc.CascadeThrow(e);
 				}
 				return null;
 			}

@@ -1903,8 +1903,7 @@ public class ObjectTrap {
 		for (ISuffixClassSolver csolver : DirectSuffixClassSolver.BaseClasses)
 			ClassDict.Add(csolver);
 		try {
-			for (String cname : new PackageClassIterable(pkgname, loader))
-				ClassDict.Add(cname);
+			PackageClassIterable.Create(pkgname, loader).forEach(ClassDict::Add);
 		} catch (IOException e) {
 			Misc.CascadeThrow(e);
 		}

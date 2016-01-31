@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Tasks;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -65,6 +66,7 @@ import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Reflection.IClassSolver;
 import com.necla.am.zwutils.Reflection.IClassSolver.Impl.DirectClassSolver;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
+import com.necla.am.zwutils.Reflection.PackageClassIterable.IClassFilter;
 import com.necla.am.zwutils.Reflection.RemoteClassLoaders;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
@@ -179,8 +181,9 @@ public class TaskHost extends Poller {
 				JoinTaskNames = new HashSet<>();
 				TermTaskNames = new HashSet<>();
 				ReturnTaskName = null;
-				TaskClassDict = new SuffixClassDictionary(LogGroup + ".ClassDict");
-				
+				TaskClassDict =
+						new SuffixClassDictionary(LogGroup + ".ClassDict", this.getClass().getClassLoader());
+						
 				HostingAddress = null;
 				RemoteTaskServers = new HashMap<>();
 			}
@@ -212,6 +215,21 @@ public class TaskHost extends Poller {
 			
 			private static final String CONFIG_TASK_HOSTDEP = "<TaskHost>";
 			
+			public static class TaskRunnableFilter implements IClassFilter {
+				
+				protected static final int UnacceptableModifiers =
+						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
+						
+				@Override
+				public boolean Accept(Class<?> Entry) {
+					int ClassModifiers = Entry.getModifiers();
+					if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
+					if (!TaskRunnable.class.isAssignableFrom(Entry)) return false;
+					return true;
+				}
+				
+			}
+			
 			@Override
 			public void loadFields(DataMap confMap) {
 				super.loadFields(confMap);
@@ -226,12 +244,10 @@ public class TaskHost extends Poller {
 						try {
 							int ClassCount = 0;
 							ClassLoader CL = this.getClass().getClassLoader();
-							for (String cname : new PackageClassIterable(pkgname, CL)) {
-								Class<?> PkgClass = Class.forName(cname);
-								if (TaskRunnable.class.isAssignableFrom(PkgClass)) {
-									TaskClassDict.Add(cname);
-									ClassCount++;
-								}
+							for (String cname : PackageClassIterable.Create(pkgname, CL,
+									new TaskRunnableFilter())) {
+								TaskClassDict.Add(cname);
+								ClassCount++;
 							}
 							ILog.Fine("Loaded %d task classes from %s:'%s'", ClassCount,
 									Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
@@ -710,7 +726,7 @@ public class TaskHost extends Poller {
 			ILog.Fine("Task class %s found on remote server", RemoteClassName);
 			
 			RemoteClassLoaders.viaMobilityRPC RPCClassLoader =
-					new RemoteClassLoaders.viaMobilityRPC(RPCSession, RemoteAddress);
+					new RemoteClassLoaders.viaMobilityRPC(NeedRPC(), RemoteAddress);
 			IClassSolver RemoteClassSolver =
 					new DirectClassSolver(RPCClassLoader.loadClass(RemoteClassName));
 					
