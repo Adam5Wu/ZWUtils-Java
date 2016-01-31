@@ -262,7 +262,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					String pkgname = ClsSearchMap.getText(SearchKey);
 					try {
 						int ClassCount = 0;
-						for (String cname : new PackageClassIterable(pkgname)) {
+						ClassLoader CL = this.getClass().getClassLoader();
+						for (String cname : new PackageClassIterable(pkgname, CL)) {
 							Class<?> PkgClass = Class.forName(cname);
 							if (WebHandler.class.isAssignableFrom(PkgClass)) {
 								HandlerDict.Add(cname);

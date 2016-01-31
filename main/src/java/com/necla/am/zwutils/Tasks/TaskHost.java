@@ -225,7 +225,8 @@ public class TaskHost extends Poller {
 						String pkgname = setupMap.getText(Key);
 						try {
 							int ClassCount = 0;
-							for (String cname : new PackageClassIterable(pkgname)) {
+							ClassLoader CL = this.getClass().getClassLoader();
+							for (String cname : new PackageClassIterable(pkgname, CL)) {
 								Class<?> PkgClass = Class.forName(cname);
 								if (TaskRunnable.class.isAssignableFrom(PkgClass)) {
 									TaskClassDict.Add(cname);

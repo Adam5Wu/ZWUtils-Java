@@ -15,7 +15,6 @@ import com.googlecode.mobilityrpc.session.MobilityContext;
 import com.googlecode.mobilityrpc.session.MobilitySession;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
-import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Tasks.TaskHost;
 
 
@@ -43,22 +42,32 @@ public class RemoteClassLoaders {
 					new ConnectionId(RemoteAddr.getAddress().getHostAddress(), RemoteAddr.getPort());
 		}
 		
-		@Override
-		protected Class<?> findClass(String name) throws ClassNotFoundException {
-			// Convert class name to resource name...
-			String BinaryResource = name.replace('.', '/') + ".class";
-			URL Binary = findResource(BinaryResource);
-			if (Binary == null) throw new ClassNotFoundException(
-					String.format("Unable to locate class '%s' from remote", name));
-					
-			try (InputStream BinaryStream = Binary.openStream()) {
+		public static class RemoteClassBytecodeFetcher implements Callable<byte[]> {
+			
+			protected final String Name;
+			
+			public RemoteClassBytecodeFetcher(String className) {
+				Name = className;
+				
+				CLog.Fine("Looking up remote class '%s'...", Name);
+			}
+			
+			@Override
+			public byte[] call() throws Exception {
+				Class<?> TargetClass = Class.forName(Name);
+				String BinaryResource = Name.replace('.', '/') + ".class";
+				InputStream BinaryStream = TargetClass.getClassLoader().getResourceAsStream(BinaryResource);
 				byte[] BinaryData = new byte[BinaryStream.available()];
 				BinaryStream.read(BinaryData, 0, BinaryData.length);
-				return defineClass(name, BinaryData, 0, BinaryData.length);
-			} catch (IOException e) {
-				Misc.CascadeThrow(e, "Unable to load class '%s'", name);
+				return BinaryData;
 			}
-			return null;
+			
+		}
+		
+		@Override
+		protected Class<?> findClass(String name) throws ClassNotFoundException {
+			byte[] BinaryData = RPCSession.execute(RPCConnection, new RemoteClassBytecodeFetcher(name));
+			return defineClass(name, BinaryData, 0, BinaryData.length);
 		}
 		
 		public static class RemoteResourceFetcher implements Callable<URL> {
