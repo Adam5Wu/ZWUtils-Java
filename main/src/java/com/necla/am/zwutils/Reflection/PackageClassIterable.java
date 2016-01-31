@@ -34,6 +34,7 @@ package com.necla.am.zwutils.Reflection;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -61,6 +62,7 @@ import com.necla.am.zwutils.Misc.Misc;
  */
 public class PackageClassIterable implements Iterable<String> {
 	
+	protected static final List<String> EmptyList = new ArrayList<>(0);
 	protected final Iterable<String> DelegateIterable;
 	
 	@FunctionalInterface
@@ -69,21 +71,27 @@ public class PackageClassIterable implements Iterable<String> {
 	}
 	
 	public PackageClassIterable(URL res, String pkgname, IClassFilter filter) throws IOException {
-		String resPath = res.getPath();
-		switch (res.getProtocol()) {
-			case "jar":
-				if (!resPath.startsWith("file:")) Misc.FAIL("Unable to handle Jar with path '%s'", resPath);
-				resPath = resPath.substring(5).replaceFirst("[.]jar[!].*", ".jar");
-				DelegateIterable = new JarClassIterable(resPath, pkgname, filter);
-				break;
-				
-			case "file":
-				DelegateIterable = new FileClassIterable(resPath, pkgname, filter);
-				break;
-				
-			default:
-				Misc.FAIL("Unrecognized package resource URL: '%s'", res);
-				DelegateIterable = null;
+		if (res != null) {
+			String resPath = res.getPath();
+			switch (res.getProtocol()) {
+				case "jar":
+					if (!resPath.startsWith("file:"))
+						Misc.FAIL("Unable to handle Jar with path '%s'", resPath);
+					resPath = resPath.substring(5).replaceFirst("[.]jar[!].*", ".jar");
+					DelegateIterable = new JarClassIterable(resPath, pkgname, filter);
+					break;
+					
+				case "file":
+					DelegateIterable = new FileClassIterable(resPath, pkgname, filter);
+					break;
+					
+				default:
+					Misc.FAIL("Unrecognized package resource URL: '%s'", res);
+					DelegateIterable = null;
+			}
+		} else {
+			Misc.FAIL("Unable to enumerate package '%a' with no resource URL", pkgname);
+			DelegateIterable = EmptyList;
 		}
 	}
 	

@@ -83,8 +83,13 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
 			Create(Class<M> MClass, Class<R> RClass, String Name, File confFile, String Prefix)
 					throws Throwable {
-		DataFile ConfigFile = new DataFile(Name, confFile.getPath());
-		return new Container<>(MClass, RClass, Name, new DataMap(Name, ConfigFile, Prefix));
+		return Create(MClass, RClass, Name, new DataFile(Name, confFile.getPath()), Prefix);
+	}
+	
+	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
+			Create(Class<M> MClass, Class<R> RClass, String Name, DataFile confFile, String Prefix)
+					throws Throwable {
+		return new Container<>(MClass, RClass, Name, new DataMap(Name, confFile, Prefix));
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>

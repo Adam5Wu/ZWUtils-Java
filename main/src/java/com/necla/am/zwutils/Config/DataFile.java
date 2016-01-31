@@ -87,6 +87,10 @@ public class DataFile extends Properties {
 	}
 	
 	public DataFile(String Name, String INIFileName) {
+		this(Name, INIFileName, null);
+	}
+	
+	public DataFile(String Name, String INIFileName, ClassLoader Loader) {
 		this(Name);
 		
 		try {
@@ -99,11 +103,13 @@ public class DataFile extends Properties {
 					lastModified = new ITimeStamp.Impl(ConfigFile.lastModified());
 					Conf = new FileInputStream(ConfigFile);
 				} else {
-					String ResourceName = Misc.appendPathName(Misc.PATH_DELIMITER_STR, INIFileName);
+					String ResourceName = INIFileName;
 					if (Misc.PATH_DELIMITER != File.separatorChar)
 						ResourceName = ResourceName.replace(File.separatorChar, Misc.PATH_DELIMITER);
-					lastModified = Misc.ProgramStartTS;
-					Conf = getClass().getResourceAsStream(ResourceName);
+					if (Loader != null) Conf = Loader.getResourceAsStream(ResourceName);
+					
+					if (Conf == null) Conf = getClass()
+							.getResourceAsStream(Misc.appendPathName(Misc.PATH_DELIMITER_STR, ResourceName));
 				}
 				
 				if (Conf != null) {

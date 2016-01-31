@@ -7,6 +7,8 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.googlecode.mobilityrpc.controller.MobilityController;
 import com.googlecode.mobilityrpc.network.ConnectionId;
@@ -28,10 +30,24 @@ public class RemoteClassLoaders {
 		public final ConnectionId RPCConnection;
 		protected final SessionClassLoader RPCClassLoader;
 		
-		public viaMobilityRPC(MobilityController RPCControl, InetSocketAddress RemoteAddr) {
+		protected static final Map<InetSocketAddress, viaMobilityRPC> RemoteMap =
+				new ConcurrentHashMap<>();
+				
+		public static viaMobilityRPC Create(MobilityController RPCController,
+				InetSocketAddress RemoteAddr) {
+			viaMobilityRPC Ret = RemoteMap.get(RemoteAddr);
+			if (Ret == null) {
+				Ret = new viaMobilityRPC(RPCController.newSession(), RemoteAddr);
+				viaMobilityRPC Collision = RemoteMap.putIfAbsent(RemoteAddr, Ret);
+				if (Collision != null) Ret = Collision;
+			}
+			return Ret;
+		}
+		
+		protected viaMobilityRPC(MobilitySession Session, InetSocketAddress RemoteAddr) {
 			super();
 			
-			RPCSession = RPCControl.newSession();
+			RPCSession = Session;
 			RPCConnection =
 					new ConnectionId(RemoteAddr.getAddress().getHostAddress(), RemoteAddr.getPort());
 					

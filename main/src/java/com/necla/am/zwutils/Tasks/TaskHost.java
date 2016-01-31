@@ -726,7 +726,7 @@ public class TaskHost extends Poller {
 			ILog.Fine("Task class %s found on remote server", RemoteClassName);
 			
 			RemoteClassLoaders.viaMobilityRPC RPCClassLoader =
-					new RemoteClassLoaders.viaMobilityRPC(NeedRPC(), RemoteAddress);
+					RemoteClassLoaders.viaMobilityRPC.Create(NeedRPC(), RemoteAddress);
 			IClassSolver RemoteClassSolver =
 					new DirectClassSolver(RPCClassLoader.loadClass(RemoteClassName));
 					
