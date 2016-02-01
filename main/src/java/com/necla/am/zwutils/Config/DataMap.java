@@ -310,8 +310,9 @@ public class DataMap {
 				} else {
 					String EnvDefault = EnvMatcher.group(2);
 					if (EnvDefault != null) {
-						Value = EnvDefault.substring(1);
-						ILog.Fine(Messages.Localize("Config.DataMap.ENV_EXPANSION_DEFAULT"), Value); //$NON-NLS-1$
+						Value = Value.replace(RepMatch, EnvDefault.substring(1));
+						ILog.Fine(Messages.Localize("Config.DataMap.ENV_EXPANSION_DEFAULT"), //$NON-NLS-1$
+								EnvDefault.substring(1));
 					} else {
 						Value = null;
 						ILog.Warn(Messages.Localize("Config.DataMap.ENV_NOT_FOUND"), EnvMatch); //$NON-NLS-1$

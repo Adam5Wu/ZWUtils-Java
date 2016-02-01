@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,18 +31,53 @@ public class RemoteClassLoaders {
 		public final ConnectionId RPCConnection;
 		protected final SessionClassLoader RPCClassLoader;
 		
-		protected static final Map<InetSocketAddress, viaMobilityRPC> RemoteMap =
-				new ConcurrentHashMap<>();
-				
+		protected static class RPCEndPoint {
+			public final MobilityController Controller;
+			public final InetSocketAddress RemoteAddr;
+			
+			public RPCEndPoint(MobilityController controller, InetSocketAddress remoteAddr) {
+				Controller = controller;
+				RemoteAddr = remoteAddr;
+			}
+			
+			@Override
+			public int hashCode() {
+				return Controller.hashCode() ^ RemoteAddr.hashCode();
+			}
+			
+			@Override
+			public boolean equals(Object obj) {
+				RPCEndPoint OtherEndPoint = (RPCEndPoint) obj;
+				return (Controller == OtherEndPoint.Controller)
+								&& RemoteAddr.equals(OtherEndPoint.RemoteAddr);
+			}
+			
+		}
+		
+		protected static final Map<RPCEndPoint, viaMobilityRPC> RemoteMap = new ConcurrentHashMap<>();
+		
 		public static viaMobilityRPC Create(MobilityController RPCController,
 				InetSocketAddress RemoteAddr) {
-			viaMobilityRPC Ret = RemoteMap.get(RemoteAddr);
+			RPCEndPoint EndPoint = new RPCEndPoint(RPCController, RemoteAddr);
+			viaMobilityRPC Ret = RemoteMap.get(EndPoint);
 			if (Ret == null) {
 				Ret = new viaMobilityRPC(RPCController.newSession(), RemoteAddr);
-				viaMobilityRPC Collision = RemoteMap.putIfAbsent(RemoteAddr, Ret);
+				viaMobilityRPC Collision = RemoteMap.putIfAbsent(EndPoint, Ret);
 				if (Collision != null) Ret = Collision;
 			}
 			return Ret;
+		}
+		
+		public static void Cleanup(MobilityController RPCController) {
+			Iterator<RPCEndPoint> Iter = RemoteMap.keySet().iterator();
+			while (Iter.hasNext()) {
+				RPCEndPoint EndPoint = Iter.next();
+				if (EndPoint.Controller == RPCController) {
+					CLog.Fine("Cleanning up MobilityRPC RemoteClassLoader %s:%d",
+							EndPoint.RemoteAddr.getAddress().getHostAddress(), EndPoint.RemoteAddr.getPort());
+					Iter.remove();
+				}
+			}
 		}
 		
 		protected viaMobilityRPC(MobilitySession Session, InetSocketAddress RemoteAddr) {
