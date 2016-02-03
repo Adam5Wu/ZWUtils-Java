@@ -30,7 +30,7 @@ sourceSets {
 			include '**/*.properties'
 		}
 	}
-// Currently test only works with eclipse
+// TODO: Currently test only works with eclipse
 //	test {
 //		java {
 //			srcDir 'test/src/java'
