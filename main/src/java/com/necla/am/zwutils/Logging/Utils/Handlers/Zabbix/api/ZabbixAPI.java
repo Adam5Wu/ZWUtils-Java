@@ -64,7 +64,8 @@ import com.necla.am.zwutils.Misc.Misc.TimeUnit;
  * Zabbix Web API interface
  *
  * @author Zhenyu Wu
- * @version 0.1 - Sep. 2015: Initial implementation
+ * @version 0.1 - Sep. 2015: Initial implementation based on
+ *          https://github.com/hengyunabc/zabbix-api
  * @version 0.1 - Jan. 20 2016: Initial public release
  */
 public interface ZabbixAPI {
@@ -304,7 +305,7 @@ public interface ZabbixAPI {
 		
 		@Override
 		public JsonObject call(ZabbixRequest request) {
-			if (request.getAuth() == null) request.setAuth(auth);
+			if (request.auth == null) request.auth = auth;
 			
 			HttpURLConnection Request = null;
 			try {

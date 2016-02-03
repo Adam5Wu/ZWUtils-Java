@@ -68,7 +68,7 @@ public class OutStream extends OutputStream {
 	 *
 	 * @param name
 	 *          - Output stream name
-	 * @param log
+	 * @param Logger
 	 *          - Logger to attach to
 	 */
 	public OutStream(String name, IGroupLogger Logger) {

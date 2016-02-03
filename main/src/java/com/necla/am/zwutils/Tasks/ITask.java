@@ -284,8 +284,8 @@ public interface ITask {
 		/**
 		 * Set the configuration string to the task
 		 *
-		 * @param ConfigStr
-		 *          - Configuration string
+		 * @param ConfigData
+		 *          - Configuration data map
 		 */
 		void setConfiguration(DataMap ConfigData) throws Throwable;
 		

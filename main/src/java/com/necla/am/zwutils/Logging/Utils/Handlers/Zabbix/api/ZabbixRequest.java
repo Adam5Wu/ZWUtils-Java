@@ -47,34 +47,27 @@ import com.necla.am.zwutils.Misc.Misc;
  * Zabbix Web API command wrapper
  *
  * @author Zhenyu Wu
- * @version 0.1 - Sep. 2015: Initial implementation
+ * @version 0.1 - Sep. 2015: Initial implementation based on
+ *          https://github.com/hengyunabc/zabbix-api
  * @version 0.1 - Jan. 20 2016: Initial public release
+ * @version 0.15 - Feb. 03 2016: Code cleanup and simplification
  */
 public class ZabbixRequest {
-	String jsonrpc = "2.0";
+	
+	public static final String jsonrpc = "2.0";
+	
+	public String auth;
+	
+	public final Integer id;
+	
+	public final String method;
 	
 	Map<String, Object> params = new HashMap<>();
 	
-	String method;
-	
-	String auth;
-	
-	Integer id;
-	
-	public void putParam(String key, Object value) {
-		params.put(key, value);
-	}
-	
-	public Object removeParam(String key) {
-		return params.remove(key);
-	}
-	
-	public String getJsonrpc() {
-		return jsonrpc;
-	}
-	
-	public void setJsonrpc(String jsonrpc) {
-		this.jsonrpc = jsonrpc;
+	public ZabbixRequest(Integer id, String method) {
+		super();
+		this.id = id;
+		this.method = method;
 	}
 	
 	public Map<String, Object> getParams() {
@@ -85,28 +78,12 @@ public class ZabbixRequest {
 		this.params = params;
 	}
 	
-	public String getMethod() {
-		return method;
+	public void putParam(String key, Object value) {
+		params.put(key, value);
 	}
 	
-	public void setMethod(String method) {
-		this.method = method;
-	}
-	
-	public String getAuth() {
-		return auth;
-	}
-	
-	public void setAuth(String auth) {
-		this.auth = auth;
-	}
-	
-	public Integer getId() {
-		return id;
-	}
-	
-	public void setId(Integer id) {
-		this.id = id;
+	public Object removeParam(String key) {
+		return params.remove(key);
 	}
 	
 	@Override
@@ -114,28 +91,18 @@ public class ZabbixRequest {
 		return new Gson().toJson(this);
 	}
 	
-	public static class Builder {
+	protected static class Builder {
 		
-		private static final AtomicInteger nextId = new AtomicInteger(1);
+		private static final AtomicInteger _ID = new AtomicInteger(1);
 		
-		ZabbixRequest request = new ZabbixRequest();
+		final ZabbixRequest request;
 		
-		private Builder() {}
-		
-		static public Builder create() {
-			return new Builder();
+		protected Builder(String method) {
+			request = new ZabbixRequest(_ID.getAndIncrement(), method);
 		}
 		
-		public ZabbixRequest build() {
-			if (request.getId() == null) {
-				request.setId(nextId.getAndIncrement());
-			}
-			return request;
-		}
-		
-		public Builder version(String version) {
-			request.setJsonrpc(version);
-			return this;
+		public static Builder create(String method) {
+			return new Builder(method);
 		}
 		
 		public Builder paramEntry(String key, Object value) {
@@ -143,32 +110,8 @@ public class ZabbixRequest {
 			return this;
 		}
 		
-		/**
-		 * Do not necessary to call this method.If don not set id, ZabbixApi will auto set request
-		 * auth..
-		 *
-		 * @param auth
-		 * @return
-		 */
-		public Builder auth(String auth) {
-			request.setAuth(auth);
-			return this;
-		}
-		
-		public Builder method(String method) {
-			request.setMethod(method);
-			return this;
-		}
-		
-		/**
-		 * Do not necessary to call this method.If don not set id, RequestBuilder will auto generate.
-		 *
-		 * @param id
-		 * @return
-		 */
-		public Builder id(Integer id) {
-			request.setId(id);
-			return this;
+		public ZabbixRequest done() {
+			return request;
 		}
 		
 	}
@@ -176,82 +119,74 @@ public class ZabbixRequest {
 	public static class Factory {
 		
 		public static ZabbixRequest Logon(String name, String password) {
-			return ZabbixRequest.Builder.create().method("user.login").paramEntry("user", name)
-					.paramEntry("password", password).build();
+			return ZabbixRequest.Builder.create("user.login").paramEntry("user", name)
+					.paramEntry("password", password).done();
 		}
 		
 		public static ZabbixRequest UserInfo(String name) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("user.get").build();
-			Ret.putParam("output", "extend");
-			if (name != null) Ret.putParam("filter", Misc.StringMap(Misc.wrap("alias"), name));
-			return Ret;
+			Builder RetBuild = ZabbixRequest.Builder.create("user.get").paramEntry("output", "extend");
+			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("alias"), name));
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest APIVersion() {
-			return ZabbixRequest.Builder.create().method("apiinfo.version").build();
+			return ZabbixRequest.Builder.create("apiinfo.version").done();
 		}
 		
 		public static ZabbixRequest HostGroupInfo(String name) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("hostgroup.get").build();
-			Ret.putParam("output", "extend");
-			if (name != null) Ret.putParam("filter", Misc.StringMap(Misc.wrap("name"), name));
-			return Ret;
+			Builder RetBuild =
+					ZabbixRequest.Builder.create("hostgroup.get").paramEntry("output", "extend");
+			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), name));
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest HostGroupCreate(String name) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("hostgroup.create")
-					.paramEntry("name", name).build();
-			return Ret;
+			return ZabbixRequest.Builder.create("hostgroup.create").paramEntry("name", name).done();
 		}
 		
 		public static ZabbixRequest HostInfo(String name) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("host.get").build();
-			Ret.putParam("output", "extend");
-			if (name != null) Ret.putParam("filter", Misc.StringMap(Misc.wrap("host"), name));
-			return Ret;
+			Builder RetBuild = ZabbixRequest.Builder.create("host.get").paramEntry("output", "extend");
+			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("host"), name));
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest HostCreate(String name, String... groupids) {
-			ZabbixRequest Ret =
-					ZabbixRequest.Builder.create().method("host.create").paramEntry("host", name).build();
+			Builder RetBuild = ZabbixRequest.Builder.create("host.create").paramEntry("host", name);
 			List<Object> HostGroups = new ArrayList<>();
 			for (String groupid : groupids)
 				HostGroups.add(Misc.StringMap(Misc.wrap("groupid"), groupid));
-			Ret.putParam("groups", HostGroups);
-			return Ret;
+			RetBuild.paramEntry("groups", HostGroups);
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest ApplicationInfo(String name, String HostID) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("application.get").build();
-			Ret.putParam("output", "extend");
-			if (name != null) Ret.putParam("filter", Misc.StringMap(Misc.wrap("name"), name));
-			if (HostID != null) Ret.putParam("hostids", HostID);
-			return Ret;
+			Builder RetBuild =
+					ZabbixRequest.Builder.create("application.get").paramEntry("output", "extend");
+			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), name));
+			if (HostID != null) RetBuild.paramEntry("hostids", HostID);
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest ApplicationCreate(String name, String HostID) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("application.create")
-					.paramEntry("name", name).paramEntry("hostid", HostID).build();
-			return Ret;
+			return ZabbixRequest.Builder.create("application.create").paramEntry("name", name)
+					.paramEntry("hostid", HostID).done();
 		}
 		
 		public static ZabbixRequest ItemInfo(String Key, String HostID) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("item.get").build();
-			Ret.putParam("output", "extend");
-			if (Key != null) Ret.putParam("filter", Misc.StringMap(Misc.wrap("key_"), Key));
-			if (HostID != null) Ret.putParam("hostids", HostID);
-			return Ret;
+			Builder RetBuild = ZabbixRequest.Builder.create("item.get").paramEntry("output", "extend");
+			if (Key != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("key_"), Key));
+			if (HostID != null) RetBuild.paramEntry("hostids", HostID);
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest ItemCreateTemplate(String Key, String Name, String HostID) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("item.create")
-					.paramEntry("key_", Key).paramEntry("name", Name).paramEntry("hostid", HostID).build();
-			return Ret;
+			return ZabbixRequest.Builder.create("item.create").paramEntry("key_", Key)
+					.paramEntry("name", Name).paramEntry("hostid", HostID).done();
 		}
 		
 		public static ZabbixRequest MediaTypeInfo(String Desc, Integer Type) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("mediatype.get").build();
-			Ret.putParam("output", "extend");
+			Builder RetBuild =
+					ZabbixRequest.Builder.create("mediatype.get").paramEntry("output", "extend");
 			if ((Desc != null) || (Type != null)) {
 				Map<String, Object> FilterMap = null;
 				if (Desc != null) FilterMap = Misc.StringMap(Misc.wrap("description"), Desc);
@@ -259,44 +194,39 @@ public class ZabbixRequest {
 					FilterMap.put("type", Type);
 				else
 					FilterMap = Misc.StringMap(Misc.wrap("type"), Type);
-				Ret.putParam("filter", FilterMap);
+				RetBuild.paramEntry("filter", FilterMap);
 			}
-			return Ret;
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest UserUpdateTemplate(String UserID) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("user.update").build();
-			Ret.putParam("userid", UserID);
-			return Ret;
+			return ZabbixRequest.Builder.create("user.update").paramEntry("userid", UserID).done();
 		}
 		
 		public static ZabbixRequest UserAddMediaTemplate(String UserID) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("user.addmedia").build();
-			Ret.putParam("users", Misc.StringMap(Misc.wrap("userid"), UserID));
-			return Ret;
+			return ZabbixRequest.Builder.create("user.addmedia")
+					.paramEntry("users", Misc.StringMap(Misc.wrap("userid"), UserID)).done();
 		}
 		
 		public static ZabbixRequest ActionInfo(String Name) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("action.get").build();
-			Ret.putParam("output", "extend");
-			if (Name != null) Ret.putParam("filter", Misc.StringMap(Misc.wrap("name"), Name));
-			return Ret;
+			Builder RetBuild = ZabbixRequest.Builder.create("action.get").paramEntry("output", "extend");
+			if (Name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), Name));
+			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest ActionCreateTemplate(String Name, int Source, int EscPeriod,
 				String ProbSubj, String ProbBody, String RecSubj, String RecBody) {
-			ZabbixRequest Ret = ZabbixRequest.Builder.create().method("action.create")
-					.paramEntry("name", Name).paramEntry("esc_period", Math.max(EscPeriod, 60))
-					.paramEntry("eventsource", Source).build();
+			Builder RetBuild = ZabbixRequest.Builder.create("action.create").paramEntry("name", Name)
+					.paramEntry("esc_period", Math.max(EscPeriod, 60)).paramEntry("eventsource", Source);
 					
-			if (ProbSubj != null) Ret.putParam("def_shortdata", ProbSubj);
-			if (ProbBody != null) Ret.putParam("def_longdata", ProbBody);
+			if (ProbSubj != null) RetBuild.paramEntry("def_shortdata", ProbSubj);
+			if (ProbBody != null) RetBuild.paramEntry("def_longdata", ProbBody);
 			if ((RecSubj != null) || (RecBody != null)) {
-				if (RecSubj != null) Ret.putParam("r_shortdata", RecSubj);
-				if (RecBody != null) Ret.putParam("r_longdata", RecBody);
-				Ret.putParam("recovery_msg", 1);
+				if (RecSubj != null) RetBuild.paramEntry("r_shortdata", RecSubj);
+				if (RecBody != null) RetBuild.paramEntry("r_longdata", RecBody);
+				RetBuild.paramEntry("recovery_msg", 1);
 			}
-			return Ret;
+			return RetBuild.done();
 		}
 		
 	}
