@@ -580,24 +580,31 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				try {
 					String MediaTypeID = null;
 					
-					/**
-					 * PATCH REQUIRED
-					 *
-					 * <pre>
-					 * --- /usr/share/zabbix/api/classes/CMediatype.php.ori 2015-09-10 14:47:35.094946022
-					 * -0400 +++ /usr/share/zabbix/api/classes/CMediatype.php 2015-09-02 17:47:18.490671953
-					 * -0400
-					 *
-					 * @@ -87,9 +87,11 @@ // permission check if (USER_TYPE_SUPER_ADMIN == $userType) { } -
-					 * elseif (is_null($options['editable']) && self::$userData['type'] ==
-					 * USER_TYPE_ZABBIX_ADMIN) { - } - elseif (!is_null($options['editable']) ||
-					 * self::$userData['type'] != USER_TYPE_SUPER_ADMIN) { + //elseif
-					 * (is_null($options['editable']) && self::$userData['type'] == USER_TYPE_ZABBIX_ADMIN) {
-					 * + //} + //elseif (!is_null($options['editable']) || self::$userData['type'] !=
-					 * USER_TYPE_SUPER_ADMIN) { + // Zhenyu Wu: Non super-admin should be able to get
-					 * information as long as they do not request editing! + elseif
-					 * (!is_null($options['editable']) && $options['editable']) { return array(); }
-					 */
+					/*
+					!! PATCH REQUIRED !!
+					// @formatter:off
+- For Zabbix 2.2.2
+Z222PATCH=\
+LS0tIC91c3Ivc2hhcmUvemFiYml4L2FwaS9jbGFzc2VzL0NNZWRpYXR5cGUucGhwCTIwMTUtMDkt\
+MTAgMTQ6NDc6MzUuMDk0OTQ2MDIyIC0wNDAwCisrKyAvdXNyL3NoYXJlL3phYmJpeC9hcGkvY2xh\
+c3Nlcy9DTWVkaWF0eXBlLnBocC5uZXcJMjAxNS0wOS0wMiAxNzo0NzoxOC40OTA2NzE5NTMgLTA0\
+MDAKQEAgLTg3LDkgKzg3LDExIEBACiAJCS8vIHBlcm1pc3Npb24gY2hlY2sKIAkJaWYgKFVTRVJf\
+VFlQRV9TVVBFUl9BRE1JTiA9PSAkdXNlclR5cGUpIHsKIAkJfQotCQllbHNlaWYgKGlzX251bGwo\
+JG9wdGlvbnNbJ2VkaXRhYmxlJ10pICYmIHNlbGY6OiR1c2VyRGF0YVsndHlwZSddID09IFVTRVJf\
+VFlQRV9aQUJCSVhfQURNSU4pIHsKLQkJfQotCQllbHNlaWYgKCFpc19udWxsKCRvcHRpb25zWydl\
+ZGl0YWJsZSddKSB8fCBzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSAhPSBVU0VSX1RZUEVfU1VQRVJf\
+QURNSU4pIHsKKwkJLy9lbHNlaWYgKGlzX251bGwoJG9wdGlvbnNbJ2VkaXRhYmxlJ10pICYmIHNl\
+bGY6OiR1c2VyRGF0YVsndHlwZSddID09IFVTRVJfVFlQRV9aQUJCSVhfQURNSU4pIHsKKwkJLy99\
+CisJCS8vZWxzZWlmICghaXNfbnVsbCgkb3B0aW9uc1snZWRpdGFibGUnXSkgfHwgc2VsZjo6JHVz\
+ZXJEYXRhWyd0eXBlJ10gIT0gVVNFUl9UWVBFX1NVUEVSX0FETUlOKSB7CisJCS8vIFpoZW55dSBX\
+dTogTm9uIHN1cGVyLWFkbWluIHNob3VsZCBiZSBhYmxlIHRvIGdldCBpbmZvcm1hdGlvbiBhcyBs\
+b25nIGFzIHRoZXkgZG8gbm90IHJlcXVlc3QgZWRpdGluZyEKKwkJZWxzZWlmICghaXNfbnVsbCgk\
+b3B0aW9uc1snZWRpdGFibGUnXSkgJiYgJG9wdGlvbnNbJ2VkaXRhYmxlJ10pIHsKIAkJCXJldHVy\
+biBhcnJheSgpOwogCQl9CiAK
+( cd / && echo $Z222PATCH | base64 -d | patch -p0 --dry-run )
+# Check for error and remove --dry-run when comfortable
+					// @formatter:on
+					*/
 					// Check the medias (require email, others optional -- and not implemented)
 					String MediaTypeName = Project + "-Email";
 					{
@@ -621,22 +628,29 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 						}
 					}
 					
-					/**
-					 * PATCH REQUIRED
-					 *
-					 * <pre>
-					 * --- /usr/share/zabbix/api/classes/CUser.php.ori 2015-09-10 14:48:19.426944992 -0400 +++
-					 * /usr/share/zabbix/api/classes/CUser.php 2015-09-02 17:46:48.978672639 -0400
-					 *
-					 * @@ -665,7 +665,8 @@ protected function validateAddMedia(array $data) { - if
-					 * (self::$userData['type'] < USER_TYPE_ZABBIX_ADMIN) { -
-					 * self::exception(ZBX_API_ERROR_PARAMETERS, _('Only Zabbix Admins can add user media.'));
-					 * - } + // Zhenyu Wu: Relax the security a little bit + //if (self::$userData['type'] <
-					 * USER_TYPE_ZABBIX_ADMIN) { + // self::exception(ZBX_API_ERROR_PARAMETERS, _('Only Zabbix
-					 * Admins can add user media.')); + //} if (!isset($data['users']) ||
-					 * !isset($data['medias'])) { self::exception(ZBX_API_ERROR_PARAMETERS, _('Invalid method
-					 * parameters.'));
-					 */
+					/*
+					!! PATCH REQUIRED !!
+					// @formatter:off
+- For Zabbix 2.2.2
+Z222PATCH=\
+LS0tIC91c3Ivc2hhcmUvemFiYml4L2FwaS9jbGFzc2VzL0NVc2VyLnBocAkyMDE1LTA5LTEwIDE0\
+OjQ4OjE5LjQyNjk0NDk5MiAtMDQwMAorKysgL3Vzci9zaGFyZS96YWJiaXgvYXBpL2NsYXNzZXMv\
+Q1VzZXIucGhwLm5ldwkyMDE1LTA5LTAyIDE3OjQ2OjQ4Ljk3ODY3MjYzOSAtMDQwMApAQCAtNjY1\
+LDkgKzY2NSwxMCBAQAogCSAqIEBwYXJhbSBzdHJpbmcgJGRhdGFbJ21lZGlhcyddWydwZXJpb2Qn\
+XQogCSAqLwogCXByb3RlY3RlZCBmdW5jdGlvbiB2YWxpZGF0ZUFkZE1lZGlhKGFycmF5ICRkYXRh\
+KSB7Ci0JCWlmIChzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSA8IFVTRVJfVFlQRV9aQUJCSVhfQURN\
+SU4pIHsKLQkJCXNlbGY6OmV4Y2VwdGlvbihaQlhfQVBJX0VSUk9SX1BBUkFNRVRFUlMsIF8oJ09u\
+bHkgWmFiYml4IEFkbWlucyBjYW4gYWRkIHVzZXIgbWVkaWEuJykpOwotCQl9CisJCS8vIFpoZW55\
+dSBXdTogUmVsYXggdGhlIHNlY3VyaXR5IGEgbGl0dGxlIGJpdAorCQkvL2lmIChzZWxmOjokdXNl\
+ckRhdGFbJ3R5cGUnXSA8IFVTRVJfVFlQRV9aQUJCSVhfQURNSU4pIHsKKwkJLy8Jc2VsZjo6ZXhj\
+ZXB0aW9uKFpCWF9BUElfRVJST1JfUEFSQU1FVEVSUywgXygnT25seSBaYWJiaXggQWRtaW5zIGNh\
+biBhZGQgdXNlciBtZWRpYS4nKSk7CisJCS8vfQogCiAJCWlmICghaXNzZXQoJGRhdGFbJ3VzZXJz\
+J10pIHx8ICFpc3NldCgkZGF0YVsnbWVkaWFzJ10pKSB7CiAJCQlzZWxmOjpleGNlcHRpb24oWkJY\
+X0FQSV9FUlJPUl9QQVJBTUVURVJTLCBfKCdJbnZhbGlkIG1ldGhvZCBwYXJhbWV0ZXJzLicpKTsK
+( cd / && echo $Z222PATCH | base64 -d | patch -p0 --dry-run )
+# Check for error and remove --dry-run when comfortable
+					// @formatter:on
+					*/
 					// Check if all RPs are recorded for current user, and update if necessary
 					String UserID = null;
 					{
