@@ -56,6 +56,7 @@ dependencies {
 allprojects {
 	tasks.withType(Javadoc) {
 		options.addStringOption('Xdoclint:none', '-quiet')
+		options.addStringOption('tag', 'note:a:"Note:"')
 	}
 }
 
