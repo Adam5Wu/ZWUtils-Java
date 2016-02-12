@@ -70,6 +70,45 @@ import com.necla.am.zwutils.Tasks.RunnableTask;
 import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
 
 
+/*
+!! PATCH REQUIRED !!
+// @formatter:off
+- For Zabbix 2.2.2
+Z222PATCH=LS0tIC91c3Ivc2hhcmUvemFiYml4L2FwaS9jbGFzc2VzL0NNZWRpYXR5cGUucGhwCTIwMTUtMDkt\
+MTAgMTQ6NDc6MzUuMDk0OTQ2MDIyIC0wNDAwCisrKyAvdXNyL3NoYXJlL3phYmJpeC9hcGkvY2xh\
+c3Nlcy9DTWVkaWF0eXBlLnBocC5uZXcJMjAxNS0wOS0wMiAxNzo0NzoxOC40OTA2NzE5NTMgLTA0\
+MDAKQEAgLTg3LDkgKzg3LDExIEBACiAJCS8vIHBlcm1pc3Npb24gY2hlY2sKIAkJaWYgKFVTRVJf\
+VFlQRV9TVVBFUl9BRE1JTiA9PSAkdXNlclR5cGUpIHsKIAkJfQotCQllbHNlaWYgKGlzX251bGwo\
+JG9wdGlvbnNbJ2VkaXRhYmxlJ10pICYmIHNlbGY6OiR1c2VyRGF0YVsndHlwZSddID09IFVTRVJf\
+VFlQRV9aQUJCSVhfQURNSU4pIHsKLQkJfQotCQllbHNlaWYgKCFpc19udWxsKCRvcHRpb25zWydl\
+ZGl0YWJsZSddKSB8fCBzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSAhPSBVU0VSX1RZUEVfU1VQRVJf\
+QURNSU4pIHsKKwkJLy9lbHNlaWYgKGlzX251bGwoJG9wdGlvbnNbJ2VkaXRhYmxlJ10pICYmIHNl\
+bGY6OiR1c2VyRGF0YVsndHlwZSddID09IFVTRVJfVFlQRV9aQUJCSVhfQURNSU4pIHsKKwkJLy99\
+CisJCS8vZWxzZWlmICghaXNfbnVsbCgkb3B0aW9uc1snZWRpdGFibGUnXSkgfHwgc2VsZjo6JHVz\
+ZXJEYXRhWyd0eXBlJ10gIT0gVVNFUl9UWVBFX1NVUEVSX0FETUlOKSB7CisJCS8vIFpoZW55dSBX\
+dTogTm9uIHN1cGVyLWFkbWluIHNob3VsZCBiZSBhYmxlIHRvIGdldCBpbmZvcm1hdGlvbiBhcyBs\
+b25nIGFzIHRoZXkgZG8gbm90IHJlcXVlc3QgZWRpdGluZyEKKwkJZWxzZWlmICghaXNfbnVsbCgk\
+b3B0aW9uc1snZWRpdGFibGUnXSkgJiYgJG9wdGlvbnNbJ2VkaXRhYmxlJ10pIHsKIAkJCXJldHVy\
+biBhcnJheSgpOwogCQl9CiAKLS0tIC91c3Ivc2hhcmUvemFiYml4L2FwaS9jbGFzc2VzL0NVc2Vy\
+LnBocAkyMDE1LTA5LTEwIDE0OjQ4OjE5LjQyNjk0NDk5MiAtMDQwMAorKysgL3Vzci9zaGFyZS96\
+YWJiaXgvYXBpL2NsYXNzZXMvQ1VzZXIucGhwLm5ldwkyMDE1LTA5LTAyIDE3OjQ2OjQ4Ljk3ODY3\
+MjYzOSAtMDQwMApAQCAtNjY1LDkgKzY2NSwxMCBAQAogCSAqIEBwYXJhbSBzdHJpbmcgJGRhdGFb\
+J21lZGlhcyddWydwZXJpb2QnXQogCSAqLwogCXByb3RlY3RlZCBmdW5jdGlvbiB2YWxpZGF0ZUFk\
+ZE1lZGlhKGFycmF5ICRkYXRhKSB7Ci0JCWlmIChzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSA8IFVT\
+RVJfVFlQRV9aQUJCSVhfQURNSU4pIHsKLQkJCXNlbGY6OmV4Y2VwdGlvbihaQlhfQVBJX0VSUk9S\
+X1BBUkFNRVRFUlMsIF8oJ09ubHkgWmFiYml4IEFkbWlucyBjYW4gYWRkIHVzZXIgbWVkaWEuJykp\
+OwotCQl9CisJCS8vIFpoZW55dSBXdTogUmVsYXggdGhlIHNlY3VyaXR5IGEgbGl0dGxlIGJpdAor\
+CQkvL2lmIChzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSA8IFVTRVJfVFlQRV9aQUJCSVhfQURNSU4p\
+IHsKKwkJLy8Jc2VsZjo6ZXhjZXB0aW9uKFpCWF9BUElfRVJST1JfUEFSQU1FVEVSUywgXygnT25s\
+eSBaYWJiaXggQWRtaW5zIGNhbiBhZGQgdXNlciBtZWRpYS4nKSk7CisJCS8vfQogCiAJCWlmICgh\
+aXNzZXQoJGRhdGFbJ3VzZXJzJ10pIHx8ICFpc3NldCgkZGF0YVsnbWVkaWFzJ10pKSB7CiAJCQlz\
+ZWxmOjpleGNlcHRpb24oWkJYX0FQSV9FUlJPUl9QQVJBTUVURVJTLCBfKCdJbnZhbGlkIG1ldGhv\
+ZCBwYXJhbWV0ZXJzLicpKTsK
+( cd / && echo $Z222PATCH | base64 -d | patch -p0 --dry-run )
+# Check for error and remove --dry-run when comfortable
+// @formatter:on
+*/
+
 /**
  * Zabbix push logging JUL handler
  *
@@ -580,31 +619,6 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				try {
 					String MediaTypeID = null;
 					
-					/*
-					!! PATCH REQUIRED !!
-					// @formatter:off
-- For Zabbix 2.2.2
-Z222PATCH=\
-LS0tIC91c3Ivc2hhcmUvemFiYml4L2FwaS9jbGFzc2VzL0NNZWRpYXR5cGUucGhwCTIwMTUtMDkt\
-MTAgMTQ6NDc6MzUuMDk0OTQ2MDIyIC0wNDAwCisrKyAvdXNyL3NoYXJlL3phYmJpeC9hcGkvY2xh\
-c3Nlcy9DTWVkaWF0eXBlLnBocC5uZXcJMjAxNS0wOS0wMiAxNzo0NzoxOC40OTA2NzE5NTMgLTA0\
-MDAKQEAgLTg3LDkgKzg3LDExIEBACiAJCS8vIHBlcm1pc3Npb24gY2hlY2sKIAkJaWYgKFVTRVJf\
-VFlQRV9TVVBFUl9BRE1JTiA9PSAkdXNlclR5cGUpIHsKIAkJfQotCQllbHNlaWYgKGlzX251bGwo\
-JG9wdGlvbnNbJ2VkaXRhYmxlJ10pICYmIHNlbGY6OiR1c2VyRGF0YVsndHlwZSddID09IFVTRVJf\
-VFlQRV9aQUJCSVhfQURNSU4pIHsKLQkJfQotCQllbHNlaWYgKCFpc19udWxsKCRvcHRpb25zWydl\
-ZGl0YWJsZSddKSB8fCBzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSAhPSBVU0VSX1RZUEVfU1VQRVJf\
-QURNSU4pIHsKKwkJLy9lbHNlaWYgKGlzX251bGwoJG9wdGlvbnNbJ2VkaXRhYmxlJ10pICYmIHNl\
-bGY6OiR1c2VyRGF0YVsndHlwZSddID09IFVTRVJfVFlQRV9aQUJCSVhfQURNSU4pIHsKKwkJLy99\
-CisJCS8vZWxzZWlmICghaXNfbnVsbCgkb3B0aW9uc1snZWRpdGFibGUnXSkgfHwgc2VsZjo6JHVz\
-ZXJEYXRhWyd0eXBlJ10gIT0gVVNFUl9UWVBFX1NVUEVSX0FETUlOKSB7CisJCS8vIFpoZW55dSBX\
-dTogTm9uIHN1cGVyLWFkbWluIHNob3VsZCBiZSBhYmxlIHRvIGdldCBpbmZvcm1hdGlvbiBhcyBs\
-b25nIGFzIHRoZXkgZG8gbm90IHJlcXVlc3QgZWRpdGluZyEKKwkJZWxzZWlmICghaXNfbnVsbCgk\
-b3B0aW9uc1snZWRpdGFibGUnXSkgJiYgJG9wdGlvbnNbJ2VkaXRhYmxlJ10pIHsKIAkJCXJldHVy\
-biBhcnJheSgpOwogCQl9CiAK
-( cd / && echo $Z222PATCH | base64 -d | patch -p0 --dry-run )
-# Check for error and remove --dry-run when comfortable
-					// @formatter:on
-					*/
 					// Check the medias (require email, others optional -- and not implemented)
 					String MediaTypeName = Project + "-Email";
 					{
@@ -628,29 +642,6 @@ biBhcnJheSgpOwogCQl9CiAK
 						}
 					}
 					
-					/*
-					!! PATCH REQUIRED !!
-					// @formatter:off
-- For Zabbix 2.2.2
-Z222PATCH=\
-LS0tIC91c3Ivc2hhcmUvemFiYml4L2FwaS9jbGFzc2VzL0NVc2VyLnBocAkyMDE1LTA5LTEwIDE0\
-OjQ4OjE5LjQyNjk0NDk5MiAtMDQwMAorKysgL3Vzci9zaGFyZS96YWJiaXgvYXBpL2NsYXNzZXMv\
-Q1VzZXIucGhwLm5ldwkyMDE1LTA5LTAyIDE3OjQ2OjQ4Ljk3ODY3MjYzOSAtMDQwMApAQCAtNjY1\
-LDkgKzY2NSwxMCBAQAogCSAqIEBwYXJhbSBzdHJpbmcgJGRhdGFbJ21lZGlhcyddWydwZXJpb2Qn\
-XQogCSAqLwogCXByb3RlY3RlZCBmdW5jdGlvbiB2YWxpZGF0ZUFkZE1lZGlhKGFycmF5ICRkYXRh\
-KSB7Ci0JCWlmIChzZWxmOjokdXNlckRhdGFbJ3R5cGUnXSA8IFVTRVJfVFlQRV9aQUJCSVhfQURN\
-SU4pIHsKLQkJCXNlbGY6OmV4Y2VwdGlvbihaQlhfQVBJX0VSUk9SX1BBUkFNRVRFUlMsIF8oJ09u\
-bHkgWmFiYml4IEFkbWlucyBjYW4gYWRkIHVzZXIgbWVkaWEuJykpOwotCQl9CisJCS8vIFpoZW55\
-dSBXdTogUmVsYXggdGhlIHNlY3VyaXR5IGEgbGl0dGxlIGJpdAorCQkvL2lmIChzZWxmOjokdXNl\
-ckRhdGFbJ3R5cGUnXSA8IFVTRVJfVFlQRV9aQUJCSVhfQURNSU4pIHsKKwkJLy8Jc2VsZjo6ZXhj\
-ZXB0aW9uKFpCWF9BUElfRVJST1JfUEFSQU1FVEVSUywgXygnT25seSBaYWJiaXggQWRtaW5zIGNh\
-biBhZGQgdXNlciBtZWRpYS4nKSk7CisJCS8vfQogCiAJCWlmICghaXNzZXQoJGRhdGFbJ3VzZXJz\
-J10pIHx8ICFpc3NldCgkZGF0YVsnbWVkaWFzJ10pKSB7CiAJCQlzZWxmOjpleGNlcHRpb24oWkJY\
-X0FQSV9FUlJPUl9QQVJBTUVURVJTLCBfKCdJbnZhbGlkIG1ldGhvZCBwYXJhbWV0ZXJzLicpKTsK
-( cd / && echo $Z222PATCH | base64 -d | patch -p0 --dry-run )
-# Check for error and remove --dry-run when comfortable
-					// @formatter:on
-					*/
 					// Check if all RPs are recorded for current user, and update if necessary
 					String UserID = null;
 					{
