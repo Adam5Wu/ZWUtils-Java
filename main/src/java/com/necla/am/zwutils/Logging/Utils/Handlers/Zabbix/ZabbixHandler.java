@@ -451,16 +451,20 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			public void loadFields(DataMap confMap) {
 				Map<String, ResponsiblePerson> xRPs = new HashMap<>();
 				DataMap RPMap = new DataMap("RP", confMap, KEY_PREFIX_RP);
-				for (String RPName : RPMap.getDataMap().keySet())
-					xRPs.put(RPName,
-							RPMap.getObject(RPName, ResponsiblePerson.FromString, ResponsiblePerson.ToString));
-							
+				for (String RPName : RPMap.getDataMap().keySet()) {
+					ResponsiblePerson RP = RPMap.getObjectDef(RPName, null, ResponsiblePerson.FromString,
+							ResponsiblePerson.ToString);
+					if (RP != null) xRPs.put(RPName, null);
+				}
+				
 				Map<String, AutoTriggerInfo> xTriggers = new HashMap<>();
 				DataMap TRGMap = new DataMap("TRG", confMap, KEY_PREFIX_TRG);
-				for (String TRGName : TRGMap.getDataMap().keySet())
-					xTriggers.put(TRGName,
-							TRGMap.getObject(TRGName, AutoTriggerInfo.FromString, AutoTriggerInfo.ToString));
-							
+				for (String TRGName : TRGMap.getDataMap().keySet()) {
+					AutoTriggerInfo TRG = TRGMap.getObjectDef(TRGName, null, AutoTriggerInfo.FromString,
+							AutoTriggerInfo.ToString);
+					if (TRG != null) xTriggers.put(TRGName, TRG);
+				}
+				
 				RPs = xRPs;
 				Triggers = xTriggers;
 				
