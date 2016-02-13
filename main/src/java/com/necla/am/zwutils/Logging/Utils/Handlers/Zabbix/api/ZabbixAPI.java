@@ -110,7 +110,7 @@ public interface ZabbixAPI {
 				@Override
 				public void loadDefaults() {
 					SecureHTTP = false;
-					ServerAddr = "192.168.58.129";
+					ServerAddr = "LocalHost";
 					APIPort = DEFPORT_HTTP;
 					ReportPort = DEFPORT_REPORT;
 					UserName = "ZWUtils";

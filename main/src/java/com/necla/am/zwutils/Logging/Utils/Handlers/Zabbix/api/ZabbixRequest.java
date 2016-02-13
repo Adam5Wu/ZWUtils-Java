@@ -54,7 +54,7 @@ import com.necla.am.zwutils.Misc.Misc;
  */
 public class ZabbixRequest {
 	
-	public static final String jsonrpc = "2.0";
+	public final String jsonrpc = "2.0";
 	
 	public String auth;
 	

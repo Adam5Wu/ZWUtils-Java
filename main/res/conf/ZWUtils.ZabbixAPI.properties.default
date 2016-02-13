@@ -2,7 +2,7 @@
 #ZabbixAPI.SecureHTTP = false
 
 # Change to match your configurations
-#ZabbixAPI.ServerAddr = 192.168.58.129
+#ZabbixAPI.ServerAddr = LocalHost
 #ZabbixAPI.APIPort = 80
 
 # Do not change unless necessary
