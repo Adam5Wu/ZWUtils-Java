@@ -11,8 +11,7 @@
 #DebugLog.CapRoot  = True
 
 # Zabbix log integration (default disabled)
-#DebugLog.ZabbixScope = (null)
-# Note that, function is enabled as long as DebugLog.ZabbixScope is defined (even if empty)  
+#DebugLog.ZabbixScope = (HostGroup).(Host)
 
 # Specifying log level for individual logging group
 #DebugLog.LevelOf.(Group) = (Level)

@@ -752,7 +752,6 @@ public final class DebugLog {
 				});
 			}
 			
-			private static final String DEFAULT_ZBXPROJECT = "ZWUtils";
 			private static final String DEFAULT_ZBXCOMPONENT = "GimmeAName";
 			
 			protected class Validation implements Data.Mutable.Validation {
@@ -761,7 +760,7 @@ public final class DebugLog {
 				public void validateFields() throws Throwable {
 					if (ZabbixScope != null) {
 						if (ZabbixScope.isEmpty())
-							ZabbixScope = DEFAULT_ZBXPROJECT + '.' + DEFAULT_ZBXCOMPONENT;
+							ZabbixScope = null;
 						else {
 							if (ZabbixScope.indexOf('.') < 0) ZabbixScope += '.' + DEFAULT_ZBXCOMPONENT;
 						}
