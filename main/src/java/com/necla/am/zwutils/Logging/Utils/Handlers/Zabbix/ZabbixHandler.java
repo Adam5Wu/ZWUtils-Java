@@ -321,7 +321,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 						String[] KV = Tokens[idx].trim().split(RP_KVDELIM, 2);
 						switch (KV[0].toUpperCase()) {
 							case RP_EMAIL_KEY:
-								Email = KV[1];
+								if (!KV[1].isEmpty()) Email = KV[1];
 								break;
 								
 							default:
@@ -329,9 +329,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 										"Unrecognized responsible persion attribute '%s'", KV[0]);
 						}
 					}
-					if (Email == null) Misc.FAIL(IllegalStateException.class,
-							"Responsible persion must have at least one of attributes [%s]", RP_EMAIL_KEY);
-							
+					
 					return new ResponsiblePerson(Severities, Email);
 				}
 			}
@@ -452,16 +450,20 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				Map<String, ResponsiblePerson> xRPs = new HashMap<>();
 				DataMap RPMap = new DataMap("RP", confMap, KEY_PREFIX_RP);
 				for (String RPName : RPMap.getDataMap().keySet()) {
-					ResponsiblePerson RP = RPMap.getObjectDef(RPName, null, ResponsiblePerson.FromString,
-							ResponsiblePerson.ToString);
-					if (RP != null) xRPs.put(RPName, null);
+					ResponsiblePerson RP =
+							RPMap.getObject(RPName, ResponsiblePerson.FromString, ResponsiblePerson.ToString);
+					if (RP.Email == null) {
+						ILog.Warn("Ignoring Resiponsible Persion '%s' without any means of contact", RPName);
+						RP = null;
+					}
+					if (RP != null) xRPs.put(RPName, RP);
 				}
 				
 				Map<String, AutoTriggerInfo> xTriggers = new HashMap<>();
 				DataMap TRGMap = new DataMap("TRG", confMap, KEY_PREFIX_TRG);
 				for (String TRGName : TRGMap.getDataMap().keySet()) {
-					AutoTriggerInfo TRG = TRGMap.getObjectDef(TRGName, null, AutoTriggerInfo.FromString,
-							AutoTriggerInfo.ToString);
+					AutoTriggerInfo TRG =
+							TRGMap.getObject(TRGName, AutoTriggerInfo.FromString, AutoTriggerInfo.ToString);
 					if (TRG != null) xTriggers.put(TRGName, TRG);
 				}
 				
