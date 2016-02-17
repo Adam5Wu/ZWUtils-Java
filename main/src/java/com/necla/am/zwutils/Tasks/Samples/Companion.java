@@ -124,18 +124,20 @@ public class Companion extends Poller implements ITask.TaskDependency {
 				ILog.Entry("+Termination request received");
 			}
 			
-			PollTasks.forEach(CoTask -> {
-				ILog.Info("Signaling task '%s'...", CoTask.getName());
-				try {
-					if (CoTask instanceof Notifiable)
-						((Notifiable) CoTask).onSubscription(IntegrityEvent);
-					else
-						ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
-				} catch (Throwable e) {
-					ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
-					// Eat exception
-				}
-			});
+			synchronized (PollTasks) {
+				PollTasks.forEach(CoTask -> {
+					ILog.Info("Signaling task '%s'...", CoTask.getName());
+					try {
+						if (CoTask instanceof Notifiable)
+							((Notifiable) CoTask).onSubscription(IntegrityEvent);
+						else
+							ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
+					} catch (Throwable e) {
+						ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
+						// Eat exception
+					}
+				});
+			}
 			ILog.Exit("*Termination request forwarded");
 		};
 		MessageDispatcher.RegisterSubscription(MessageCategories.EVENT_TASK_TERMINATE, OnTerminate);
@@ -182,26 +184,28 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		Collection<ITask> Reached = TaskCollection.FilterTasksByState(PollTasks, State);
 		Reached.forEach(Task -> ILog.Fine("Task '%s' has reached state %s", Task.getName(), State));
 		
-		PollTasks.removeAll(Reached);
-		if (Config.Integrity&& (IntegrityEvent != null) && !Reached.isEmpty()
-				&& !PollTasks.isEmpty()) {
-			StringBuilder TaskNames = new StringBuilder();
-			Reached.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
-			TaskNames.setLength(TaskNames.length() - 1);
-			ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
-			PollTasks.forEach(CoTask -> {
-				ILog.Info("Signaling task '%s'...", CoTask.getName());
-				try {
-					if (CoTask instanceof Notifiable)
-						((Notifiable) CoTask).onSubscription(IntegrityEvent);
-					else
-						ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
-				} catch (Throwable e) {
-					ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
-					// Eat exception
-				}
-			});
-			IntegrityEvent = null;
+		synchronized (PollTasks) {
+			PollTasks.removeAll(Reached);
+			if (Config.Integrity&& (IntegrityEvent != null) && !Reached.isEmpty()
+					&& !PollTasks.isEmpty()) {
+				StringBuilder TaskNames = new StringBuilder();
+				Reached.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
+				TaskNames.setLength(TaskNames.length() - 1);
+				ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
+				PollTasks.forEach(CoTask -> {
+					ILog.Info("Signaling task '%s'...", CoTask.getName());
+					try {
+						if (CoTask instanceof Notifiable)
+							((Notifiable) CoTask).onSubscription(IntegrityEvent);
+						else
+							ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
+					} catch (Throwable e) {
+						ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
+						// Eat exception
+					}
+				});
+				IntegrityEvent = null;
+			}
 		}
 		return !PollTasks.isEmpty();
 	}
@@ -212,17 +216,19 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		
 		super.doTask();
 		
-		if (!PollTasks.isEmpty()) {
-			if (GlobalConfig.DEBUG_CHECK) {
-				StringBuilder TaskNames = new StringBuilder();
-				PollTasks.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
-				TaskNames.setLength(TaskNames.length() - 1);
-				ILog.Warn("Live companion tasks: [%s]", TaskNames);
+		synchronized (PollTasks) {
+			if (!PollTasks.isEmpty()) {
+				if (GlobalConfig.DEBUG_CHECK) {
+					StringBuilder TaskNames = new StringBuilder();
+					PollTasks.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
+					TaskNames.setLength(TaskNames.length() - 1);
+					ILog.Warn("Live companion tasks: [%s]", TaskNames);
+				} else {
+					ILog.Warn("There are %d live companion tasks", PollTasks.size());
+				}
 			} else {
-				ILog.Warn("There are %d live companion tasks", PollTasks.size());
+				ILog.Fine("All companion tasks terminated");
 			}
-		} else {
-			ILog.Fine("All companion tasks terminated");
 		}
 	}
 	
