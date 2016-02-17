@@ -27,7 +27,7 @@ sourceSets {
 			srcDir 'main/res'
 			include '**/*'
 			srcDir 'main/src/java'
-			include '**/*.properties'
+			exclude '**/*.java'
 		}
 	}
 // TODO: Currently test only works with eclipse
