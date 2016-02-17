@@ -538,8 +538,9 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		}
 		
 		StripPfxProject = Project + '.';
-		StripPfxComponent = Component + '.';
-		
+		StripPfxComponent = (Component.startsWith(StripPfxProject)? Component
+				.substring(StripPfxProject.length()) : Component) + '.';
+				
 		String HostGroupID = null;
 		String HostID = null;
 		

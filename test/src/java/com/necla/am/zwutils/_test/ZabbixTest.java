@@ -68,7 +68,7 @@ public class ZabbixTest {
 		JsonObject response = Test1.call(request);
 		CLog.Info("Host Groups: %s", response.get("result"));
 		
-		try (ZabbixHandler ZH1 = new ZabbixHandler("ZWUtils", "ZabbixTest", Test1, null)) {
+		try (ZabbixHandler ZH1 = new ZabbixHandler("ZWUtils", "ZWUtils.ZabbixTest", Test1, null)) {
 			ZH1.DoLog("Test1", Misc.wrap("Test", 1));
 			ZH1.DoLog("ZabbixTest.Test1", Misc.wrap("Test", 2));
 			ZH1.DoLog("ZWUtils.ZabbixTest.Test1", Misc.wrap("Test1", "Test"));
