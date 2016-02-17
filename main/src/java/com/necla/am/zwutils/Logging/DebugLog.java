@@ -366,7 +366,7 @@ public final class DebugLog {
 	
 	protected static void enableZabbix(String Scope) {
 		String[] ScopeTok = Scope.split("\\.", 2);
-		ZabbixHandler = new ZabbixHandler(ScopeTok[0], ScopeTok[1]);
+		ZabbixHandler = new ZabbixHandler(ScopeTok[0], Scope);
 		LogBase.addHandler(ZabbixHandler);
 	}
 	
