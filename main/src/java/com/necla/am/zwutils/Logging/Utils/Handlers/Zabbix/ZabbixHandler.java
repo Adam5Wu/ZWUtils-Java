@@ -922,6 +922,26 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		}
 	}
 	
+	// We only accept the unquoted string form
+	protected String[] ParseItemKey(String ItemKey) {
+		try {
+			String[] Ret = ItemKey.split(",");
+			// Sanity check
+			for (String Entry : Ret) {
+				if (Entry.isEmpty()) Misc.FAIL("Empty parameter is not allowed");
+				if (Entry.startsWith("\"") || Entry.endsWith("\""))
+					Misc.FAIL("Quoted parameter not supported");
+				if (Entry.indexOf(']') >= 0) Misc.FAIL("Illegal character '%s'", "]");
+			}
+			return Ret;
+		} catch (Throwable e) {
+			Misc.CascadeThrow(e, "Failed to parse metric '%s'", ItemKey);
+			return null;
+		}
+	}
+	
+	protected static final String ItemDispNameBase = "Metric '$1'";
+	
 	protected String EnsureItem(String AppID, String AppKey, Class<?> Type) {
 		TItemInfo iRet = ItemMap.get(AppKey);
 		if (iRet == null) {
@@ -933,8 +953,20 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			if (Items.size() != 1) {
 				if (Items.size() > 1) Misc.FAIL("Expect return of 1 entry, received %d", Items.size());
 				// Try to create the application on-the-fly
-				ZabbixRequest ICQuery =
-						ZabbixRequest.Factory.ItemCreateTemplate(AppKey, "Metric '$1'", HostID);
+				String ParamStr = AppKey.split("\\[")[1];
+				ParamStr = ParamStr.substring(0, ParamStr.length() - 1);
+				String[] ItemParams = ParseItemKey(ParamStr);
+				String DispName;
+				if (ItemParams.length > 1) {
+					StringBuilder StrBuf = new StringBuilder().append(ItemDispNameBase).append(" (");
+					for (int idx = 2; idx <= ItemParams.length; idx++)
+						StrBuf.append('$').append(idx).append(',');
+					StrBuf.setCharAt(StrBuf.length() - 1, ')');
+					DispName = StrBuf.toString();
+				} else
+					DispName = ItemDispNameBase;
+					
+				ZabbixRequest ICQuery = ZabbixRequest.Factory.ItemCreateTemplate(AppKey, DispName, HostID);
 				ICQuery.putParam("type", ZABBIX_TYPE_TRAPPER);
 				ICQuery.putParam("value_type", VType);
 				ICQuery.putParam("applications", Misc.wrap(AppID));
