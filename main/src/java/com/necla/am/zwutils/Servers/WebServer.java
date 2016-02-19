@@ -568,6 +568,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		
 		public void HeartBeat(ITimeStamp now) {
 			ILog.Info("%d requests served, %d exceptions", InvokeCount.get(), ExceptCount.get());
+			PerfLog(Misc.wrap("TotalInvoke", "TotalExcept"),
+					Misc.wrap(InvokeCount.get(), ExceptCount.get()));
 		}
 		
 		public long GetInvokeCount() {
@@ -738,8 +740,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		ILog.Info("* Server up for %s; Invoke / Except: %d / %d", Misc.FormatDeltaTime(uptime),
 				totalinvoke, totalexcept);
 				
+		double UpDays = (double) uptime / Misc.TimeUnit.DAY.Convert(1, Misc.TimeUnit.MSEC);
 		PerfLog(null, Misc.wrap("UpTime", "TotalInvoke", "TotalExcept"),
-				Misc.wrap(uptime, totalinvoke, totalexcept));
+				Misc.wrap(UpDays, totalinvoke, totalexcept));
 	}
 	
 	protected void PerfLog(String context, String[] Metrics, Object[] Values) {
