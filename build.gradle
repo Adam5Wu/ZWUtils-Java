@@ -6,16 +6,34 @@ buildscript {
 	}
 	dependencies {
 		classpath "gradle.plugin.com.zoltu.gradle.plugin:git-versioning:2.0.1"
+		classpath "se.bjurr.gitchangelog:git-changelog-gradle-plugin:1.20"
 	}
 }
 
 apply plugin: "com.zoltu.git-versioning"
+
+apply plugin: "se.bjurr.gitchangelog.git-changelog-gradle-plugin"
+
+task ChangeLog(type: se.bjurr.gitchangelog.plugin.gradle.GitChangelogTask) {
+        filePath = "build/CHANGELOG.md";
+}
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
 compileJava {
 	sourceCompatibility = '1.8'
+}
+
+import org.gradle.internal.os.OperatingSystem;
+
+task Bless(type:Exec) {
+	if (OperatingSystem.current().isLinux()) {
+		commandLine './Bless.sh'
+		ext.blessDir = 'build/blessed/main/src/java'
+	} else {
+		ext.blessDir = 'main/src/java'
+	}
 }
 
 sourceSets {
@@ -65,14 +83,22 @@ javadoc {
 	classpath = configurations.compile
 }
 
-task sourcesJar(type: Jar, dependsOn: classes) {
-	classifier = 'sources'
-	from sourceSets.main.allSource
+jar {
+	dependsOn ChangeLog
+	from ChangeLog.filePath
 }
 
-task javadocJar(type: Jar, dependsOn: javadoc) {
+task sourcesJar(type: Jar, dependsOn: [classes,ChangeLog,Bless]) {
+	classifier = 'sources'
+	FileTree srctree = fileTree(Bless.blessDir){
+		include '**/*.java'
+	}
+	from srctree, ChangeLog.filePath
+}
+
+task javadocJar(type: Jar, dependsOn: [javadoc,ChangeLog]) {
 	classifier = 'javadoc'
-	from javadoc.destinationDir
+	from javadoc.destinationDir, ChangeLog.filePath
 }
 
 artifacts {

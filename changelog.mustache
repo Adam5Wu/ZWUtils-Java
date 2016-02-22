@@ -1,0 +1,15 @@
+# ChangeLog
+Based on git commit messages.
+
+{{#tags}}
+## Version: {{name}}
+{{#commits}}
+* {{commitTime}} *{{authorName}}* [{{hash}}]<br/>
+{{{messageTitle}}}
+{{#messageBodyItems}}
+{{.}}
+{{/messageBodyItems}}
+
+{{/commits}}
+{{/tags}}
+
