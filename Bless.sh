@@ -20,7 +20,7 @@ do
 	# Gather the involved revisions
 	REVS=`git blame -b -s -w $TAGFROM.. -- "$f" | cut -d' ' -f1 | sort | uniq`
 	# Gather revision logs
-	COMMITS=`echo "$REVS" | while read r; do [ ! -z "$r" ] && git log --oneline --pretty=tformat:"[%h] %cd (%cn) %s" --date=short -n 1 $r; done | sort -r -k 1`
+	COMMITS=`echo "$REVS" | while read r; do [ ! -z "$r" ] && git log --oneline --pretty=tformat:"[%h] %cd (%cn) %s" --date=short -n 1 $r; done | sort -r -k 2`
 	# Generate real blame file
 	mkdir -p "build/blessed/`dirname "$f"`"
 	git blame -b -s -w $TAGFROM.. -- "$f" > "build/blessed/$f"
