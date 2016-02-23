@@ -24,20 +24,21 @@ do
 	# Generate real blame file
 	mkdir -p "build/blessed/`dirname "$f"`"
 	git blame -b -C -w --date=short $TAGFROM.. -- "$f" > "build/blessed/$f"
-	[ ! -z "$COMMITS" ] && ( echo && echo "---- Commit Logs ----" && echo "$COMMITS" ) >> "build/blessed/$f"
-	unix2dos "build/blessed/$f" 2>/dev/null
 
 	# Optionally produce compilable source code for certain languages that supports block comments
 	case "${f##*.}" in
 	java|c|cpp|h|hpp)
 		sed -i -e 's/^\([^)]\+)\)/\/* \1 *\//' "build/blessed/$f"
+		[ ! -z "$COMMITS" ] && ( echo && echo "---- Commit Logs ----" && echo "$COMMITS" ) >> "build/blessed/$f"
                 sed -i -e 's/^\([^/]\)/\/\/ \1/' "build/blessed/$f"
 		sed -i -e 's/^\/\(\*[^*]\+\*\)\/\(\s\+\)\*/ \1 \2*/' "build/blessed/$f"
 	;;
 	*)
+		[ ! -z "$COMMITS" ] && ( echo && echo "---- Commit Logs ----" && echo "$COMMITS" ) >> "build/blessed/$f"
 		mv "build/blessed/$f" "build/blessed/$f.bless"
 	;;
 	esac
+	unix2dos "build/blessed/$f" 2>/dev/null
 done
 
 # Prepare a compress package containing the blames
