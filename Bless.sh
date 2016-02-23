@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Create blessed directory
 rm -rf build/blessed
 mkdir -p build/blessed
