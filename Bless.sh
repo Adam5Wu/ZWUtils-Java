@@ -1,4 +1,7 @@
 #!/bin/bash
+[ $# -ge 1 ] && UTX="$1"
+SORTFIELD=2r
+[ $# -ge 2 ] && SORTFIELD="$2"
 
 # Create blessed directory
 rm -rf build/blessed
@@ -15,16 +18,39 @@ echo "$ALLFILES" | while read f
 do
 	# Detect whether git thinks the file is binary
 	CHG=`git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 --numstat HEAD -- "$f" | cut -f1`
-	[ "$CHG" == "-" ] && echo "Skipping '$f'..." && continue
+	[ "$CHG" == "-" ] && echo "Skipping binary '$f'..." && continue
 	echo "Blessing '$f'..."
 	# Gather the involved revisions
-	REVS=`git blame -b -s -w $TAGFROM.. -- "$f" | cut -d' ' -f1 | sort | uniq`
+	REVS=( `git blame -b -s -w $TAGFROM.. -- "$f" | cut -d' ' -f1 | sort | uniq` )
 	# Gather revision logs
-	COMMITS=`echo "$REVS" | while read r; do [ ! -z "$r" ] && git log --oneline --pretty=tformat:"[%h] %cd (%cn) %s" --date=short -n 1 $r; done | sort -r -k 2`
+	COMMITS=`for r in ${REVS[@]}; do [ ! -z "$r" ] && echo -n "[$r] " && git log --oneline --pretty=tformat:"%cd (%cn)%x09%s" --date=short -n 1 "$r"; done`
 	# Generate real blame file
 	mkdir -p "build/blessed/`dirname "$f"`"
 	git blame -b -s -w $TAGFROM.. -- "$f" > "build/blessed/$f"
 
+	# Uniform tagging handling
+	if [ ! -z "$UTX" ]; then
+		readarray -t TAGS < <( echo "$COMMITS" | cut -f2- )
+		UTXLEN=${#UTX}
+		MAXLEN=0
+		for (( i=0; i<${#TAGS[@]}; i++ )); do
+			TAG=`echo "${TAGS[$i]}" | cut -d' ' -f1`
+			[ "${TAG:0:$UTXLEN}" != "$UTX" ] && echo "WARNING: Untagged message '${TAGS[$i]}'" && TAG="$UTX?"
+			LEN=${#TAG}
+			[ $LEN -gt $MAXLEN ] && MAXLEN=$LEN
+			TAGS[$i]=$TAG
+		done
+		for (( i=0; i<${#TAGS[@]}; i++ )); do
+			TAGS[$i]=`printf "%-${MAXLEN}s" ${TAGS[$i]}`
+		done
+		for (( i=0; i<${#TAGS[@]}; i++ )); do
+			sed -i -e "s/^${REVS[$i]}/${REVS[$i]} ${TAGS[$i]}/" "build/blessed/$f"
+		done
+		sed -i -e "s/^ /  `printf "%${MAXLEN}s" ''`/" "build/blessed/$f"
+	fi
+
+	# Sort comment logs
+	COMMITS=`echo "$COMMITS" | sort -k $SORTFIELD`
 	# Optionally produce compilable source code for certain languages that supports block comments
 	case "${f##*.}" in
 	java|c|cpp|h|hpp)
