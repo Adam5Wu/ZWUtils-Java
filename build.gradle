@@ -29,7 +29,7 @@ import org.gradle.internal.os.OperatingSystem;
 
 task Bless(type:Exec) {
 	if (OperatingSystem.current().isLinux()) {
-		commandLine './Bless.sh'
+		commandLine 'Bless/Bless.sh'
 		ext.blessDir = 'build/blessed/main/src/java'
 	} else {
 		ext.blessDir = 'main/src/java'
