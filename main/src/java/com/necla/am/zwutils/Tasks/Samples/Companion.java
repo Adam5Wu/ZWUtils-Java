@@ -181,10 +181,10 @@ public class Companion extends Poller implements ITask.TaskDependency {
 	protected Collection<ITask> PollTasks;
 	
 	protected boolean PollState(State State) {
-		Collection<ITask> Reached = TaskCollection.FilterTasksByState(PollTasks, State);
-		Reached.forEach(Task -> ILog.Fine("Task '%s' has reached state %s", Task.getName(), State));
-		
 		synchronized (PollTasks) {
+			Collection<ITask> Reached = TaskCollection.FilterTasksByState(PollTasks, State);
+			Reached.forEach(Task -> ILog.Fine("Task '%s' has reached state %s", Task.getName(), State));
+			
 			PollTasks.removeAll(Reached);
 			if (Config.Integrity&& (IntegrityEvent != null) && !Reached.isEmpty()
 					&& !PollTasks.isEmpty()) {
