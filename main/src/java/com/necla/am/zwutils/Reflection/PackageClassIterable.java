@@ -144,7 +144,7 @@ public class PackageClassIterable implements Iterable<String> {
 	
 	public static PackageClassIterable Create(String pkgname, ClassLoader loader, IClassFilter filter)
 			throws IOException {
-		String PackagePath = pkgname.replace('.', '/');
+		String PackagePath = pkgname.replace('.', '/') + '/';
 		URL PackageURL = loader.getResource(PackagePath);
 		if (PackageURL.getProtocol().equals("mobility-rpc")) {
 			// Special remote package iteration
@@ -174,7 +174,7 @@ public class PackageClassIterable implements Iterable<String> {
 		}
 		
 		public JarClassIterable(File jarfile, String pkgname, IClassFilter filter) throws IOException {
-			BasePath = pkgname.replace('.', '/');
+			BasePath = pkgname.replace('.', '/') + '/';
 			Jar = new JarFile(jarfile);
 			Filter = filter;
 		}
@@ -195,7 +195,7 @@ public class PackageClassIterable implements Iterable<String> {
 						JarEntry entry = Entries.nextElement();
 						String entryName = entry.getName();
 						if (entryName.endsWith(".class")&& entryName.startsWith(BasePath)
-								&& entryName.length() > (BasePath.length() + "/".length())) {
+								&& entryName.length() > BasePath.length()) {
 							String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
 							if ((Filter != null) && !Filter.Accept(Class.forName(Ret))) continue;
 							return Ret;
