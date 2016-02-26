@@ -149,7 +149,7 @@ public class PackageClassIterable implements Iterable<String> {
 		if (PackageURL.getProtocol().equals("mobility-rpc")) {
 			// Special remote package iteration
 			RemoteClassLoaders.viaMobilityRPC RemoteLoader = (RemoteClassLoaders.viaMobilityRPC) loader;
-			return new PackageClassIterable(PackagePath, filter, RemoteLoader.RPCSession,
+			return new PackageClassIterable(pkgname, filter, RemoteLoader.RPCSession,
 					RemoteLoader.RPCConnection);
 		} else {
 			// Local package iteration
