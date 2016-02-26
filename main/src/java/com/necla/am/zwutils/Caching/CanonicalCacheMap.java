@@ -598,7 +598,7 @@ public abstract class CanonicalCacheMap<K, V> {
 		class StrongRefKey extends BaseRefKey<K> {
 			
 			AtomicLong HitCNT = null;
-			long RefTS = 0;
+			long RefTS = System.currentTimeMillis();
 			
 			public StrongRefKey(K ref) {
 				super(ref);
@@ -638,7 +638,7 @@ public abstract class CanonicalCacheMap<K, V> {
 			public void Adopt(K ref) {
 				super.Adopt(ref);
 				HitCNT = null;
-				RefTS = 0;
+				RefTS = System.currentTimeMillis();
 			}
 			
 			@Override
@@ -820,7 +820,7 @@ public abstract class CanonicalCacheMap<K, V> {
 			Reference<V> VRef = null;
 			
 			AtomicLong HitCNT = null;
-			long RefTS = 0;
+			long RefTS = System.currentTimeMillis();
 			
 			public WeakAutoRef(V ref) {
 				super(ref);
@@ -860,7 +860,7 @@ public abstract class CanonicalCacheMap<K, V> {
 				super.Adopt(ref);
 				VRef = null;
 				HitCNT = null;
-				RefTS = 0;
+				RefTS = System.currentTimeMillis();
 			}
 			
 			@Override
