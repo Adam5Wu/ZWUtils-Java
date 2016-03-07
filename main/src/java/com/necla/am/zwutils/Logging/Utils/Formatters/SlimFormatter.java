@@ -278,7 +278,7 @@ public final class SlimFormatter extends LogFormatter {
 	static {
 		DISP_OmittedData_EllipsisHead =
 				DISP_OmittedData_PreEllipsisLen + DISP_OmittedData_Ellipsis.length();
-		DISP_OmittedData_MinLen = DISP_OmittedData_EllipsisHead + DISP_OmittedData_MinTailLen;;
+		DISP_OmittedData_MinLen = DISP_OmittedData_EllipsisHead + DISP_OmittedData_MinTailLen;
 	}
 	
 	private static final String DateFormatPattern = "yyyy-MM-dd HH:mm:ss.SSS";
