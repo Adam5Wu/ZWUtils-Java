@@ -908,7 +908,7 @@ public class TaskHost extends Poller {
 		}
 		
 		if (RPCHandler != null) {
-			ILog.Info("Stopping remote task controller...");
+			ILog.Fine("Stopping remote task controller...");
 			HostDirectory.remove(RPCHandler);
 			RemoteClassLoaders.viaMobilityRPC.Cleanup(RPCHandler);
 			RPCHandler.destroy();

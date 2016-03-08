@@ -126,7 +126,7 @@ public class Companion extends Poller implements ITask.TaskDependency {
 			
 			synchronized (PollTasks) {
 				PollTasks.forEach(CoTask -> {
-					ILog.Info("Signaling task '%s'...", CoTask.getName());
+					ILog.Fine("Signaling task '%s'...", CoTask.getName());
 					try {
 						if (CoTask instanceof Notifiable)
 							((Notifiable) CoTask).onSubscription(IntegrityEvent);
@@ -191,9 +191,10 @@ public class Companion extends Poller implements ITask.TaskDependency {
 				StringBuilder TaskNames = new StringBuilder();
 				Reached.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
 				TaskNames.setLength(TaskNames.length() - 1);
-				ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
+				if (GlobalConfig.DEBUG_CHECK)
+					ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
 				PollTasks.forEach(CoTask -> {
-					ILog.Info("Signaling task '%s'...", CoTask.getName());
+					ILog.Fine("Signaling task '%s'...", CoTask.getName());
 					try {
 						if (CoTask instanceof Notifiable)
 							((Notifiable) CoTask).onSubscription(IntegrityEvent);
@@ -222,7 +223,7 @@ public class Companion extends Poller implements ITask.TaskDependency {
 					StringBuilder TaskNames = new StringBuilder();
 					PollTasks.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
 					TaskNames.setLength(TaskNames.length() - 1);
-					ILog.Warn("Live companion tasks: [%s]", TaskNames);
+					if (GlobalConfig.DEBUG_CHECK) ILog.Warn("Live companion tasks: [%s]", TaskNames);
 				} else {
 					ILog.Warn("There are %d live companion tasks", PollTasks.size());
 				}
