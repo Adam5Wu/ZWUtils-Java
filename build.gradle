@@ -32,6 +32,8 @@ task Bless(type:Exec) {
 		commandLine 'Bless/Bless.sh'
 		ext.blessDir = 'build/blessed/main/src/java'
 	} else {
+		// Run a harmless command to bypass blessing 
+		commandLine 'echo'
 		ext.blessDir = 'main/src/java'
 	}
 }
