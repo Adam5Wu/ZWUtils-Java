@@ -7,16 +7,22 @@ buildscript {
 	dependencies {
 		classpath "gradle.plugin.com.zoltu.gradle.plugin:git-versioning:2.0.1"
 		classpath "se.bjurr.gitchangelog:git-changelog-gradle-plugin:1.20"
+		classpath 'org.ajoberstar:gradle-git:1.4.2'
 	}
 }
 
-apply plugin: "com.zoltu.git-versioning"
-
 apply plugin: "se.bjurr.gitchangelog.git-changelog-gradle-plugin"
 
+import org.ajoberstar.grgit.*
+
 task ChangeLog(type: se.bjurr.gitchangelog.plugin.gradle.GitChangelogTask) {
-        filePath = "build/CHANGELOG.md";
+    filePath = "build/CHANGELOG.md";
+	
+	def repo = Grgit.open(project.file('.'))
+	toRef = repo.branch.getCurrent().fullName
 }
+
+apply plugin: "com.zoltu.git-versioning"
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
