@@ -35,7 +35,7 @@ public class MultiPassDataSelection<X> {
 	protected AtomicLong NewMarkCount = new AtomicLong(0);
 	protected AtomicReference<Map<String, AtomicLong>> MarkReasons =
 			new AtomicReference<>(new ConcurrentHashMap<>());
-			
+	
 	public MultiPassDataSelection(String PassName) {
 		Name = PassName;
 	}

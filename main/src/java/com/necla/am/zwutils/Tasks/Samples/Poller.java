@@ -50,7 +50,7 @@ import com.necla.am.zwutils.Tasks.ConfigurableTask;
  */
 public abstract class Poller
 		extends ConfigurableTask<Poller.ConfigData.Mutable, Poller.ConfigData.ReadOnly> {
-		
+	
 	public static final String LogGroup = Poller.class.getSimpleName();
 	
 	public static class ConfigData {

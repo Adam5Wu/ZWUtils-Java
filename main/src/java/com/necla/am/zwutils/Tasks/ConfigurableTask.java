@@ -50,7 +50,7 @@ import com.necla.am.zwutils.Subscriptions.ISubscription;
  */
 public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.ReadOnly>
 		extends NotifiableTask implements ITask.TaskConfigurable {
-		
+	
 	protected R Config = null;
 	
 	public ConfigurableTask(String Name) {

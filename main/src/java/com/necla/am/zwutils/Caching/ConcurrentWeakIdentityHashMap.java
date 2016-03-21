@@ -94,7 +94,7 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 		Reference<?> RefKey;
 		while ((RefKey = RecycleBin.poll()) != null)
 			HashMap.remove(RefKey);
-			
+		
 		return HashMap.putIfAbsent(new WeakIdentity<>(key, RecycleBin), value);
 	}
 	

@@ -148,12 +148,12 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 							CLog.Fine("Handler class: %s (short-hand '%s')", HandlerClsRef.fullName(), Tokens[0]);
 						} else
 							HandlerClsRef = new DirectClassSolver(Tokens[0]);
-							
+						
 						Class<?> HandlerCls = HandlerClsRef.toClass();
 						if (!WebHandler.class.isAssignableFrom(HandlerCls))
 							Misc.FAIL("Class '%s' does not descend from %s", HandlerCls.getName(),
 									WebHandler.class.getSimpleName());
-									
+						
 						Constructor<?> WHC = null;
 						try {
 							if (ConfigInfo == null)
@@ -246,7 +246,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 				protected static final int UnacceptableModifiers =
 						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
-						
+				
 				@Override
 				public boolean Accept(Class<?> Entry) {
 					int ClassModifiers = Entry.getModifiers();
@@ -296,7 +296,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						new HandlerConfig.StringToHandlerConfig(HandlerDict);
 				HandlerConfig.StringFromHandlerConfig StringFromHandlerConfig =
 						new HandlerConfig.StringFromHandlerConfig();
-						
+				
 				DataMap HandlerDescs = new DataMap("Handlers", confMap, HANDLER_PREFIX);
 				for (String Context : HandlerDescs.keySet()) {
 					try {
@@ -333,18 +333,18 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						}
 					} else
 						Address = null;
-						
+					
 					ILog.Fine("Checking Port...");
 					if ((Port <= 0) || (Port > MAX_PORTNUM)) Misc.ERROR("Invalid port number (%d)", Port);
 					
 					ILog.Fine("Checking IO Timeout Interval...");
 					if ((IOTimeout < MIN_TIMEOUT) || (IOTimeout > MAX_TIMEOUT))
 						Misc.ERROR("Invalid IO Timeout Interval (%d)", IOTimeout);
-						
+					
 					ILog.Fine("Checking Shutdown Grace Period...");
 					if ((ShutdownGrace < MIN_WAITTIME) || (ShutdownGrace > MAX_WAITTIME))
 						Misc.ERROR("Invalid shutdown grace period (%d)", ShutdownGrace);
-						
+					
 					if (CertStoreFile != null) {
 						ILog.Fine("Checking Certificate Storage...");
 						try {
@@ -357,13 +357,13 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						ILog.Fine("Checking SSL Session Cache Size...");
 						if ((SSLSessionCacheSize < 0) || (SSLSessionCacheSize > MAX_SSLSESSIONCNT))
 							Misc.ERROR("Invalid SSL session cache size (%d)", SSLSessionCacheSize);
-							
+						
 						ILog.Fine("Checking SSL Session Lifespan...");
 						if ((SSLSessionTimeout < MIN_SSLSESSIONLIFE)
 								|| (SSLSessionTimeout > MAX_SSLSESSIONLIFE))
 							Misc.ERROR("Invalid SSL session lifespan (%s)",
 									Misc.FormatDeltaTime(TimeUnit.SEC.Convert(SSLSessionTimeout, TimeUnit.MSEC)));
-									
+						
 						ILog.Fine("Checking Client Authentication Setting...");
 						if (SSLNeedClientAuth) {
 							ILog.Config("Client authentication is mandatory");
@@ -482,7 +482,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			protected static final String TEXT_UNIMPLEMENTED =
 					"No implementation provided for this request handler";
-					
+			
 			public final void AddHeader(String Key, String Value) {
 				List<String> Values = RHEADERS.get(Key);
 				if (Values == null) {
@@ -523,7 +523,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				int RBODYLEN = RP.RBODY != null? RP.RBODY.capacity() : -1;
 				ILog.Finer("%s: %d (%dH, %s)", RP.RemoteDispIdent, RCODE, RP.RHEADERS.size(),
 						Misc.FormatSize(RBODYLEN));
-						
+				
 				HE.sendResponseHeaders(RCODE, RBODYLEN);
 				if (RBODYLEN > 0) try (OutputStream RBODY = HE.getResponseBody()) {
 					WritableByteChannel WChannel = Channels.newChannel(RBODY);
@@ -655,7 +655,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					Server = HttpsServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
 				else
 					Server = HttpsServer.create(new InetSocketAddress(Config.Port), 0);
-					
+				
 				// Setup SSL
 				SSLContext SSLCtx = SSLContext.getInstance("TLS");
 				SSLSessionContext SessionCtx = SSLCtx.getServerSessionContext();
@@ -739,7 +739,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	protected void OnStatCollect(long uptime, long totalinvoke, long totalexcept) {
 		ILog.Info("* Server up for %s; Invoke / Except: %d / %d", Misc.FormatDeltaTime(uptime),
 				totalinvoke, totalexcept);
-				
+		
 		double UpDays = (double) uptime / Misc.TimeUnit.DAY.Convert(1, Misc.TimeUnit.MSEC);
 		PerfLog(null, Misc.wrap("UpTime", "TotalInvoke", "TotalExcept"),
 				Misc.wrap(UpDays, totalinvoke, totalexcept));

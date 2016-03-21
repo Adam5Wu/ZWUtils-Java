@@ -331,7 +331,7 @@ public interface IIdentifier {
 			
 			public static class Impl<T extends Nested<?>> extends Nested.Impl<T>
 					implements Nested.Named<T> {
-					
+				
 				public IIdentifier.Named NAMEIDENT;
 				
 				public Impl(T context, String name) {
@@ -387,7 +387,7 @@ public interface IIdentifier {
 			
 			public static class CImpl<T extends Nested<?>> extends Nested.CImpl<T>
 					implements Nested.Named<T> {
-					
+				
 				public IIdentifier.Named NAMEIDENT;
 				
 				protected CImpl(T context, IIdentifier.Named nameident) {
@@ -441,7 +441,7 @@ public interface IIdentifier {
 		
 		public abstract static class Impl<X, T extends IAnnotation<X>> extends IIdentifier.Impl
 				implements Annotated<X> {
-				
+			
 			public T ANNOTATION;
 			
 			public Impl(T annotation) {

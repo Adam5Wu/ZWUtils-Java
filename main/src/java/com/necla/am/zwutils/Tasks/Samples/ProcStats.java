@@ -90,7 +90,7 @@ public class ProcStats extends Companion {
 			public static final StringToStatType StringToStatType = new StringToStatType();
 			public static final Parsers.AnyToString<StatType> StringFromStatType =
 					new Parsers.AnyToString<StatType>();
-					
+			
 		}
 		
 		public static class Mutable extends Companion.ConfigData.Mutable {
@@ -273,7 +273,7 @@ public class ProcStats extends Companion {
 			long TimePeriod = StopTime - StartTime;
 			String StatStr =
 					String.format("Run-time: %s | %d", Misc.FormatDeltaTime(TimePeriod), TimePeriod);
-					
+			
 			ILog.Info(StatStr);
 			if (Config.FileOut != null) {
 				Config.FileOut.println(StatStr);

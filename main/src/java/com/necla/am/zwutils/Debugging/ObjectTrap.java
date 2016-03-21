@@ -293,7 +293,7 @@ public class ObjectTrap {
 			StringBuilder StrBuf = new StringBuilder();
 			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.SCOPE_PRIMITIVE")) //$NON-NLS-1$
 					.append(T.CLASS.getSimpleName());
-					
+			
 			return StrBuf.toString();
 		}
 		
@@ -444,7 +444,7 @@ public class ObjectTrap {
 			Class<? extends Hook> hookclass = Lookup(type);
 			if (hookclass == null)
 				Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.TYPE_UNKNOWN"), type); //$NON-NLS-1$
-				
+			
 			try {
 				return hookclass.getConstructor(String.class).newInstance(condition);
 			} catch (Throwable e) {
@@ -565,7 +565,7 @@ public class ObjectTrap {
 					case IsNull:
 						if (!condval.trim().isEmpty())
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-							
+						
 						break;
 					case EqualTo:
 					case GreaterThan:
@@ -703,7 +703,7 @@ public class ObjectTrap {
 						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
 						if (CondVals.length != 2)
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-							
+						
 						CompValA = Parser.parseOrFail(CondVals[0].trim());
 						CompValB = Parser.parseOrFail(CondVals[1].trim());
 						if (CompValA > CompValB) Misc
@@ -716,7 +716,7 @@ public class ObjectTrap {
 						for (String Val : CondVals) {
 							if (!CompSet.add(Parser.parseOrFail(Val)))
 								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-								
+							
 						}
 						break;
 					}
@@ -832,7 +832,7 @@ public class ObjectTrap {
 						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
 						if (CondVals.length != 2)
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim());//$NON-NLS-1$
-							
+						
 						CompValA = Parser.parseOrFail(CondVals[0].trim());
 						CompValB = Parser.parseOrFail(CondVals[1].trim());
 						if (CompValA > CompValB) Misc
@@ -1444,7 +1444,7 @@ public class ObjectTrap {
 					case IsNull:
 						if (!condval.trim().isEmpty())
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-							
+						
 						break;
 					case EqualTo:
 						CompVal = Parser.parseOrFail(condval.trim());
@@ -2026,10 +2026,10 @@ public class ObjectTrap {
 	public static final Pattern DEM_SCOPES = Pattern.compile(String.format("\\%c", SYM_SCOPES)); //$NON-NLS-1$
 	public static final Pattern DEM_ASCLASS =
 			Pattern.compile(String.format("[%c%c]", SYM_FIELD, SYM_GETTER)); //$NON-NLS-1$
-			
+	
 	protected CanonicalCacheMap<String, IScope> ScopePathCache =
 			new CanonicalCacheMap.Classic<>("OTap-ScopePath");
-			
+	
 	protected IScope CreateScopePath(String ScopePath) {
 		return ScopePathCache.Query(ScopePath, scopepath -> {
 			IScope Scope = null;
@@ -2070,7 +2070,7 @@ public class ObjectTrap {
 	
 	protected CanonicalCacheMap<ScopeContext, IScope> ScopeCache =
 			new CanonicalCacheMap.Classic<>("OTap-Scope");
-			
+	
 	protected IScope CreateScope(String ScopeDesc, Class<?> BaseClass) {
 		return ScopeCache.Query(new ScopeContext(ScopeDesc, BaseClass), Key -> {
 			String cname = null;
@@ -2085,12 +2085,12 @@ public class ObjectTrap {
 				String[] token = DEM_ASCLASS.split(Key.ScopeDesc);
 				if (token.length > 2)
 					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_SCOPE_DESC"), Key.ScopeDesc); //$NON-NLS-1$
-					
+				
 				cname = token[0].substring(1);
 				Desc = Key.ScopeDesc.substring(token[0].length());
 			} else
 				Desc = Key.ScopeDesc;
-				
+			
 			switch (Desc.charAt(0)) {
 				case SYM_FIELD:
 					return new FieldScope(Key.BaseClass, cname, Desc.substring(1));
@@ -2113,7 +2113,7 @@ public class ObjectTrap {
 			String[] payload = DEM_SCOPEOP.split(config.getText(name).trim(), 2);
 			if (payload.length < 2) Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_FORK_DESC"), //$NON-NLS-1$
 					name, config.getText(name));
-					
+			
 			try {
 				IScope Scope = CreateScopePath(payload[0]);
 				IFork F = new Fork(name, Scope, payload[1]);
@@ -2155,7 +2155,7 @@ public class ObjectTrap {
 	
 	public static abstract class ForDummies
 			implements AutoCloseable, ITrapNotifiable, ITrapConfigState {
-			
+		
 		public static final int DEF_POLLINTERVAL = 5;
 		
 		protected final ObjectTrap TheTrap;

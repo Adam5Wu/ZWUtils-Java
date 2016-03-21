@@ -220,14 +220,14 @@ public abstract class CanonicalCacheMap<K, V> {
 				double StrongRate = StrongCnt * 100D / (StrongCnt + WeakCnt);
 				String StrongStatStr =
 						(StrongCnt == 0)? Messages.Localize("Caching.CanonicalCacheMap.NOT_APPLICABLE") : //$NON-NLS-1$
-						String.format("%.2f @%s", StrongHits / (double) StrongCnt, //$NON-NLS-1$
-								Misc.FormatDeltaTime(StrongRefAge / StrongCnt));
+								String.format("%.2f @%s", StrongHits / (double) StrongCnt, //$NON-NLS-1$
+										Misc.FormatDeltaTime(StrongRefAge / StrongCnt));
 				String WeakStatStr =
 						(WeakCnt == 0)? Messages.Localize("Caching.CanonicalCacheMap.NOT_APPLICABLE") : //$NON-NLS-1$
-						String.format("@%s", Misc.FormatDeltaTime(WeakRefAge / WeakCnt)); //$NON-NLS-1$
+								String.format("@%s", Misc.FormatDeltaTime(WeakRefAge / WeakCnt)); //$NON-NLS-1$
 				String ExpStatStr =
 						(ExpCnt == 0)? Messages.Localize("Caching.CanonicalCacheMap.NOT_APPLICABLE") : //$NON-NLS-1$
-						String.format("@%s", Misc.FormatDeltaTime(ExpRefAge / ExpCnt)); //$NON-NLS-1$
+								String.format("@%s", Misc.FormatDeltaTime(ExpRefAge / ExpCnt)); //$NON-NLS-1$
 				ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.MAP_STATISTICS"),  //$NON-NLS-1$
 						StrongCnt, StrongRate, StrongStatStr, //
 						WeakCnt, WeakStatStr, ExpCnt, ExpStatStr, DecayCount);
@@ -480,7 +480,7 @@ public abstract class CanonicalCacheMap<K, V> {
 			InsertionLock.lock();
 			while (InsertWorker.get() != InsertWaiter.get())
 				Thread.yield();
-				
+			
 			try {
 				// Perform map shrinking
 				Size = Cache.size();
@@ -505,7 +505,7 @@ public abstract class CanonicalCacheMap<K, V> {
 		ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.LOOKUP_STATISTICS"), //$NON-NLS-1$
 				Size, Hit, HitRatio, Miss, NearHit, NewRatio, RushInsertCounter.get(), ExpireCounter.get(),
 				RushFreeCounter.get());
-				
+		
 		return Count;
 	}
 	
@@ -515,7 +515,7 @@ public abstract class CanonicalCacheMap<K, V> {
 	@SuppressWarnings("serial")
 	abstract static class BaseRefKey<T> extends AtomicReference<T>
 			implements IKeyRef, IReuseableKeyRef<T> {
-			
+		
 		// The hash code MUST be cached to remove this key *after* key expiration
 		int _HashCache;
 		

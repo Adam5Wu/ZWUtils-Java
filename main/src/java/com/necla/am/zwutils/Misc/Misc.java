@@ -964,9 +964,9 @@ public class Misc {
 						(DeltaGB > 0? String.format((NumTB | DeltaTB) > 0? " %dM" : "%dM", DeltaGB) : ""),
 						(DeltaMB > 0? String.format((NumTB | DeltaTB | DeltaGB) > 0? " %dK" : "%dK",
 								DeltaMB) : ""),
-				(DeltaKB > 0? String.format((NumTB | DeltaTB | DeltaGB | DeltaMB) > 0? " %d" : "%d",
-						DeltaKB) : ((NumTB | DeltaTB | DeltaGB | DeltaMB) > 0? "" : "0")));
-						
+						(DeltaKB > 0? String.format((NumTB | DeltaTB | DeltaGB | DeltaMB) > 0? " %d" : "%d",
+								DeltaKB) : ((NumTB | DeltaTB | DeltaGB | DeltaMB) > 0? "" : "0")));
+		
 	}
 	
 	public static String FormatSize(long Size) {

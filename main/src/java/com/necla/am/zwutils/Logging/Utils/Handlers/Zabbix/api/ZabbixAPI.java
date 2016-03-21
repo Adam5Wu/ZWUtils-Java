@@ -153,7 +153,7 @@ public interface ZabbixAPI {
 							Misc.ERROR("Invalid API port number (%d)", APIPort);
 						if ((ReportPort <= 0) || (ReportPort > MAX_PORTNUM))
 							Misc.ERROR("Invalid report port number (%d)", ReportPort);
-							
+						
 						ILog.Fine("Checking timeout Period...");
 						if ((NetTimeout < MIN_TIMEOUT) || (NetTimeout > MAX_TIMEOUT))
 							Misc.ERROR("Invalid timeout period (%d)",
@@ -342,7 +342,7 @@ public interface ZabbixAPI {
 				}
 				if ((RespLen < 0) || (RespLen > RESP_HIGHPAYLOAD))
 					Misc.FAIL("Invalid payload size (%s)", Misc.FormatSize(RespLen));
-					
+				
 				// Receive response data
 				byte[] Payload = null;
 				try {

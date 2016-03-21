@@ -74,7 +74,7 @@ public class MessageDispatchers {
 	
 	public static class EventDemuxDispatcher<C, T>
 			extends Dispatchers.DemuxDispatcher<C, IMessage<T>> {
-			
+		
 		public EventDemuxDispatcher(String Name) {
 			super(Name);
 		}

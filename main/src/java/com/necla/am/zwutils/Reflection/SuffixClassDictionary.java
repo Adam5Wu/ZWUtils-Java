@@ -199,10 +199,10 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 		Object Ret = Query(cname);
 		if (Ret == null) Misc.FAIL(NoSuchElementException.class,
 				Messages.Localize("Debugging.SuffixClassDictionary.CLASS_NOT_FOUND"), cname); //$NON-NLS-1$
-				
+		
 		if (!(Ret instanceof ISuffixClassSolver)) Misc.FAIL(IllegalArgumentException.class,
 				Messages.Localize("Debugging.SuffixClassDictionary.CLASS_MATCH_MULTI"), cname, Ret); //$NON-NLS-1$
-				
+		
 		return (ISuffixClassSolver) Ret;
 	}
 	

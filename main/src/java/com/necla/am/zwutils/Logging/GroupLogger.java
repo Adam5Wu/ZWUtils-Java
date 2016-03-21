@@ -605,7 +605,7 @@ public class GroupLogger implements IGroupLogger {
 	// Central storage for managing per-instance loggers
 	protected static final Map<Object, GroupLogger> PerInstLoggers =
 			new ConcurrentWeakIdentityHashMap<>();
-			
+	
 	public static GroupLogger GetInstLogger(Object Inst) {
 		return PerInstLoggers.get(Inst);
 	}

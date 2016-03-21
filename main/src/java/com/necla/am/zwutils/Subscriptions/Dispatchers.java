@@ -245,7 +245,7 @@ public class Dispatchers {
 	 */
 	public static class STDemuxDispatcher<C, X> extends STDispatcher<X>
 			implements IDispatcher.Demux<C, X> {
-			
+		
 		protected Map<C, SubscriptionDispatchRec<X>> CategorizedSubscriptions = null;
 		
 		public STDemuxDispatcher(String Name) {
@@ -326,7 +326,7 @@ public class Dispatchers {
 				} finally {
 					//ILog.Finer("*@<");
 				}
-				
+			
 			//ILog.Finer("+Uncategorized payload dispatch");
 			Dispatch(CommonSubscriptions, NewPayload);
 		}
@@ -624,7 +624,7 @@ public class Dispatchers {
 	 */
 	public static class DemuxDispatcher<C, X> extends Dispatcher<X>
 			implements IDispatcher.Demux<C, X> {
-			
+		
 		protected Map<C, SubscriptionDispatchRec<X>> CategorizedSubscriptions = null;
 		
 		public DemuxDispatcher(String Name) {
@@ -719,7 +719,7 @@ public class Dispatchers {
 				} finally {
 					ILog.Finer("*@<");
 				}
-				
+			
 			//ILog.Finer("+Uncategorized payload dispatch");
 			Dispatch(CommonSubscriptions, NewPayload, Unlock);
 		}

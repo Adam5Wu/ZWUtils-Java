@@ -251,7 +251,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				CLog.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-						
+				
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
@@ -265,7 +265,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				CLog.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-						
+				
 				CLog.Info("+ Set lookup");
 				Set<TestObj> Set1 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
@@ -301,7 +301,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				CLog.Info("*+ Plain @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-						
+				
 				List<TestCObj> List3 = new ArrayList<>();
 				CLog.Info("Before Start GC");
 				GC();
@@ -318,7 +318,7 @@ public class MiscTest {
 				EMem = runtime.totalMemory();
 				CLog.Info("*+ Canonicalized (String.Intern) @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
-						
+				
 				List<TestCObj> List4 = new ArrayList<>();
 				CLog.Info("Before Start GC");
 				GC();

@@ -107,10 +107,10 @@ public class Canonicalizer {
 				if (!PClass.contains(CP) && !CClass.containsKey(CP)) {
 					if (CP.equals(Object.class)) Misc.FAIL(IllegalStateException.class,
 							Messages.Localize("Caching.Canonicalizer.NOAC_GENERICPARAM"), PIdx); //$NON-NLS-1$
-							
+					
 					if (Pending.contains(CP)) Misc.FAIL(IllegalStateException.class,
 							Messages.Localize("Caching.Canonicalizer.NOAC_TYPERECURSIVE"), PIdx, CP.getName()); //$NON-NLS-1$
-							
+					
 					ILog.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_PARAM"), PIdx, CP.getName()); //$NON-NLS-1$
 					Pending.add(CP);
 					Register(CP, Pending);

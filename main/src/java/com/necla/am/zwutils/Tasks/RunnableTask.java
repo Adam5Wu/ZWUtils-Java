@@ -55,7 +55,7 @@ import com.necla.am.zwutils.Subscriptions.Message.IMessage;
  */
 public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		implements ITask.TaskRunnable {
-		
+	
 	public static final String LogGroupPfx = "ZWUtils.Tasks.Runnable.";
 	
 	private Object[] WaitBar = null;
@@ -150,12 +150,12 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 						postTask(tellState());
 					}
 					break;
-					
+				
 				case TERMINATING:
 				case TERMINATED:
 					ILog.Warn("Task terminated before running");
 					break;
-					
+				
 				default:
 					Misc.FAIL(IllegalStateException.class, "Illegal task state: %s", CurState);
 			}
@@ -302,7 +302,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		
 		if (GlobalConfig.DEBUG_CHECK && (WorkerThread == null))
 			Misc.FAIL("Not supposed to be called while task thread is not running");
-			
+		
 		if (Time != 0) {
 			Sleeping = true;
 			if (Time > 0)
@@ -318,7 +318,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		} else
 			// Zero sleep = yield
 			Thread.yield();
-			
+		
 		return Interrupted;
 	}
 	
@@ -384,7 +384,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * This happens after the task enters PRESTART state, but before it enters STARTING
 	 *
 	 * @note
-	 * 			<ol>
+	 *       <ol>
 	 *       <li>The execution context is the <b>creator thread</b>;
 	 *       <li>This function may mark the task as "should not start" by entering it into the
 	 *       TERMINATED state; <br>
@@ -401,7 +401,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * This happens after the task enters STARTING state, but before it enters RUNNING
 	 *
 	 * @note
-	 * 			<ol>
+	 *       <ol>
 	 *       <li>The execution context is the <b>task thread</b>, so the task may enter TERMINATING
 	 *       state <em> <u>asynchronously</u> at any moment</em>;
 	 *       <li>This function may request the task to terminate by entering it into TERMINATING or
@@ -421,7 +421,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * This happens after the task enters RUNNING state.
 	 *
 	 * @note
-	 * 			<ol>
+	 *       <ol>
 	 *       <li>The execution context is the <b>task thread</b>, so the task may enter TERMINATING
 	 *       state <em> <u>asynchronously</u> at any moment</em>;
 	 *       <li>This function may exit voluntarily without observing the TERMINATING state.
@@ -439,7 +439,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * @param RefState
 	 *          - The task state when this function is invoked
 	 * @note
-	 * 			<ol>
+	 *       <ol>
 	 *       <li>The execution context is the <b>task thread</b>, and the task state when this
 	 *       function is called can be one of RUNNING, TERMINATING and TERMINATED.<br>
 	 *       Since it may change <em><u>asynchronously</u> at any moment</em>, the RefState parameter
@@ -456,7 +456,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * This happens just before task terminates
 	 *
 	 * @note
-	 * 			<ol>
+	 *       <ol>
 	 *       <li>The execution context is the <b>task thread</b>, and the task state when this
 	 *       function is called can be one of TERMINATING and TERMINATED.
 	 *       <li>Before this function starts, the task state enters TERMINATING (if not already).
@@ -477,7 +477,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * @param PrevState
 	 *          - The task state before it enters TERMINATING
 	 * @note
-	 * 			<ol>
+	 *       <ol>
 	 *       <li>The execution context is <b>external thread</b> (i.e. any thread other than the
 	 *       <b>task thread</b>);
 	 *       <li>Because the task may still be running in parallel, the task state may change

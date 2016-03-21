@@ -86,7 +86,7 @@ public class RemoteClassLoaders {
 			RPCSession = Session;
 			RPCConnection =
 					new ConnectionId(RemoteAddr.getAddress().getHostAddress(), RemoteAddr.getPort());
-					
+			
 			RPCClassLoader = RPCSession.getSessionClassLoader();
 		}
 		
@@ -121,9 +121,8 @@ public class RemoteClassLoaders {
 		public Enumeration<URL> findResources(String name) throws IOException {
 			// Shamelessly copied from MobilityRPC SessionClassLoader
 			URL resourceUrl = findResource(name);
-			return resourceUrl == null? Collections
-					.enumeration(Collections.<URL> emptySet()) : Collections
-							.enumeration(Collections.<URL> singleton(resourceUrl));
+			return resourceUrl == null? Collections.enumeration(Collections
+					.<URL> emptySet()) : Collections.enumeration(Collections.<URL> singleton(resourceUrl));
 		}
 		
 	}

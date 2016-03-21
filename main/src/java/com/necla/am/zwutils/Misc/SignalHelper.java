@@ -83,7 +83,7 @@ public class SignalHelper implements SignalHandler {
 			try {
 				if (GlobalConfig.DEBUG_CHECK) if (signal != Capture)
 					Misc.ERROR("Unexpected signal received, expect '%s', received '%s'", Capture, signal);
-					
+				
 				Task.run();
 				
 				switch (Mode) {

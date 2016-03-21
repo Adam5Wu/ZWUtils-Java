@@ -48,5 +48,5 @@ public interface IDispatcher<X> extends IDistribution<X>, IRegistration<X> {
 	 */
 	interface Demux<C, X>
 			extends IDispatcher<X>, IDistribution.Demux<C, X>, IRegistration.Demux<C, X> {}
-			
+	
 }

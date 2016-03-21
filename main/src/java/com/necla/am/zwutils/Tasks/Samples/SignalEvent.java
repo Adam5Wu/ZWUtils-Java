@@ -111,7 +111,7 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 						Signal = new Signal(SignalName);
 					} else
 						Signal = null;
-						
+					
 					Mode = InstallMode.valueOf(StrMode);
 					
 					ILog.Fine("Checking signal event...");
@@ -248,7 +248,7 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 		if (!Notifiable.class.isInstance(Task)) Misc.FAIL(ClassCastException.class,
 				"Notification task is of class '%s' which does not implemented required %s interface",
 				Task.getClass(), Notifiable.class.getSimpleName());
-				
+		
 		SignalTasks.AddTask(Task);
 	}
 	

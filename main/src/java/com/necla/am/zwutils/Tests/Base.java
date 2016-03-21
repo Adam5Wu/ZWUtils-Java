@@ -52,7 +52,7 @@ import com.necla.am.zwutils.Tasks.ConfigurableTask;
  */
 public abstract class Base
 		extends ConfigurableTask<Base.ConfigData.Mutable, Base.ConfigData.ReadOnly> {
-		
+	
 	public static final long TERMINATION_GRACETIME = 5;
 	public static final String LOGFILE_NAME = "test.log";
 	

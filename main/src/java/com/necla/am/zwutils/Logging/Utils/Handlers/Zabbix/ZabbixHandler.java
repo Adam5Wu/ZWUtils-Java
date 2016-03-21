@@ -303,7 +303,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			
 			public static class StringToResponsiblePerson
 					extends Parsers.SimpleStringParse<ResponsiblePerson> {
-					
+				
 				protected static final String RP_TOKDELIM = ";";
 				protected static final String RP_KVDELIM = "=";
 				protected static final String RP_EMAIL_KEY = "EMAIL";
@@ -323,7 +323,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							case RP_EMAIL_KEY:
 								if (!KV[1].isEmpty()) Email = KV[1];
 								break;
-								
+							
 							default:
 								Misc.FAIL(IllegalArgumentException.class,
 										"Unrecognized responsible persion attribute '%s'", KV[0]);
@@ -336,7 +336,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			
 			public static class StringFromResponsiblePerson
 					extends Parsers.SimpleParseString<ResponsiblePerson> {
-					
+				
 				protected static final char RP_TOKDELIM = ';';
 				protected static final char RP_KVDELIM = '=';
 				protected static final String RP_EMAIL_KEY = "EMAIL";
@@ -376,7 +376,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			
 			public static class StringToAutoTriggerInfo
 					extends Parsers.SimpleStringParse<AutoTriggerInfo> {
-					
+				
 				protected static final String TRG_TOKDELIM = ";";
 				
 				@Override
@@ -399,7 +399,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			
 			public static class StringFromAutoTriggerInfo
 					extends Parsers.SimpleParseString<AutoTriggerInfo> {
-					
+				
 				protected static final char TRG_TOKDELIM = ';';
 				
 				@Override
@@ -540,7 +540,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		StripPfxProject = Project + '.';
 		StripPfxComponent = (Component.startsWith(StripPfxProject)? Component
 				.substring(StripPfxProject.length()) : Component) + '.';
-				
+		
 		String HostGroupID = null;
 		String HostID = null;
 		
@@ -552,7 +552,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				if (HostGroups.size() != 1) {
 					if (HostGroups.size() > 1)
 						Misc.FAIL("Expect return of 1 entry, received %d", HostGroups.size());
-						
+					
 					// Cannot create host group by ourselves
 					// (unless we are super-admin, not likely, and not safe!)
 					
@@ -635,7 +635,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 						if (MediaTypes.size() != 1) {
 							if (MediaTypes.size() > 1)
 								Misc.FAIL("Expect return of 1 entry, received %d", MediaTypes.size());
-								
+							
 							// Cannot create media type by ourselves
 							// (unless we are super-admin, not likely, and not safe!)
 							
@@ -722,7 +722,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 						if (Actions.size() != 1) {
 							if (Actions.size() > 1)
 								Misc.FAIL("Expect return of 1 entry, received %d", Actions.size());
-								
+							
 							// Create default action
 							ZabbixRequest ActionCreateQuery = ZabbixRequest.Factory.ActionCreateTemplate(
 									ActionName, 0, 600, Config.ProblemSubject, Config.ProblemBody, null, null);
@@ -873,7 +873,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			case "java.lang.Character":
 				// Character is stored as unsigned ordinal
 				return ZABBIX_VTYPE_UNSIGNED_NUMERIC;
-				
+			
 			case "int":
 			case "java.lang.Integer":
 			case "short":
@@ -887,11 +887,11 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			case "double":
 			case "java.lang.Double":
 				return ZABBIX_VTYPE_FLOAT_NUMERIC;
-				
+			
 			case "java.lang.Enum":
 				// Enum is stored using their text name
 				return ZABBIX_VTYPE_CHARACTER;
-				
+			
 			case "java.lang.String":
 				// String as stored as variable length text
 			default:
@@ -965,7 +965,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					DispName = StrBuf.toString();
 				} else
 					DispName = ItemDispNameBase;
-					
+				
 				ZabbixRequest ICQuery = ZabbixRequest.Factory.ItemCreateTemplate(AppKey, DispName, HostID);
 				ICQuery.putParam("type", ZABBIX_TYPE_TRAPPER);
 				ICQuery.putParam("value_type", VType);

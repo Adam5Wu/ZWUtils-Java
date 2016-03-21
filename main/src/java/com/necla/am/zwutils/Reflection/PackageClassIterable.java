@@ -80,11 +80,11 @@ public class PackageClassIterable implements Iterable<String> {
 					resPath = resPath.substring(5).replaceFirst("[.]jar[!].*", ".jar");
 					DelegateIterable = new JarClassIterable(resPath, pkgname, filter);
 					break;
-					
+				
 				case "file":
 					DelegateIterable = new FileClassIterable(resPath, pkgname, filter);
 					break;
-					
+				
 				default:
 					Misc.FAIL("Unrecognized package resource URL: '%s'", res);
 					DelegateIterable = null;

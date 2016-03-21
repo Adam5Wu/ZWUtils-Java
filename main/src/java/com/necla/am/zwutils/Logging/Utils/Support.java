@@ -138,7 +138,7 @@ public class Support {
 					}
 				} else
 					Features.add(GroupLogFile.Feature.Forward);
-					
+				
 				return new GroupLogFile(Tokens[0], Features);
 			}
 		}

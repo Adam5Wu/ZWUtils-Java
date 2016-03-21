@@ -103,7 +103,7 @@ public class TaskHost extends Poller {
 		
 		public static class StringToInetSocketAddress
 				extends Parsers.SimpleStringParse<InetSocketAddress> {
-				
+			
 			protected static final Pattern SocketAddrItemToken = Pattern.compile(":");
 			protected static final String NetAddrAny = "*";
 			protected static final String NetWildCard = "0.0.0.0";
@@ -118,7 +118,7 @@ public class TaskHost extends Poller {
 				String Address = (Items[0].equals(NetAddrAny)? NetWildCard : Items[0]);
 				int Port = (Items.length > 1? Parsers.StringToInteger
 						.parseOrFail(Items[1]) : EmbeddedMobilityServer.DEFAULT_PORT);
-						
+				
 				return new InetSocketAddress(Address, Port);
 			}
 			
@@ -126,7 +126,7 @@ public class TaskHost extends Poller {
 		
 		public static class StringFromInetSocketAddress
 				extends Parsers.SimpleParseString<InetSocketAddress> {
-				
+			
 			@Override
 			public String parseOrFail(InetSocketAddress From) {
 				if (From == null) {
@@ -142,7 +142,7 @@ public class TaskHost extends Poller {
 				new StringToInetSocketAddress();
 		public static final StringFromInetSocketAddress StringFromInetSocketAddress =
 				new StringFromInetSocketAddress();
-				
+		
 		public static class Mutable extends Poller.ConfigData.Mutable {
 			
 			public static class HostedTaskRec {
@@ -183,7 +183,7 @@ public class TaskHost extends Poller {
 				ReturnTaskName = null;
 				TaskClassDict =
 						new SuffixClassDictionary(LogGroup + ".ClassDict", this.getClass().getClassLoader());
-						
+				
 				HostingAddress = null;
 				RemoteTaskServers = new HashMap<>();
 			}
@@ -219,7 +219,7 @@ public class TaskHost extends Poller {
 				
 				protected static final int UnacceptableModifiers =
 						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
-						
+				
 				@Override
 				public boolean Accept(Class<?> Entry) {
 					int ClassModifiers = Entry.getModifiers();
@@ -438,7 +438,7 @@ public class TaskHost extends Poller {
 						
 						if (HostedTask.ClassDesc == null) Misc.FAIL(NoSuchElementException.class,
 								"Task '%s' misses class descriptor", TaskName);
-								
+						
 						if (HostedTask.TaskDep != null) {
 							HostedTask.TaskDep.forEach(DepTaskName -> {
 								if ((DepTaskName != null) && !HostedTaskRecs.containsKey(DepTaskName)) {
@@ -716,7 +716,7 @@ public class TaskHost extends Poller {
 		// Lookup task class on remote server
 		ILog.Fine("Looking up task class '%s' from remote server %s (%s)...", ClassDesc, RemoteName,
 				ConfigData.StringFromInetSocketAddress.parseOrFail(RemoteAddress));
-				
+		
 		MobilitySession RPCSession = NeedRPC().newSession();
 		try {
 			ConnectionId RPCConnection =
@@ -729,7 +729,7 @@ public class TaskHost extends Poller {
 					RemoteClassLoaders.viaMobilityRPC.Create(NeedRPC(), RemoteAddress);
 			IClassSolver RemoteClassSolver =
 					new DirectClassSolver(RPCClassLoader.loadClass(RemoteClassName));
-					
+			
 			return CreateTaskRunnable(TaskName, RemoteClassSolver, TaskConfig);
 		} catch (ClassNotFoundException e) {
 			Misc.CascadeThrow(e);
@@ -806,11 +806,11 @@ public class TaskHost extends Poller {
 			// Now resolve join dependency
 			JoinTasks
 					.addAll(Config.JoinTaskNames.stream().map(RunTasks::get).collect(Collectors.toList()));
-					
+			
 			// Now resolve termination dependency
 			TermTasks
 					.addAll(Config.TermTaskNames.stream().map(RunTasks::get).collect(Collectors.toList()));
-					
+			
 			if (Config.ReturnTaskName != null) ReturnTask = RunTasks.get(Config.ReturnTaskName);
 		} catch (Throwable e) {
 			Misc.CascadeThrow(e, "Error while resolving task dependencies");

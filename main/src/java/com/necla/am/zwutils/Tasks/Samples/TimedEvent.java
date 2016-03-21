@@ -244,7 +244,7 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 		if (!Notifiable.class.isInstance(Task)) Misc.FAIL(ClassCastException.class,
 				"Notification task is of class '%s' which does not implemented required %s interface",
 				Task.getClass(), Notifiable.class.getSimpleName());
-				
+		
 		TimeoutTasks.AddTask(Task);
 	}
 	

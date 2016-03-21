@@ -218,7 +218,7 @@ public class ZabbixRequest {
 				String ProbSubj, String ProbBody, String RecSubj, String RecBody) {
 			Builder RetBuild = ZabbixRequest.Builder.create("action.create").paramEntry("name", Name)
 					.paramEntry("esc_period", Math.max(EscPeriod, 60)).paramEntry("eventsource", Source);
-					
+			
 			if (ProbSubj != null) RetBuild.paramEntry("def_shortdata", ProbSubj);
 			if (ProbBody != null) RetBuild.paramEntry("def_longdata", ProbBody);
 			if ((RecSubj != null) || (RecBody != null)) {
