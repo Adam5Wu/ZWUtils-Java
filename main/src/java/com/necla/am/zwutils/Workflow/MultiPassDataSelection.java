@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class MultiPassDataSelection {
@@ -34,21 +35,27 @@ public class MultiPassDataSelection {
 	
 	protected AtomicLong NewItemCount = new AtomicLong(0);
 	protected AtomicLong NewMarkCount = new AtomicLong(0);
-	protected final Map<String, AtomicLong> MarkReasons = new ConcurrentHashMap<>();
-	
+	protected AtomicReference<Map<String, AtomicLong>> MarkReasons =
+			new AtomicReference<>(new ConcurrentHashMap<>());
+			
 	MultiPassDataSelection(String PassName) {
 		Name = PassName;
 	}
 	
-	void AddFilter(Filter filter) {
-		Filters.add(filter);
+	public static MultiPassDataSelection CreatePass(String PassName) {
+		return new MultiPassDataSelection(PassName);
 	}
 	
-	boolean RemoveFilter(Filter filter) {
+	public MultiPassDataSelection AddFilter(Filter filter) {
+		Filters.add(filter);
+		return this;
+	}
+	
+	public boolean RemoveFilter(Filter filter) {
 		return Filters.remove(filter);
 	}
 	
-	void MakePass(Collection<?> Items) {
+	public void MakePass(Collection<?> Items) {
 		Items.forEach(item -> {
 			MultiPassItem Item = (MultiPassItem) item;
 			if (Item.Marked()) return;
@@ -62,10 +69,11 @@ public class MultiPassDataSelection {
 				if ((MarkReason = F.Do(Item)) != null) {
 					Item.Mark();
 					NewMarkCount.incrementAndGet();
-					AtomicLong MarkCount = MarkReasons.get(MarkReason);
+					Map<String, AtomicLong> _MarkReasons = MarkReasons.get();
+					AtomicLong MarkCount = _MarkReasons.get(MarkReason);
 					if (MarkCount == null) {
 						MarkCount = new AtomicLong(0);
-						AtomicLong _RaceCounter = MarkReasons.putIfAbsent(MarkReason, MarkCount);
+						AtomicLong _RaceCounter = _MarkReasons.putIfAbsent(MarkReason, MarkCount);
 						if (_RaceCounter != null) MarkCount = _RaceCounter;
 					}
 					MarkCount.incrementAndGet();
@@ -73,6 +81,27 @@ public class MultiPassDataSelection {
 				}
 			}
 		});
+	}
+	
+	public class Stats {
+		public final long NewItems;
+		public final long NewMarks;
+		public final Map<String, AtomicLong> MarkReasons;
+		
+		public Stats(long newItems, long newMarks, Map<String, AtomicLong> markReasons) {
+			NewItems = newItems;
+			NewMarks = newMarks;
+			MarkReasons = markReasons;
+		}
+		
+	}
+	
+	public Stats PruneStats() {
+		long ItemCount = NewItemCount.getAndSet(0);
+		long MarkCount = NewMarkCount.getAndSet(0);
+		Map<String, AtomicLong> _MarkReasons = MarkReasons.getAndSet(new ConcurrentHashMap<>());
+		
+		return new Stats(ItemCount, MarkCount, _MarkReasons);
 	}
 	
 }
