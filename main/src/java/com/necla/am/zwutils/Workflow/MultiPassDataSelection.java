@@ -9,13 +9,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 
-public class MultiPassDataSelection {
+public class MultiPassDataSelection<X> {
 	
 	public static interface MultiPassItem {
 		
-		String PassLabel();
-		
-		void PassLabel(String Label);
+		String LabelPass(String Label);
 		
 		boolean Marked();
 		
@@ -24,50 +22,41 @@ public class MultiPassDataSelection {
 	}
 	
 	@FunctionalInterface
-	public static interface Filter {
+	public static interface Filter<X> {
 		
-		String Do(MultiPassItem Item);
+		String Do(X Item);
 		
 	}
 	
 	protected final String Name;
-	protected Collection<Filter> Filters = new ArrayList<>();
+	protected Collection<Filter<X>> Filters = new ArrayList<>();
 	
 	protected AtomicLong NewItemCount = new AtomicLong(0);
 	protected AtomicLong NewMarkCount = new AtomicLong(0);
 	protected AtomicReference<Map<String, AtomicLong>> MarkReasons =
 			new AtomicReference<>(new ConcurrentHashMap<>());
 			
-	MultiPassDataSelection(String PassName) {
+	public MultiPassDataSelection(String PassName) {
 		Name = PassName;
 	}
 	
-	public static MultiPassDataSelection CreatePass(String PassName) {
-		return new MultiPassDataSelection(PassName);
-	}
-	
-	public MultiPassDataSelection AddFilter(Filter filter) {
+	public MultiPassDataSelection<X> AddFilter(Filter<X> filter) {
 		Filters.add(filter);
 		return this;
 	}
 	
-	public boolean RemoveFilter(Filter filter) {
+	public boolean RemoveFilter(Filter<X> filter) {
 		return Filters.remove(filter);
 	}
 	
-	public void MakePass(Collection<?> Items) {
-		Items.forEach(item -> {
-			MultiPassItem Item = (MultiPassItem) item;
-			if (Item.Marked()) return;
-			
-			if (Item.PassLabel() == null) {
-				Item.PassLabel(Name);
-				NewItemCount.incrementAndGet();
-			}
+	public MultiPassItem MakePass(X Item) {
+		MultiPassItem PItem = (MultiPassItem) Item;
+		if (!PItem.Marked()) {
+			if (PItem.LabelPass(Name) == null) NewItemCount.incrementAndGet();
 			String MarkReason;
-			for (Filter F : Filters) {
+			for (Filter<X> F : Filters) {
 				if ((MarkReason = F.Do(Item)) != null) {
-					Item.Mark();
+					PItem.Mark();
 					NewMarkCount.incrementAndGet();
 					Map<String, AtomicLong> _MarkReasons = MarkReasons.get();
 					AtomicLong MarkCount = _MarkReasons.get(MarkReason);
@@ -80,10 +69,15 @@ public class MultiPassDataSelection {
 					break;
 				}
 			}
-		});
+		}
+		return PItem;
 	}
 	
-	public class Stats {
+	public void MakePass(Collection<X> Items) {
+		Items.forEach(this::MakePass);
+	}
+	
+	public static class Stats {
 		public final long NewItems;
 		public final long NewMarks;
 		public final Map<String, AtomicLong> MarkReasons;
