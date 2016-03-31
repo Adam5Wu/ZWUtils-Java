@@ -712,7 +712,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					
 					// Check if notification action is configured, add if necessary
 					String ActionID = null;
-					String ActionName = Project + "-Notification";
+					String ActionName = Component + "-AutoNotify";
 					{
 						ZabbixRequest ActionQuery = ZabbixRequest.Factory.ActionInfo(ActionName);
 						ActionQuery.putParam("selectConditions", "extend");
