@@ -255,7 +255,7 @@ public class ObjectTrap {
 		public final Throwable WRONGCLASS;
 		
 		public ClassCastScope(Class<?> c, String cname) throws SecurityException {
-			C = cname != null? ClassDict.Get(cname).toClass() : null;
+			C = cname != null? ClassDict.Get(cname).toClass() : c;
 			WRONGCLASS = new ClassCastException(
 					String.format(Messages.Localize("Debugging.ObjectTrap.CLASS_NO_CAST"), C.getName())); //$NON-NLS-1$
 		}
@@ -2113,7 +2113,7 @@ public class ObjectTrap {
 			}
 			if (!DescMatcher.hitEnd())
 				Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.SCOPE_PARSE_FAILURE"), //$NON-NLS-1$
-						scopepath.substring(DescMatcher.end())); 
+						scopepath.substring(DescMatcher.end()));
 			return (CScope.Size() > 1)? CScope : Scope;
 		});
 	}
