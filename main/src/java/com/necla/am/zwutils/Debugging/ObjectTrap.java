@@ -254,7 +254,8 @@ public class ObjectTrap {
 		public final Class<?> C;
 		public final Throwable WRONGCLASS;
 		
-		public ClassCastScope(Class<?> c, String cname) throws SecurityException {
+		public ClassCastScope(Class<?> c, String cname)
+				throws SecurityException, ClassNotFoundException {
 			C = cname != null? ClassDict.Get(cname).toClass() : c;
 			WRONGCLASS = new ClassCastException(
 					String.format(Messages.Localize("Debugging.ObjectTrap.CLASS_NO_CAST"), C.getName())); //$NON-NLS-1$
@@ -296,7 +297,8 @@ public class ObjectTrap {
 		
 		public final Field F;
 		
-		public FieldScope(Class<?> c, String cname, String field) throws SecurityException {
+		public FieldScope(Class<?> c, String cname, String field)
+				throws SecurityException, ClassNotFoundException {
 			super(c, cname);
 			F = AccessibleField(C != null? C : c, field);
 			if (F == null) Misc.FAIL(NoSuchElementException.class,
@@ -358,7 +360,8 @@ public class ObjectTrap {
 		
 		public final Method M;
 		
-		public GetterScope(Class<?> c, String cname, String method) throws SecurityException {
+		public GetterScope(Class<?> c, String cname, String method)
+				throws SecurityException, ClassNotFoundException {
 			super(c, cname);
 			M = AccessibleGetter(C != null? C : c, method);
 			if (M == null) Misc.FAIL(NoSuchElementException.class,
@@ -1708,10 +1711,13 @@ public class ObjectTrap {
 					case AsClass: {
 						String[] CondVals = condval.trim().split(","); //$NON-NLS-1$
 						CastSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CastSet.add(Dict.Get(Val).toClass()))
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-						}
+						for (String Val : CondVals)
+							try {
+								if (!CastSet.add(Dict.Get(Val).toClass()))
+									Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+							} catch (ClassNotFoundException e) {
+								Misc.CascadeThrow(e);
+							}
 						break;
 					}
 					case EqualTo:
@@ -2165,13 +2171,17 @@ public class ObjectTrap {
 			} else
 				Desc = Key.ScopeDesc;
 			
-			switch (Desc.charAt(0)) {
-				case SYM_FIELD:
-					return new FieldScope(Key.BaseClass, cname, Desc.substring(1));
-				case SYM_GETTER:
-					return new GetterScope(Key.BaseClass, cname, Desc.substring(1));
-				default:
-					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_SCOPE_MEMBER"), Desc); //$NON-NLS-1$
+			try {
+				switch (Desc.charAt(0)) {
+					case SYM_FIELD:
+						return new FieldScope(Key.BaseClass, cname, Desc.substring(1));
+					case SYM_GETTER:
+						return new GetterScope(Key.BaseClass, cname, Desc.substring(1));
+					default:
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_SCOPE_MEMBER"), Desc); //$NON-NLS-1$
+				}
+			} catch (Exception e) {
+				Misc.CascadeThrow(e);
 			}
 			return null;
 		});

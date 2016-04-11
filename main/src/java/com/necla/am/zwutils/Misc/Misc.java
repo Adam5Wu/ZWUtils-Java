@@ -517,6 +517,22 @@ public class Misc {
 			return ClassName;
 	}
 	
+	/**
+	 * Strip class name from a full class name
+	 *
+	 * @param ClassName
+	 *          - Class name with/without package name prefix
+	 * @return Package name without class name
+	 */
+	public static Object stripClassName(String ClassName) {
+		int idx = ClassName.lastIndexOf(PACKAGE_DELIMITER);
+		
+		if (idx != -1)
+			return ClassName.substring(0, idx);
+		else
+			return ClassName;
+	}
+	
 	public static final char PATH_DELIMITER = '/';
 	public static final String PATH_DELIMITER_STR = String.valueOf(PATH_DELIMITER);
 	public static final char EXT_DELIMITER = '.';

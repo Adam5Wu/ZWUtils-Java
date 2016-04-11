@@ -1,6 +1,9 @@
 
 package com.necla.am.zwutils.Reflection;
 
+import com.necla.am.zwutils.Misc.Misc;
+
+
 /**
  * Generic Class Resolution Interface
  *
@@ -9,9 +12,11 @@ package com.necla.am.zwutils.Reflection;
  */
 public interface IClassSolver {
 	
-	String fullName();
+	String FullName();
 	
-	Class<?> toClass();
+	String SimpleName();
+	
+	Class<?> toClass() throws ClassNotFoundException;
 	
 	public static class Impl {
 		
@@ -28,8 +33,13 @@ public interface IClassSolver {
 			}
 			
 			@Override
-			public String fullName() {
+			public String FullName() {
 				return C.getName();
+			}
+			
+			@Override
+			public String SimpleName() {
+				return C.getSimpleName();
 			}
 			
 			@Override
@@ -39,7 +49,38 @@ public interface IClassSolver {
 			
 			@Override
 			public String toString() {
-				return C.getName();
+				return FullName();
+			}
+			
+		}
+		
+		public static class LazyNamedClassSolver implements IClassSolver {
+			
+			protected final String CName;
+			protected Class<?> C = null;
+			
+			public LazyNamedClassSolver(String fullName) {
+				CName = fullName;
+			}
+			
+			@Override
+			public String FullName() {
+				return CName;
+			}
+			
+			@Override
+			public String SimpleName() {
+				return C != null? C.getSimpleName() : Misc.stripPackageName(CName);
+			}
+			
+			@Override
+			public Class<?> toClass() throws ClassNotFoundException {
+				return C != null? C : (C = Class.forName(CName));
+			}
+			
+			@Override
+			public String toString() {
+				return FullName();
 			}
 			
 		}

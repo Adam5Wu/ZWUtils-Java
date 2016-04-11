@@ -44,10 +44,28 @@ task Bless(type:Exec) {
 	}
 }
 
+import org.apache.tools.ant.filters.ReplaceTokens
+
+task GenClean(type: Delete) {
+	delete 'build/gen/src'
+}
+
+task SrcGen(type: Copy, dependsOn: GenClean) {
+	from 'main/src/java/'
+	into 'build/gen/src'
+	include '**/_Namespace.java'
+
+	def date = new Date()
+	filter(ReplaceTokens, tokens: [ 'VERSION': project.version,
+					'DATE': date.format('yyyy-MM-dd'),
+					'TIME': date.format('HH:mm:ss') ])
+}
+
 sourceSets {
 	main {
 		java {
 			srcDir 'main/src/java'
+			exclude '**/_Namespace.java'
 		}
 		resources {
 			srcDir 'main/res'
@@ -66,6 +84,8 @@ sourceSets {
 //		}
 //	}
 }
+
+compileJava.source SrcGen.outputs.files
 
 repositories {
 	mavenCentral()

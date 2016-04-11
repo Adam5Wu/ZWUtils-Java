@@ -221,11 +221,17 @@ public class TaskHost extends Poller {
 						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
 				
 				@Override
-				public boolean Accept(Class<?> Entry) {
-					int ClassModifiers = Entry.getModifiers();
-					if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
-					if (!TaskRunnable.class.isAssignableFrom(Entry)) return false;
-					return true;
+				public boolean Accept(IClassSolver Entry) {
+					try {
+						Class<?> Class = Entry.toClass();
+						int ClassModifiers = Class.getModifiers();
+						if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
+						if (!TaskRunnable.class.isAssignableFrom(Class)) return false;
+						return true;
+					} catch (ClassNotFoundException e) {
+						Misc.CascadeThrow(e);
+						return false;
+					}
 				}
 				
 			}
@@ -624,7 +630,7 @@ public class TaskHost extends Poller {
 					String TaskClassName = LookupTaskAlias(ClassDesc);
 					if (TaskClassName != null) {
 						TaskClassRef = new DirectClassSolver(TaskClassName);
-						ILog.Fine("Task class alias '%s' resolved as %s", ClassDesc, TaskClassRef.fullName());
+						ILog.Fine("Task class alias '%s' resolved as %s", ClassDesc, TaskClassRef.FullName());
 						break;
 					}
 				}
@@ -633,7 +639,7 @@ public class TaskHost extends Poller {
 					if (Config.TaskClassDict.isKnown(ClassDesc)) {
 						TaskClassRef = Config.TaskClassDict.Get(ClassDesc);
 						ILog.Fine("Task class short-hand '%s' resolved as %s", ClassDesc,
-								TaskClassRef.fullName());
+								TaskClassRef.FullName());
 						break;
 					}
 				}
@@ -703,7 +709,7 @@ public class TaskHost extends Poller {
 			MobilitySession RemoteSession = MobilityContext.getCurrentSession();
 			MobilityController RemoteServHost = RemoteSession.getMobilityController();
 			TaskHost RemoteTaskHost = TaskHost.GetServingTaskHost(RemoteServHost);
-			return RemoteTaskHost.ResolveLocalTaskRunnable(ClassDesc).fullName();
+			return RemoteTaskHost.ResolveLocalTaskRunnable(ClassDesc).FullName();
 		}
 		
 	}

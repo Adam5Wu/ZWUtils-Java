@@ -146,7 +146,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						// Try lookup short-hand
 						if (HandlerDict.isKnown(Tokens[0])) {
 							HandlerClsRef = HandlerDict.Get(Tokens[0]);
-							CLog.Fine("Handler class: %s (short-hand '%s')", HandlerClsRef.fullName(), Tokens[0]);
+							CLog.Fine("Handler class: %s (short-hand '%s')", HandlerClsRef.FullName(), Tokens[0]);
 						} else
 							HandlerClsRef = new DirectClassSolver(Tokens[0]);
 						
@@ -249,11 +249,17 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
 				
 				@Override
-				public boolean Accept(Class<?> Entry) {
-					int ClassModifiers = Entry.getModifiers();
-					if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
-					if (!WebHandler.class.isAssignableFrom(Entry)) return false;
-					return true;
+				public boolean Accept(IClassSolver Entry) {
+					try {
+						Class<?> Class = Entry.toClass();
+						int ClassModifiers = Class.getModifiers();
+						if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
+						if (!WebHandler.class.isAssignableFrom(Class)) return false;
+						return true;
+					} catch (ClassNotFoundException e) {
+						Misc.CascadeThrow(e);
+						return false;
+					}
 				}
 				
 			}

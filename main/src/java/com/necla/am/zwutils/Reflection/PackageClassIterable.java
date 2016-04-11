@@ -48,6 +48,7 @@ import com.googlecode.mobilityrpc.network.ConnectionId;
 import com.googlecode.mobilityrpc.session.MobilitySession;
 import com.necla.am.zwutils.FileSystem.BFSDirFileIterable;
 import com.necla.am.zwutils.Misc.Misc;
+import com.necla.am.zwutils.Reflection.IClassSolver.Impl.LazyNamedClassSolver;
 
 
 /**
@@ -67,7 +68,7 @@ public class PackageClassIterable implements Iterable<String> {
 	
 	@FunctionalInterface
 	public static interface IClassFilter {
-		boolean Accept(Class<?> Entry);
+		boolean Accept(IClassSolver Entry);
 	}
 	
 	public PackageClassIterable(URL res, String pkgname, IClassFilter filter) throws IOException {
@@ -197,7 +198,7 @@ public class PackageClassIterable implements Iterable<String> {
 						if (entryName.endsWith(".class")&& entryName.startsWith(BasePath)
 								&& entryName.length() > BasePath.length()) {
 							String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
-							if ((Filter != null) && !Filter.Accept(Class.forName(Ret))) continue;
+							if ((Filter != null) && !Filter.Accept(new LazyNamedClassSolver(Ret))) continue;
 							return Ret;
 						}
 					} catch (Throwable e) {
@@ -270,9 +271,10 @@ public class PackageClassIterable implements Iterable<String> {
 				while (FileIterator.hasNext()) {
 					try {
 						File ClassFile = FileIterator.next();
-						String entryName = BaseName + ClassFile.getCanonicalPath().substring(BasePathLen);
+						String entryName = BaseName + ClassFile.getCanonicalPath()
+								.substring(BasePathLen + (BaseName.isEmpty()? 1 : 0));
 						String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
-						if ((Filter != null) && !Filter.Accept(Class.forName(Ret))) continue;
+						if ((Filter != null) && !Filter.Accept(new LazyNamedClassSolver(Ret))) continue;
 						return Ret;
 					} catch (Throwable e) {
 						// Eat exception

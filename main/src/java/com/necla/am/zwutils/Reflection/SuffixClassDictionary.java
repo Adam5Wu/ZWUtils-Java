@@ -105,8 +105,13 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 		}
 		
 		@Override
-		public String fullName() {
+		public String FullName() {
 			return CName;
+		}
+		
+		@Override
+		public String SimpleName() {
+			return Tokens.get(Level - 1);
 		}
 		
 		@Override
@@ -244,7 +249,7 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	}
 	
 	public void Add(ISuffixClassSolver csolver) {
-		RevDict.put(csolver.fullName(), csolver);
+		RevDict.put(csolver.FullName(), csolver);
 		DictIn(csolver);
 	}
 	
