@@ -175,7 +175,7 @@ public class PackageClassIterable implements Iterable<String> {
 		}
 		
 		public JarClassIterable(File jarfile, String pkgname, IClassFilter filter) throws IOException {
-			BasePath = pkgname.replace('.', '/') + '/';
+			BasePath = pkgname.replace('.', '/') + (pkgname.isEmpty()? "" : "/");
 			Jar = new JarFile(jarfile);
 			Filter = filter;
 		}
