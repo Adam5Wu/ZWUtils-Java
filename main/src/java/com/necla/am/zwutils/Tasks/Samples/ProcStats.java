@@ -413,7 +413,7 @@ public class ProcStats extends Companion {
 					LogItems.add(ThreadTotal);
 				}
 				if (Config.Stats.contains(ConfigData.StatType.MEMINFO)) {
-					MemoryUsage Heap = MemoryMX.getNonHeapMemoryUsage();
+					MemoryUsage Heap = MemoryMX.getHeapMemoryUsage();
 					int AllocUseHeap = (int) (Heap.getUsed() * 100 / Heap.getCommitted());
 					MemoryUsage NHeap = MemoryMX.getNonHeapMemoryUsage();
 					int AllocUseNHeap = (int) (NHeap.getUsed() * 100 / NHeap.getCommitted());
