@@ -327,15 +327,16 @@ public class ProcStats extends Companion {
 								ILog.Warn("Error probing 'package-main' attribute - %s", e);
 							}
 							
-							ILog.Info("%sComponent '%s': %s (%s)", MainComponent? "Main " : "", NAME, VER, BUILD);
-							LogItems.add(String.format("Component,%s", NAME));
-							LogItems.add(String.format("%s|%s", VER, BUILD));
-							
+							ILog.Info("%s '%s': %s (%s)", MainComponent? "Application" : "Component", NAME, VER,
+									BUILD);
 							if (MainComponent) {
 								PackageMainCount++;
-								LogItems.add("Name");
+								LogItems.add("Application,Name");
 								LogItems.add(NAME);
-								LogItems.add("Version");
+								LogItems.add("Application,Version");
+								LogItems.add(String.format("%s|%s", VER, BUILD));
+							} else {
+								LogItems.add(String.format("Component,%s", NAME));
 								LogItems.add(String.format("%s|%s", VER, BUILD));
 							}
 						} catch (Throwable e) {
@@ -422,7 +423,7 @@ public class ProcStats extends Companion {
 							AllocUseNHeap);
 					LogItems.add("Memory,Heap");
 					LogItems.add(Heap.getUsed());
-					LogItems.add("Thread,NonHeap");
+					LogItems.add("Memory,NonHeap");
 					LogItems.add(NHeap.getUsed());
 				}
 				
