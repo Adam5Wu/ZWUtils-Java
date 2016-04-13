@@ -1116,7 +1116,10 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			}
 			
 			public void publish(ZabbixReport report) {
-				if (isClosed()) Misc.FAIL("Handler already closed");
+				if (isClosed()) {
+					ILog.Warn("Handler already closed, data point dropped");
+					return;
+				}
 				
 				Container.add(report);
 				if (Waiting) {
