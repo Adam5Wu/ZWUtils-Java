@@ -340,7 +340,7 @@ public class ProcStats extends Companion {
 								LogItems.add(String.format("%s|%s", VER, BUILD));
 							}
 						} catch (Throwable e) {
-							ILog.Warn("Unable to probe component information from '%s'", NSClass);
+							ILog.Warn("Unable to probe component information from '%s' - %s", NSClass, e);
 						}
 				}
 				
