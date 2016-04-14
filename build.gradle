@@ -16,7 +16,7 @@ apply plugin: "se.bjurr.gitchangelog.git-changelog-gradle-plugin"
 import org.ajoberstar.grgit.*
 
 task ChangeLog(type: se.bjurr.gitchangelog.plugin.gradle.GitChangelogTask) {
-    filePath = "build/CHANGELOG.md";
+	filePath = "build/CHANGELOG.md";
 	
 	def repo = Grgit.open(project.file('.'))
 	toRef = repo.branch.getCurrent().fullName
