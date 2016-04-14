@@ -637,20 +637,34 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		super.preTask();
 		
 		// Reflection workaround for HttpServer bad default configurations
-		ILog.Fine("Applying correction to default JVM configuration...");
+		ILog.Fine("Applying correction to default JVM configurations...");
 		try {
-			// Enforcing standard 90sec TCP timeout
-			Class<?> ServerConfig_Class = Class.forName("sun.net.httpserver.ServerConfig");
-			Field ServerConfig_maxReqTime = ServerConfig_Class.getDeclaredField("maxReqTime");
-			ServerConfig_maxReqTime.setAccessible(true);
-			ServerConfig_maxReqTime.set(null, Config.IOTimeout);
-			Field ServerConfig_maxRspTime = ServerConfig_Class.getDeclaredField("maxRspTime");
-			ServerConfig_maxRspTime.setAccessible(true);
-			ServerConfig_maxRspTime.set(null, Config.IOTimeout);
 			// Poke on the No-Delay flag
+			Class<?> ServerConfig_Class = Class.forName("sun.net.httpserver.ServerConfig");
 			Field ServerConfig_NoDelay = ServerConfig_Class.getDeclaredField("noDelay");
 			ServerConfig_NoDelay.setAccessible(true);
-			ServerConfig_NoDelay.set(null, true);
+			ServerConfig_NoDelay.setBoolean(null, true);
+			
+			// Enforcing TCP IO timeout
+			Field _Modifiers = Field.class.getDeclaredField("modifiers");
+			_Modifiers.setAccessible(true);
+			
+			Class<?> ServerImpl_Class = Class.forName("sun.net.httpserver.ServerImpl");
+			Field ServerImpl_maxReqTime = ServerImpl_Class.getDeclaredField("MAX_REQ_TIME");
+			ServerImpl_maxReqTime.setAccessible(true);
+			_Modifiers.setInt(ServerImpl_maxReqTime,
+					ServerImpl_maxReqTime.getModifiers() & ~Modifier.FINAL);
+			ServerImpl_maxReqTime.setLong(null, TimeUnit.SEC.Convert(Config.IOTimeout, TimeUnit.MSEC));
+			Field ServerImpl_maxRspTime = ServerImpl_Class.getDeclaredField("MAX_RSP_TIME");
+			ServerImpl_maxRspTime.setAccessible(true);
+			_Modifiers.setInt(ServerImpl_maxRspTime,
+					ServerImpl_maxReqTime.getModifiers() & ~Modifier.FINAL);
+			ServerImpl_maxRspTime.setLong(null, TimeUnit.SEC.Convert(Config.IOTimeout, TimeUnit.MSEC));
+			Field ServerImpl_timerEnable = ServerImpl_Class.getDeclaredField("timer1Enabled");
+			ServerImpl_timerEnable.setAccessible(true);
+			_Modifiers.setInt(ServerImpl_timerEnable,
+					ServerImpl_maxReqTime.getModifiers() & ~Modifier.FINAL);
+			ServerImpl_timerEnable.setBoolean(null, true);
 		} catch (Throwable e) {
 			Misc.CascadeThrow(e, "Failed to initialize configurations");
 		}
