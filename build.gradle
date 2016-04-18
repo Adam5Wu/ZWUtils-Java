@@ -133,3 +133,35 @@ artifacts {
 	archives sourcesJar
 	archives javadocJar
 }
+
+// Publishing to internal repository
+apply plugin: 'maven'
+
+configurations {
+	deployerJars
+}
+
+dependencies {
+	deployerJars "org.apache.maven.wagon:wagon-http:2.10"
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+	if(taskGraph.hasTask(':uploadArchives')) {
+		Properties secrets = new Properties()
+		secrets.load(new FileInputStream("publish.secrets"))
+
+		uploadArchives.repositories.mavenDeployer {
+			repository(url: secrets.mavenServer) {
+				authentication(userName: secrets.user, password: secrets.pass)
+			}
+			pom.groupId = secrets.mavenGroup
+		}
+	}
+}
+
+uploadArchives {
+	repositories.mavenDeployer {
+		configuration = configurations.deployerJars
+	}
+}
+
