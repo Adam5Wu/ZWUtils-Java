@@ -62,8 +62,8 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	
 	protected final IGroupLogger ILog;
 	
-	private Throwable FatalException = null;
-	private Object Return = null;
+	protected Throwable FatalException = null;
+	protected Object Return = null;
 	
 	// Event subscription registry uses weak reference, so we need to keep alive
 	private final ISubscription<ITask.State> StateNotifier = new ISubscription<ITask.State>() {
