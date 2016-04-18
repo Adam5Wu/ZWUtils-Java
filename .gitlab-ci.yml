@@ -1,27 +1,27 @@
 before_script:
-	- cp ~/publish.secrets.ZWUtils-Java publish.secrets
+  - cp ~/publish.secrets.ZWUtils-Java publish.secrets
 
 stages:
-	- build
-	- deploy
+  - build
+  - deploy
 
 build_package:
-	stage: build
-	script:
-		- gradle build
-	tags:
-		- java
-		- gradle
-	except:
-		- /^test-.*$/
+  stage: build
+  script:
+    - gradle build
+  tags:
+    - java
+    - gradle
+  except:
+    - /^test-.*$/
 
 deploy_package:
-	stage: deploy
-	script:
-		- gradle upload
-	tags:
-		- java
-		- gradle
-	except:
-		- /^test-.*$/
+  stage: deploy
+  script:
+    - gradle upload
+  tags:
+    - java
+    - gradle
+  except:
+    - /^test-.*$/
 
