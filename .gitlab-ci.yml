@@ -11,6 +11,8 @@ build_package:
   cache:
     paths:
       - build/
+    key: "build-for-deploy"
+    untracked: true
   script:
     - gradle build
   tags:
@@ -24,6 +26,8 @@ deploy_package:
   cache:
     paths:
       - build/
+    key: "build-for-deploy"
+    untracked: true
   script:
     - gradle upload
   tags:
