@@ -524,7 +524,7 @@ public class Misc {
 	 *          - Class name with/without package name prefix
 	 * @return Package name without class name
 	 */
-	public static Object stripClassName(String ClassName) {
+	public static String stripClassName(String ClassName) {
 		int idx = ClassName.lastIndexOf(PACKAGE_DELIMITER);
 		
 		if (idx != -1)
