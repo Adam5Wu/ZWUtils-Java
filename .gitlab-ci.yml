@@ -8,7 +8,7 @@ stages:
 build_package:
 	stage: build
 	script:
-		- gradle nuild
+		- gradle build
 	tags:
 		- java
 		- gradle
