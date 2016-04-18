@@ -11,7 +11,7 @@ build_package:
   cache:
     paths:
       - build/
-    key: "build-for-deploy"
+    key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
     - gradle build
@@ -26,7 +26,7 @@ deploy_package:
   cache:
     paths:
       - build/
-    key: "build-for-deploy"
+    key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
     - gradle upload
