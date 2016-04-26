@@ -376,8 +376,9 @@ public class ProcStats extends Companion {
 					long UpTime = RuntimeMX.getUptime();
 					if (Config.Stats.contains(ConfigData.StatType.RUNTIME)) {
 						ILog.Info("Up-time: %s", Misc.FormatDeltaTime(UpTime));
+						double UpDays = (double) UpTime / Misc.TimeUnit.DAY.Convert(1, Misc.TimeUnit.MSEC);
 						LogItems.add("UpTime");
-						LogItems.add(UpTime);
+						LogItems.add(UpDays);
 					}
 					if (Config.Stats.contains(ConfigData.StatType.CPUUSE)) {
 						long CPUTime = ((com.sun.management.OperatingSystemMXBean) OSMX).getProcessCpuTime();

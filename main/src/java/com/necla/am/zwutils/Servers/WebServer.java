@@ -717,11 +717,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		}
 	}
 	
-	ITimeStamp StartTime;
-	
 	@Override
 	protected void doTask() {
-		StartTime = ITimeStamp.Impl.Now();
 		InetSocketAddress SockAddr = Server.getAddress();
 		ILog.Info("Starting up Web server (%s:%d)...", SockAddr.getAddress().getHostAddress(),
 				SockAddr.getPort());
@@ -749,7 +746,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				TotalInvoke += Handler.GetInvokeCount();
 				TotalExcept += Handler.GetExceptCount();
 			}
-			OnStatCollect(CurTime.MillisecondsFrom(StartTime), TotalInvoke, TotalExcept);
+			OnStatCollect(TotalInvoke, TotalExcept);
 			return true;
 		} catch (Throwable e) {
 			ILog.logExcept(e);
@@ -757,13 +754,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		}
 	}
 	
-	protected void OnStatCollect(long uptime, long totalinvoke, long totalexcept) {
-		ILog.Info("* Server up for %s; Invoke / Except: %d / %d", Misc.FormatDeltaTime(uptime),
-				totalinvoke, totalexcept);
-		
-		double UpDays = (double) uptime / Misc.TimeUnit.DAY.Convert(1, Misc.TimeUnit.MSEC);
-		PerfLog(null, Misc.wrap("UpTime", "TotalInvoke", "TotalExcept"),
-				Misc.wrap(UpDays, totalinvoke, totalexcept));
+	protected void OnStatCollect(long totalinvoke, long totalexcept) {
+		ILog.Info("* Total Invoke / Except: %d / %d", totalinvoke, totalexcept);
+		PerfLog(null, Misc.wrap("TotalInvoke", "TotalExcept"), Misc.wrap(totalinvoke, totalexcept));
 	}
 	
 	protected void PerfLog(String context, String[] Metrics, Object[] Values) {
