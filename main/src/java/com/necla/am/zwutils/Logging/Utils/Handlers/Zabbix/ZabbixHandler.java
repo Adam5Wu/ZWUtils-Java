@@ -538,8 +538,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		}
 		
 		StripPfxProject = Project + '.';
-		StripPfxComponent = (Component.startsWith(StripPfxProject)? Component
-				.substring(StripPfxProject.length()) : Component) + '.';
+		StripPfxComponent = Component + '.';
 		
 		String HostGroupID = null;
 		String HostID = null;
@@ -565,14 +564,15 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					CLog.Config("Found project (host group) '%s' with ID #%s", Project, HostGroupID);
 				}
 				
-				ZabbixRequest HostQuery = ZabbixRequest.Factory.HostInfo(Component);
+				ZabbixRequest HostQuery = ZabbixRequest.Factory.HostInfo(Project + '.' + Component);
 				HostQuery.putParam("output", Misc.wrap("hostid"));
 				HostQuery.putParam("selectGroups", Misc.wrap("groupid"));
 				JsonArray Hosts = ZAPI.call(HostQuery).get("result").getAsJsonArray();
 				if (Hosts.size() != 1) {
 					if (Hosts.size() > 1) Misc.FAIL("Expect return of 1 entry, received %d", Hosts.size());
 					// Try to create the host on-the-fly
-					ZabbixRequest HCQuery = ZabbixRequest.Factory.HostCreate(Component, HostGroupID);
+					ZabbixRequest HCQuery =
+							ZabbixRequest.Factory.HostCreate(Project + '.' + Component, HostGroupID);
 					HCQuery.putParam("interfaces",
 							Misc.StringMap(Misc.wrap("type", "main", "useip", "ip", "dns", "port"),
 									(Object[]) Misc.wrap(1L, 1L, 1L, "0.0.0.0", "", "0")));
@@ -581,7 +581,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							Project, Result.get("error"));
 					JsonObject HCreate = Result.get("result").getAsJsonObject();
 					HostID = HCreate.get("hostids").getAsJsonArray().get(0).getAsString();
-					CLog.Info("Created component (host) '%s' with ID #%s", Component, HostID);
+					CLog.Info("Created component (host) '%s' with ID #%s", Project + '.' + Component, HostID);
 				} else {
 					JsonObject Host = Hosts.get(0).getAsJsonObject();
 					// Host exists, check if it is in the right group
@@ -593,7 +593,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							RHostGroups.get(0).getAsJsonObject().get("name").getAsString());
 					// Everything check up, we are good to go!
 					HostID = Host.get("hostid").getAsString();
-					CLog.Config("Found component (host) '%s' with ID #%s", Component, HostID);
+					CLog.Config("Found component (host) '%s' with ID #%s", Project + '.' + Component, HostID);
 				}
 			}
 		} catch (Throwable e) {
@@ -712,7 +712,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					
 					// Check if notification action is configured, add if necessary
 					String ActionID = null;
-					String ActionName = Component + "-AutoNotify";
+					String ActionName = Project + '.' + Component + "-AutoNotify";
 					{
 						ZabbixRequest ActionQuery = ZabbixRequest.Factory.ActionInfo(ActionName);
 						ActionQuery.putParam("selectConditions", "extend");

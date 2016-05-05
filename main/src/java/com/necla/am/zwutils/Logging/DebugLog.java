@@ -365,8 +365,8 @@ public final class DebugLog {
 	}
 	
 	protected static void enableZabbix(String Scope) {
-		String[] ScopeTok = Scope.split("\\.", 2);
-		ZabbixHandler = new ZabbixHandler(ScopeTok[0], Scope);
+		int DelimPos = Scope.lastIndexOf('.');
+		ZabbixHandler = new ZabbixHandler(Scope.substring(0, DelimPos), Scope.substring(DelimPos + 1));
 		LogBase.addHandler(ZabbixHandler);
 	}
 	
@@ -752,8 +752,6 @@ public final class DebugLog {
 				});
 			}
 			
-			private static final String DEFAULT_ZBXCOMPONENT = "GimmeAName";
-			
 			protected class Validation implements Data.Mutable.Validation {
 				
 				@Override
@@ -762,7 +760,9 @@ public final class DebugLog {
 						if (ZabbixScope.isEmpty())
 							ZabbixScope = null;
 						else {
-							if (ZabbixScope.indexOf('.') < 0) ZabbixScope += '.' + DEFAULT_ZBXCOMPONENT;
+							int DelimPos = ZabbixScope.indexOf('.');
+							if ((DelimPos <= 0) || (DelimPos >= ZabbixScope.length() - 1))
+								Misc.FAIL("Invalid Zabbix Scope '%s'", ZabbixScope);
 						}
 					}
 					
