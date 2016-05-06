@@ -33,6 +33,9 @@ package com.necla.am.zwutils.Modeling;
 
 import java.text.DateFormat;
 
+import com.necla.am.zwutils.GlobalConfig;
+import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeSystem;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
@@ -98,6 +101,9 @@ public interface ITimeStamp extends IIdentifier {
 	String toString(DateFormat format);
 	
 	public static class Impl extends IIdentifier.Impl implements ITimeStamp {
+		
+		static protected final String LogGroup = "ZWUtils.Modeling.TimeStamp";
+		static protected final IGroupLogger CLog = new GroupLogger(LogGroup);
 		
 		public long VALUE;
 		
@@ -165,7 +171,13 @@ public interface ITimeStamp extends IIdentifier {
 		
 		@Override
 		public String toString() {
-			return Misc.FormatTS(VALUE, SYSTEM, UNIT);
+			try {
+				return Misc.FormatTS(VALUE, SYSTEM, UNIT);
+			} catch (Throwable e) {
+				if (GlobalConfig.DEBUG_CHECK)
+					CLog.Warn("Failed to format timestamp (%d,%s,%s) - %s", VALUE, SYSTEM, UNIT, e);
+				return "(bad-timestamp)";
+			}
 		}
 		
 		@Override
