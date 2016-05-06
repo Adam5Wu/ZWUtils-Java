@@ -31,6 +31,7 @@
 
 package com.necla.am.zwutils.Misc;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -85,6 +86,14 @@ public class ByteBufferStreams {
 		@Override
 		public synchronized void write(byte[] bytes, int off, int len) throws IOException {
 			BUFFER.put(bytes, off, len);
+		}
+		
+	}
+	
+	public static class ByteArrayOutput extends ByteArrayOutputStream {
+		
+		public ByteBuffer wrap() {
+			return ByteBuffer.wrap(buf, 0, count);
 		}
 		
 	}
