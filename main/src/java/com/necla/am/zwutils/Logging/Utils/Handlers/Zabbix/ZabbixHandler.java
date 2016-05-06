@@ -527,7 +527,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 	
 	public ZabbixHandler(String Project, String Component, ZabbixAPI ZAPI, File ConfigFile) {
 		this.Project = Project;
-		this.Component = Component;
+		this.Component = Project + '.' + Component;
 		
 		if (ZAPI == null) {
 			try {
@@ -537,7 +537,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			}
 		}
 		
-		StripPfxProject = Project + '.';
+		StripPfxProject = this.Project + '.';
 		StripPfxComponent = Component + '.';
 		
 		String HostGroupID = null;
@@ -545,7 +545,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		
 		try {
 			if (ZAPI != null) {
-				ZabbixRequest HGQuery = ZabbixRequest.Factory.HostGroupInfo(Project);
+				ZabbixRequest HGQuery = ZabbixRequest.Factory.HostGroupInfo(this.Project);
 				HGQuery.putParam("output", Misc.wrap("groupid"));
 				JsonArray HostGroups = ZAPI.call(HGQuery).get("result").getAsJsonArray();
 				if (HostGroups.size() != 1) {
@@ -555,33 +555,32 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					// Cannot create host group by ourselves
 					// (unless we are super-admin, not likely, and not safe!)
 					
-					CLog.Error("Please contact Zabbix administrator to create host group '%s'", Project);
+					CLog.Error("Please contact Zabbix administrator to create host group '%s'", this.Project);
 					CLog.Error("And / or please give user '%s' read/write access right to this host group",
 							ZAPI.user());
-					Misc.FAIL("Missing project (host group) '%s'", Project);
+					Misc.FAIL("Missing project (host group) '%s'", this.Project);
 				} else {
 					HostGroupID = HostGroups.get(0).getAsJsonObject().get("groupid").getAsString();
-					CLog.Config("Found project (host group) '%s' with ID #%s", Project, HostGroupID);
+					CLog.Config("Found project (host group) '%s' with ID #%s", this.Project, HostGroupID);
 				}
 				
-				ZabbixRequest HostQuery = ZabbixRequest.Factory.HostInfo(Project + '.' + Component);
+				ZabbixRequest HostQuery = ZabbixRequest.Factory.HostInfo(this.Component);
 				HostQuery.putParam("output", Misc.wrap("hostid"));
 				HostQuery.putParam("selectGroups", Misc.wrap("groupid"));
 				JsonArray Hosts = ZAPI.call(HostQuery).get("result").getAsJsonArray();
 				if (Hosts.size() != 1) {
 					if (Hosts.size() > 1) Misc.FAIL("Expect return of 1 entry, received %d", Hosts.size());
 					// Try to create the host on-the-fly
-					ZabbixRequest HCQuery =
-							ZabbixRequest.Factory.HostCreate(Project + '.' + Component, HostGroupID);
+					ZabbixRequest HCQuery = ZabbixRequest.Factory.HostCreate(this.Component, HostGroupID);
 					HCQuery.putParam("interfaces",
 							Misc.StringMap(Misc.wrap("type", "main", "useip", "ip", "dns", "port"),
 									(Object[]) Misc.wrap(1L, 1L, 1L, "0.0.0.0", "", "0")));
 					JsonObject Result = ZAPI.call(HCQuery);
 					if (Result.has("error")) Misc.FAIL("Failed to create project (host group) '%s': %s",
-							Project, Result.get("error"));
+							this.Project, Result.get("error"));
 					JsonObject HCreate = Result.get("result").getAsJsonObject();
 					HostID = HCreate.get("hostids").getAsJsonArray().get(0).getAsString();
-					CLog.Info("Created component (host) '%s' with ID #%s", Project + '.' + Component, HostID);
+					CLog.Info("Created component (host) '%s' with ID #%s", this.Component, HostID);
 				} else {
 					JsonObject Host = Hosts.get(0).getAsJsonObject();
 					// Host exists, check if it is in the right group
@@ -593,7 +592,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 							RHostGroups.get(0).getAsJsonObject().get("name").getAsString());
 					// Everything check up, we are good to go!
 					HostID = Host.get("hostid").getAsString();
-					CLog.Config("Found component (host) '%s' with ID #%s", Project + '.' + Component, HostID);
+					CLog.Config("Found component (host) '%s' with ID #%s", this.Component, HostID);
 				}
 			}
 		} catch (Throwable e) {
@@ -627,7 +626,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					String MediaTypeID = null;
 					
 					// Check the medias (require email, others optional -- and not implemented)
-					String MediaTypeName = Project + "-Email";
+					String MediaTypeName = this.Project + "-Email";
 					{
 						ZabbixRequest MTQuery = ZabbixRequest.Factory.MediaTypeInfo(MediaTypeName, null);
 						MTQuery.putParam("output", "mediatypeid");
@@ -712,7 +711,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					
 					// Check if notification action is configured, add if necessary
 					String ActionID = null;
-					String ActionName = Project + '.' + Component + "-AutoNotify";
+					String ActionName = this.Component + "-AutoNotify";
 					{
 						ZabbixRequest ActionQuery = ZabbixRequest.Factory.ActionInfo(ActionName);
 						ActionQuery.putParam("selectConditions", "extend");
