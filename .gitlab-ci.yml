@@ -20,6 +20,8 @@ build_package:
     - gradle
   except:
     - /^test-.*$/
+    - /^master$/
+    - tags
 
 deploy_package:
   stage: deploy
@@ -33,6 +35,5 @@ deploy_package:
   tags:
     - java
     - gradle
-  except:
-    - /^test-.*$/
-
+  only:
+    - /^master$/
