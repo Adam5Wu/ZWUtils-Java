@@ -1,4 +1,4 @@
 [submodule "Bless"]
 	path = Bless
-	url = https://github.com/Adam5Wu/Bless.git
+	url = ../Bless.git
 	branch = master
