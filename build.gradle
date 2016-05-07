@@ -154,7 +154,6 @@ gradle.taskGraph.whenReady { taskGraph ->
 			repository(url: secrets.mavenServer) {
 				authentication(userName: secrets.user, password: secrets.pass)
 			}
-			pom.groupId = secrets.mavenGroup
 		}
 	}
 }
@@ -162,6 +161,7 @@ gradle.taskGraph.whenReady { taskGraph ->
 uploadArchives {
 	repositories.mavenDeployer {
 		configuration = configurations.deployerJars
+		pom.groupId = "com.necla.am"
 	}
 }
 
