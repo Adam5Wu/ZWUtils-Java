@@ -1,4 +1,5 @@
 before_script:
+  - . ~/.sshagent && sshagent_init
   - git submodule update --init --recursive
   - cp ~/publish.secrets.ZWUtils-Java publish.secrets
 
