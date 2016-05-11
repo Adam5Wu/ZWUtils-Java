@@ -107,6 +107,31 @@ public class ObjectTrap {
 		
 	}
 	
+	public static class DummyScope implements IScope {
+		
+		protected final Class<?> DummyType;
+		
+		public DummyScope(Class<?> type) {
+			DummyType = type;
+		}
+		
+		@Override
+		public Class<?> Type() {
+			return DummyType;
+		}
+		
+		@Override
+		public Object Peek(Object obj) {
+			return obj;
+		}
+		
+		@Override
+		public Throwable LastError() {
+			return null;
+		}
+		
+	}
+	
 	public static abstract class BaseScope implements IScope {
 		
 		protected ThreadLocal<Throwable> LastError = new ThreadLocal<>();
@@ -2104,8 +2129,8 @@ public class ObjectTrap {
 	
 	protected IScope CreateScopePath(String ScopePath) {
 		return ScopePathCache.Query(ScopePath, scopepath -> {
-			IScope Scope = null;
 			Class<?> BaseClass = ObjClass;
+			IScope Scope = new DummyScope(ObjClass);
 			CascadeScope CScope = new CascadeScope();
 			
 			Pattern ScopeSplitter =
