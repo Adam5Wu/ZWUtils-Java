@@ -85,7 +85,10 @@ sourceSets {
 //	}
 }
 
-compileJava.source SrcGen.outputs.files
+compileJava {
+	options.incremental = true
+	source SrcGen.outputs.files
+}
 
 repositories {
 	mavenCentral()
