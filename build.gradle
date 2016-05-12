@@ -50,7 +50,7 @@ task GenClean(type: Delete) {
 	delete 'build/gen/src'
 }
 
-task SrcGen(type: Copy, dependsOn: GenClean) {
+task NSGen(type: Copy, dependsOn: GenClean) {
 	from 'main/src/java/'
 	into 'build/gen/src'
 	include '**/_Namespace.java'
@@ -87,7 +87,7 @@ sourceSets {
 
 compileJava {
 	options.incremental = true
-	source SrcGen.outputs.files
+	source NSGen.outputs.files
 }
 
 repositories {
