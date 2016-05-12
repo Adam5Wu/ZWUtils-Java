@@ -279,7 +279,7 @@ public class ProcStats extends Companion {
 		if (Config.Stats.contains(ConfigData.StatType.APPINFO)) {
 			// Class info
 			try {
-				String[] ClassPaths = RuntimeMX.getClassPath().split(";");
+				String[] ClassPaths = RuntimeMX.getClassPath().split(File.pathSeparator);
 				
 				int PackageMainCount = 0;
 				for (String ClassPath : ClassPaths) {
