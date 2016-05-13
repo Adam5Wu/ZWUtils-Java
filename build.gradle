@@ -86,7 +86,6 @@ sourceSets {
 }
 
 compileJava {
-	options.incremental = true
 	source NSGen.outputs.files
 }
 
