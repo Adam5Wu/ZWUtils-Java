@@ -1774,8 +1774,10 @@ public class ObjectTrap {
 					case IsNull:
 						return value == null;
 					case AsClass:
-						for (Class<?> Cast : CastSet)
-							if (Cast.isAssignableFrom(value.getClass())) return true;
+						if (value != null) {
+							for (Class<?> Cast : CastSet)
+								if (Cast.isAssignableFrom(value.getClass())) return true;
+						}
 						return false;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
