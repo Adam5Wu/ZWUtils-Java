@@ -247,7 +247,7 @@ public class ObjectTrap {
 		@Override
 		public Object doPeek(Object obj) {
 			LastError.set(null);
-			if (!Type().isAssignableFrom(obj.getClass())) {
+			if ((obj != null) && !Type().isAssignableFrom(obj.getClass())) {
 				LastError.set(WRONGTYPE);
 				return null;
 			}
@@ -256,7 +256,7 @@ public class ObjectTrap {
 				return Type().cast(obj);
 			} catch (Throwable e) {
 				if (GlobalConfig.DEBUG_CHECK)
-					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.CAST_VALUE_FAILED"), //$NON-NLS-1$
+					ILog.Info(Messages.Localize("Debugging.ObjectTrap.CAST_VALUE_FAILED"), //$NON-NLS-1$
 							T.CLASS.getSimpleName());
 				LastError.set(e);
 				return null;
@@ -278,16 +278,23 @@ public class ObjectTrap {
 		
 		public final Class<?> C;
 		public final Throwable WRONGCLASS;
+		public final Throwable NULLINST;
 		
 		public ClassCastScope(Class<?> c, String cname)
 				throws SecurityException, ClassNotFoundException {
 			C = cname != null? ClassDict.Get(cname).toClass() : c;
 			WRONGCLASS = new ClassCastException(
 					String.format(Messages.Localize("Debugging.ObjectTrap.CLASS_NO_CAST"), C.getName())); //$NON-NLS-1$
+			NULLINST =
+					new ClassCastException(String.format("Cannot perform class cast on NULL", C.getName()));
 		}
 		
 		public boolean ClassCheck(Object obj) {
 			LastError.set(null);
+			if (obj == null) {
+				LastError.set(WRONGCLASS);
+				return false;
+			}
 			if (!C.isAssignableFrom(obj.getClass())) {
 				LastError.set(WRONGCLASS);
 				return false;
@@ -344,7 +351,7 @@ public class ObjectTrap {
 				return F.get(obj);
 			} catch (Throwable e) {
 				if (GlobalConfig.DEBUG_CHECK)
-					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), F.getName()); //$NON-NLS-1$
+					ILog.Info(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), F.getName()); //$NON-NLS-1$
 				LastError.set(e);
 				return null;
 			}
