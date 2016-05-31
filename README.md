@@ -18,5 +18,9 @@ I am grateful for NEC Laboratories America, Inc., for granting open source relea
 # License
 BSD 3-clause New License
 
-# How to Use
+# Build Instructions
+- [Manual Building and Publishing](BUILD.md)
+- [Automated Building and Publishing](BUILD-CI.md)
+
+# Documentation
 (Coming soon in wiki)
