@@ -34,12 +34,17 @@ compileJava {
 import org.gradle.internal.os.OperatingSystem;
 
 task Bless(type:Exec) {
-	if (OperatingSystem.current().isLinux()) {
-		commandLine 'Bless/Bless.sh'
-		ext.blessDir = 'build/blessed/main/src/java'
-	} else {
-		// Run a harmless command to bypass blessing 
+	if (OperatingSystem.current().isLinux() || OperatingSystem.current().isMacOsX()) {
+		commandLine 'bash', 'Bless/Bless.sh'
+		ext.blessDir = 'build/blessed/src'
+	} else if (OperatingSystem.current().isWindows()) {
+		// Bless script does not support Windows (at least not "natively")
 		commandLine 'cmd', '/c', 'echo'
+		println '! Blessed source generation disabled on Windows'
+		ext.blessDir = 'main/src/java'
+	} else {
+		ChangeLog.commandLine 'echo'
+		println '! Blessed source generation is not supported on this platform'
 		ext.blessDir = 'main/src/java'
 	}
 }
