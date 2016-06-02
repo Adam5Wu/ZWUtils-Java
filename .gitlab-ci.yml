@@ -1,6 +1,7 @@
 before_script:
   - . ~/.sshagent && sshagent_init
   - git submodule update --init --recursive
+  - set -a && . ~/publish.env.ZWUtils-Java
 
 stages:
   - build
@@ -31,7 +32,7 @@ deploy_package:
     key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
-    - set -a && . ~/publish.env.ZWUtils-Java && gradle upload
+    - gradle upload
   tags:
     - java
     - gradle
