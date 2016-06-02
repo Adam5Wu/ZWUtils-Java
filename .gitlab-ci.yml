@@ -1,5 +1,4 @@
 before_script:
-  - . ~/.sshagent && sshagent_init
   - git submodule update --init --recursive
   - set -a && . ~/publish.env.ZWUtils-Java
 
