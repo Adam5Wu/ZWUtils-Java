@@ -152,23 +152,29 @@ dependencies {
 	deployerJars "org.apache.maven.wagon:wagon-http:2.10"
 }
 
-gradle.taskGraph.whenReady { taskGraph ->
-	if(taskGraph.hasTask(':uploadArchives')) {
-		Properties secrets = new Properties()
-		secrets.load(new FileInputStream("publish.secrets"))
+task Config_uploadArchives << {
+	def MavenPub = System.getenv("MAVENPUB_URL");
+	if (MavenPub == null)
+		throw new GradleException('MAVENPUB_URL is undefined')
+	def MavenPubUser = System.getenv("MAVENPUB_USER");
+	if (MavenPubUser == null)
+		throw new GradleException('MAVENPUB_USER is undefined')
+	def MavenPubPass = System.getenv("MAVENPUB_PASS");
+	if (MavenPubPass == null)
+		throw new GradleException('MAVENPUB_PASS is undefined')
 
-		uploadArchives.repositories.mavenDeployer {
-			repository(url: secrets.mavenServer) {
-				authentication(userName: secrets.user, password: secrets.pass)
-			}
+	uploadArchives.repositories.mavenDeployer {
+		repository(url: MavenPub) {
+			authentication(userName: MavenPubUser, password: MavenPubPass)
 		}
 	}
 }
 
 uploadArchives {
+	dependsOn Config_uploadArchives
+
 	repositories.mavenDeployer {
 		configuration = configurations.deployerJars
 		pom.groupId = "com.necla.am"
 	}
 }
-

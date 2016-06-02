@@ -5,12 +5,12 @@ GitLab-CI can be used for quick building and publishing.
 
 ### Basic Environment Setup
 1. Prepare building environments, follow [build environment setup instructions](BUILD.md).
-2. Prepare `~/publish.secrets.ZWUtils-Java` using the following template:
+2. Prepare `~/publish.env.ZWUtils-Java` using the following template:
 
     ```shell
-    user=(username)
-    pass=(password)
-    mavenServer=(maven url)
+    MAVENPUB_USER=(Username)
+    MAVENPUB_PASS=(Password)
+    MAVENPUB_URL=(Maven Target URL)
     ```
 
 ### Configure GitLab runner

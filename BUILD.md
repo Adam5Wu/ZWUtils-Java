@@ -19,13 +19,12 @@ Import as Gradle project using official Buildship plug-in.
 The following maven publishing is supported via Gradle.
 
 ## Authenticated publishing to private maven repository
-1. Setup control variables
+1. Setup environmental variables
 
     ```
-    publish.secrets:
-    user=(username)
-    pass=(password)
-    mavenServer=(maven url)
+    MAVENPUB_USER=(Username)
+    MAVENPUB_PASS=(Password)
+    MAVENPUB_URL=(Maven Target URL)
     ```
 2. Run Gradle task
 
