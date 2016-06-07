@@ -757,6 +757,24 @@ public final class DebugLog {
 			
 			protected class Validation implements Data.Mutable.Validation {
 				
+				protected void ProbeLogFile(String LogFileName) {
+					File LogOutputFile = new File(LogFileName);
+					if (!LogOutputFile.exists()) {
+						try {
+							// Make sure the log file have proper parent directory
+							if (LogOutputFile.getParentFile().mkdirs()) {
+								Logger.Fine("Created log directory '%s'", Misc.stripFileName(LogFileName));
+							}
+							LogOutputFile.createNewFile();
+						} catch (Throwable e) {
+							Misc.FAIL("Failed to create log file '%s'", LogFile);
+						}
+					}
+					if (!LogOutputFile.canWrite()) {
+						Misc.FAIL("Could not write to log file '%s'", LogFile);
+					}
+				}
+				
 				@Override
 				public void validateFields() throws Throwable {
 					if (ZabbixScope != null) {
@@ -772,17 +790,7 @@ public final class DebugLog {
 					
 					if ((LogFile != null) && !LogFile.FileName.isEmpty()) {
 						Logger.Fine("Checking log output file '%s'...", LogFile);
-						File LogOutputFile = new File(LogFile.FileName);
-						if (!LogOutputFile.exists()) {
-							try {
-								LogOutputFile.createNewFile();
-							} catch (Throwable e) {
-								Misc.FAIL("Failed to create log file '%s'", LogFile);
-							}
-						}
-						if (!LogOutputFile.canWrite()) {
-							Misc.FAIL("Could not write to log file '%s'", LogFile);
-						}
+						ProbeLogFile(LogFile.FileName);
 					}
 					
 					GroupFiles.keySet().forEach(LogGroup -> {
@@ -790,15 +798,7 @@ public final class DebugLog {
 						if (!GLogEntry.FileName.isEmpty()) {
 							Logger.Fine("Checking log group '%s' output file '%s'...", LogGroup,
 									GLogEntry.FileName);
-							File LogOutputFile = new File(GLogEntry.FileName);
-							try {
-								LogOutputFile.createNewFile();
-							} catch (Throwable e) {
-								Misc.FAIL("Failed to create log file '%s'", LogFile);
-							}
-							if (!LogOutputFile.canWrite()) {
-								Misc.FAIL("Could not write to log file '%s'", GLogEntry.FileName);
-							}
+							ProbeLogFile(GLogEntry.FileName);
 						}
 					});
 				}
