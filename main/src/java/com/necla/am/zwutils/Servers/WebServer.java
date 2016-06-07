@@ -547,7 +547,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					ILog.Warn("[%s:%d]: Error serving request %s '%s' - %s",
 							HE.getRemoteAddress().getAddress().getHostAddress(), HE.getRemoteAddress().getPort(),
 							HE.getRequestMethod(), HE.getRequestURI(),
-							(e.getMessage() != null? e.getMessage() : e.getClass().getName()));
+							(e.getLocalizedMessage() != null? e.getLocalizedMessage() : e.getClass().getName()));
 				ExceptCount.incrementAndGet();
 				Class<? extends Throwable> ExceptClass = e.getClass();
 				synchronized (ExceptStats) {

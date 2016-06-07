@@ -150,7 +150,7 @@ public class GlobalConfig {
 			} catch (Throwable e) {
 				DebugLog.DirectErrOut()
 						.println(String.format(Messages.Localize("GlobalConfig.LOAD_CONFIG_FAIL"), //$NON-NLS-1$
-								GlobalConfig.class.getSimpleName(), e.getMessage()));
+								GlobalConfig.class.getSimpleName(), e.getLocalizedMessage()));
 				e.printStackTrace(DebugLog.DirectErrOut());
 				Misc.CascadeThrow(e);
 			}

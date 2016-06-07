@@ -893,7 +893,7 @@ public class TaskHost extends Poller {
 						Thread.yield();
 					} catch (InterruptedException e) {
 						if (GlobalConfig.DEBUG_CHECK) {
-							ILog.Warn("Join interrupted: %s", e.getMessage());
+							ILog.Warn("Join interrupted: %s", e.getLocalizedMessage());
 						}
 					}
 				}

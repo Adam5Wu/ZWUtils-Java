@@ -762,12 +762,13 @@ public final class DebugLog {
 					if (!LogOutputFile.exists()) {
 						try {
 							// Make sure the log file have proper parent directory
-							if (LogOutputFile.getParentFile().mkdirs()) {
+							File LogOutputDir = LogOutputFile.getParentFile();
+							if ((LogOutputDir != null) && LogOutputDir.mkdirs()) {
 								Logger.Fine("Created log directory '%s'", Misc.stripFileName(LogFileName));
 							}
 							LogOutputFile.createNewFile();
 						} catch (Throwable e) {
-							Misc.FAIL("Failed to create log file '%s'", LogFile);
+							Misc.FAIL("Failed to create log file '%s' - %s", LogFile, e.getLocalizedMessage());
 						}
 					}
 					if (!LogOutputFile.canWrite()) {
@@ -1139,7 +1140,7 @@ public final class DebugLog {
 			} catch (Throwable e) {
 				DirectErrOut().println(String.format(
 						"Failed first stage pre-initialization for %s: %s, program will terminate.",
-						DebugLog.class.getSimpleName(), e.getMessage()));
+						DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
 				e.printStackTrace(DirectErrOut());
 				Misc.CascadeThrow(e);
 			}
@@ -1167,7 +1168,7 @@ public final class DebugLog {
 			} catch (Throwable e) {
 				DirectErrOut().println(String.format(
 						"Failed second stage pre-initialization for %s: %s, program will terminate.",
-						DebugLog.class.getSimpleName(), e.getMessage()));
+						DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
 				e.printStackTrace(DirectErrOut());
 				Misc.CascadeThrow(e);
 			}
@@ -1182,7 +1183,7 @@ public final class DebugLog {
 			} catch (Throwable e) {
 				DirectErrOut().println(String.format(
 						"Failed third stage pre-initialization for %s: %s, program will terminate.",
-						DebugLog.class.getSimpleName(), e.getMessage()));
+						DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
 				e.printStackTrace(DirectErrOut());
 				Misc.CascadeThrow(e);
 			}
@@ -1195,7 +1196,7 @@ public final class DebugLog {
 		} catch (Throwable e) {
 			DirectErrOut()
 					.println(String.format("Failed to load configrations for %s: %s, program will terminate.",
-							DebugLog.class.getSimpleName(), e.getMessage()));
+							DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
 			e.printStackTrace(DirectErrOut());
 			Misc.CascadeThrow(e);
 		}
@@ -1206,7 +1207,7 @@ public final class DebugLog {
 			setConfigured(Config);
 		} catch (Throwable e) {
 			DirectErrOut().println(String.format("Failed to initialize %s: %s, program will terminate.",
-					DebugLog.class.getSimpleName(), e.getMessage()));
+					DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
 			e.printStackTrace(DirectErrOut());
 			Misc.CascadeThrow(e);
 		}

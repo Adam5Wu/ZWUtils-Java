@@ -220,7 +220,8 @@ public class DataFile extends Properties {
 		File FSConf = new File(ConfigFileName);
 		
 		// Make sure configuration file have proper parent directory
-		if (FSConf.getParentFile().mkdirs()) {
+		File FSConfDir = FSConf.getParentFile();
+		if ((FSConfDir != null) && FSConf.getParentFile().mkdirs()) {
 			ILog.Fine(Messages.Localize("Config.DataFile.SAVE_FILE_MKDIR"), //$NON-NLS-1$
 					Misc.stripFileName(INIFileName));
 		}

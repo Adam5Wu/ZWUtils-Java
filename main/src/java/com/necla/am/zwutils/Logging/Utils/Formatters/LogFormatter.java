@@ -282,7 +282,7 @@ public abstract class LogFormatter extends Formatter {
 			} catch (Throwable e) {
 				DebugLog.DirectErrOut().println(
 						String.format("Failed to load configurations for %s: %s, program will terminate.",
-								LogFormatter.class.getSimpleName(), e.getMessage()));
+								LogFormatter.class.getSimpleName(), e.getLocalizedMessage()));
 				e.printStackTrace(DebugLog.DirectErrOut());
 				Misc.CascadeThrow(e);
 			}

@@ -281,7 +281,7 @@ public class Misc {
 								FailType.getSimpleName());
 						FailType = (Class<? extends RuntimeException>) SuperClass;
 					} else {
-						Misc.ERROR("Could not construct Exception %s: %s", e.getMessage());
+						Misc.ERROR("Could not construct Exception %s: %s", e.getLocalizedMessage());
 					}
 				}
 			}
@@ -332,7 +332,7 @@ public class Misc {
 								FailType.getSimpleName());
 						FailType = (Class<? extends RuntimeException>) SuperClass;
 					} else {
-						Misc.ERROR("Could not construct Exception %s: %s", e.getMessage());
+						Misc.ERROR("Could not construct Exception %s: %s", e.getLocalizedMessage());
 					}
 				}
 			}
@@ -998,7 +998,7 @@ public class Misc {
 			try {
 				Str = In.readLine();
 			} catch (IOException e) {
-				DebugLog.Logger.Fine("Reader exception: %s", e.getMessage());
+				DebugLog.Logger.Fine("Reader exception: %s", e.getLocalizedMessage());
 				break;
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e);

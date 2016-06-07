@@ -1040,7 +1040,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				}
 			}
 		} catch (Throwable e) {
-			CLog.Warn("Report preparation failed - %s", e.getMessage());
+			CLog.Warn("Report preparation failed - %s", e.getLocalizedMessage());
 			if (e.getCause() != null) CLog.logExcept(e.getCause());
 			return;
 		}
