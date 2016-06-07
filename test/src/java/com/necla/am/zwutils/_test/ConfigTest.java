@@ -130,7 +130,7 @@ public class ConfigTest {
 			
 		}
 		
-		public static final File ConfigFile = DataFile.DeriveConfigFile("");
+		public static final File ConfigFile = DataFile.DeriveConfigFile();
 		
 		public static Container<Mutable, ReadOnly> Create() throws Throwable {
 			return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config", ConfigFile, "");
@@ -170,13 +170,7 @@ public class ConfigTest {
 		CLog.Info("Test = %d", Config.Test);
 		CLog.Info("TestSqr = %d", Config.TestSqr);
 		try {
-			String OutFile = TestConfig.ConfigFile.getPath();
-			try {
-				new File(OutFile).createNewFile();
-			} catch (IOException e) {
-				OutFile = "bin/" + OutFile;
-			}
-			TestConfig.Save(Test, OutFile, "Just a Test!");
+			TestConfig.Save(Test, TestConfig.ConfigFile.getPath(), "Just a Test!");
 		} catch (IOException e) {
 			CLog.logExcept(e, "Failed to save configurations");
 		}

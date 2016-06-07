@@ -55,7 +55,6 @@ public class Versioning {
 		} catch (Throwable e) {
 			Misc.CascadeThrow(e);
 		}
-		
 	}
 	
 }

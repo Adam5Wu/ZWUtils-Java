@@ -40,6 +40,7 @@ import java.io.OutputStream;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
@@ -63,6 +64,15 @@ public class DataFile extends Properties {
 	
 	/**
 	 * Generate configuration file from caller class name
+	 * 
+	 * @return Configuration file
+	 */
+	public static File DeriveConfigFile() {
+		return DeriveConfigFile("", 1);
+	}
+	
+	/**
+	 * Generate configuration file from caller class name, with optional prefix
 	 *
 	 * @param Prefix
 	 *          - Prefix to use
@@ -70,11 +80,25 @@ public class DataFile extends Properties {
 	 * @since 0.25
 	 */
 	public static File DeriveConfigFile(String Prefix) {
-		StackTraceElement CallerFrame = Misc.getCallerStackFrame(1);
+		return DeriveConfigFile(Prefix, 1);
+	}
+	
+	/**
+	 * Generate configuration file from caller class name, with optional prefix
+	 *
+	 * @param Prefix
+	 *          - Prefix to use
+	 * @return Configuration file
+	 * @since 0.25
+	 */
+	public static File DeriveConfigFile(String Prefix, int PopFrame) {
+		StackTraceElement CallerFrame = Misc.getCallerStackFrame(PopFrame + 1);
 		String ClassName = CallerFrame.getClassName();
 		int SubClassIdx = ClassName.indexOf('$');
-		if (SubClassIdx > 0) ClassName = ClassName.substring(0, SubClassIdx);
-		return new File("conf/" + Prefix + Misc.stripPackageName(ClassName) + ".properties"); //$NON-NLS-1$ //$NON-NLS-2$
+		if (SubClassIdx > 0) {
+			ClassName = ClassName.substring(0, SubClassIdx);
+		}
+		return new File(Prefix + Misc.stripPackageName(ClassName) + ".properties"); //$NON-NLS-1$
 	}
 	
 	protected final IGroupLogger ILog;
@@ -87,29 +111,59 @@ public class DataFile extends Properties {
 	}
 	
 	public DataFile(String Name, String INIFileName) {
-		this(Name, INIFileName, null);
+		this(Name, INIFileName, null, null, null);
+	}
+	
+	public DataFile(String Name, String INIFileName, String FSDir, String JarDir) {
+		this(Name, INIFileName, FSDir, JarDir, null);
 	}
 	
 	public DataFile(String Name, String INIFileName, ClassLoader Loader) {
+		this(Name, INIFileName, null, null, Loader);
+	}
+	
+	public DataFile(String Name, String INIFileName, String FSDir, String JarDir,
+			ClassLoader Loader) {
 		this(Name);
 		
 		try {
+			if (FSDir == null) {
+				FSDir = GlobalConfig.CONFFILE_FSDIR;
+			}
+			if (JarDir == null) {
+				JarDir = GlobalConfig.CONFFILE_JARDIR;
+			}
+			
 			InputStream Conf = null;
 			try {
 				ILog.Finer(Messages.Localize("Config.DataFile.CHECK_CURDIR")); //$NON-NLS-1$
-				File ConfigFile = Misc.probeFile(INIFileName);
-				if ((ConfigFile != null) && ConfigFile.canRead()) {
+				
+				boolean ConfigRelAppRoot = INIFileName.startsWith("?");
+				
+				// First probe FSDir+INIFileName (local file override)
+				String ConfigFileName =
+						ConfigRelAppRoot? INIFileName.substring(1) : Misc.appendPathName(FSDir, INIFileName);
+				File ConfigFile = new File(ConfigFileName);
+				if (ConfigFile.exists() && ConfigFile.canRead()) {
 					INIFileName = ConfigFile.getPath();
 					lastModified = new ITimeStamp.Impl(ConfigFile.lastModified());
 					Conf = new FileInputStream(ConfigFile);
 				} else {
-					String ResourceName = INIFileName;
-					if (Misc.PATH_DELIMITER != File.separatorChar)
+					// If not exist, probe within Jar bundle
+					ConfigFileName =
+							ConfigRelAppRoot? INIFileName.substring(1) : Misc.appendPathName(JarDir, INIFileName);
+					String ResourceName = Misc.appendPathName(JarDir, INIFileName);
+					if (Misc.PATH_DELIMITER != File.separatorChar) {
 						ResourceName = ResourceName.replace(File.separatorChar, Misc.PATH_DELIMITER);
-					if (Loader != null) Conf = Loader.getResourceAsStream(ResourceName);
+					}
+					if (Loader != null) {
+						Conf = Loader.getResourceAsStream(ResourceName);
+					}
 					
-					if (Conf == null) Conf = getClass()
-							.getResourceAsStream(Misc.appendPathName(Misc.PATH_DELIMITER_STR, ResourceName));
+					if (Conf == null) {
+						Conf = getClass()
+								.getResourceAsStream(Misc.appendPathName(Misc.PATH_DELIMITER_STR, ResourceName));
+					}
 				}
 				
 				if (Conf != null) {
@@ -117,8 +171,9 @@ public class DataFile extends Properties {
 					ILog.Fine(Messages.Localize("Config.DataFile.OPEN_FILE"), INIFileName, //$NON-NLS-1$
 							(ConfigFile != null? "file" : "resource")); //$NON-NLS-1$ //$NON-NLS-2$
 				} else {
-					if (ILog.isLoggable(Level.CONFIG))
+					if (ILog.isLoggable(Level.CONFIG)) {
 						ILog.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_WARN"), INIFileName); //$NON-NLS-1$
+					}
 					lastModified = new ITimeStamp.Impl(0);
 				}
 			} finally {
@@ -127,10 +182,11 @@ public class DataFile extends Properties {
 				}
 			}
 		} catch (Throwable e) {
-			if (ILog.isLoggable(Level.FINE))
+			if (ILog.isLoggable(Level.FINE)) {
 				ILog.logExcept(e, Messages.Localize("Config.DataFile.OPEN_FILE_FAIL"), INIFileName); //$NON-NLS-1$
-			else if (ILog.isLoggable(Level.CONFIG))
+			} else if (ILog.isLoggable(Level.CONFIG)) {
 				ILog.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_FAIL_LT"), INIFileName, e); //$NON-NLS-1$
+			}
 		}
 	}
 	
@@ -141,10 +197,11 @@ public class DataFile extends Properties {
 			load(INIData);
 			ILog.Fine(Messages.Localize("Config.DataFile.LOADED_STREAM")); //$NON-NLS-1$
 		} catch (Throwable e) {
-			if (ILog.isLoggable(Level.FINE))
+			if (ILog.isLoggable(Level.FINE)) {
 				ILog.logExcept(e, Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL")); //$NON-NLS-1$
-			else if (ILog.isLoggable(Level.CONFIG))
+			} else if (ILog.isLoggable(Level.CONFIG)) {
 				ILog.Warn(Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL_LT"), e); //$NON-NLS-1$
+			}
 		}
 	}
 	
@@ -157,7 +214,21 @@ public class DataFile extends Properties {
 	}
 	
 	public void saveAs(String INIFileName, String Comments) throws IOException {
-		store(new FileOutputStream(INIFileName), Comments);
+		boolean ConfigRelAppRoot = INIFileName.startsWith("?");
+		String ConfigFileName = ConfigRelAppRoot? INIFileName.substring(1) : Misc
+				.appendPathName(GlobalConfig.CONFFILE_FSDIR, INIFileName);
+		File FSConf = new File(ConfigFileName);
+		
+		// Make sure configuration file have proper parent directory
+		if (FSConf.getParentFile().mkdirs()) {
+			ILog.Fine(Messages.Localize("Config.DataFile.SAVE_FILE_MKDIR"), //$NON-NLS-1$
+					Misc.stripFileName(INIFileName));
+		}
+		if (FSConf.createNewFile()) {
+			ILog.Fine(Messages.Localize("Config.DataFile.SAVE_FILE_NEW"), //$NON-NLS-1$
+					Misc.stripPathName(INIFileName));
+		}
+		store(new FileOutputStream(FSConf), Comments);
 		ILog.Fine(Messages.Localize("Config.DataFile.SAVE_FILE"), Misc.stripPathName(INIFileName)); //$NON-NLS-1$
 	}
 	

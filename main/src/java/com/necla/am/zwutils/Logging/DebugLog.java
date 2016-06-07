@@ -234,10 +234,11 @@ public final class DebugLog {
 			}
 			
 			LogFormatter Formatter;
-			if (LogGroup != null)
+			if (LogGroup != null) {
 				Formatter = new LogFormatter.Delegator(null, LogGroup);
-			else
+			} else {
 				Formatter = new LogFormatter.Delegator(Ret, DebugLog.LogGroup);
+			}
 			Ret.setFormatter(Formatter);
 			Ret.setEncoding("UTF-8");
 		} catch (Throwable e) {
@@ -645,7 +646,9 @@ public final class DebugLog {
 			// Install termination hook
 			Runtime.getRuntime().addShutdownHook(new Thread(new Cleanup()));
 			
-			if (Config.ZabbixScope != null) enableZabbix(Config.ZabbixScope);
+			if (Config.ZabbixScope != null) {
+				enableZabbix(Config.ZabbixScope);
+			}
 		} else {
 			Misc.ASSERT(false, "Logger already configured");
 		}
@@ -757,22 +760,25 @@ public final class DebugLog {
 				@Override
 				public void validateFields() throws Throwable {
 					if (ZabbixScope != null) {
-						if (ZabbixScope.isEmpty())
+						if (ZabbixScope.isEmpty()) {
 							ZabbixScope = null;
-						else {
+						} else {
 							int DelimPos = ZabbixScope.indexOf('.');
-							if ((DelimPos <= 0) || (DelimPos >= ZabbixScope.length() - 1))
+							if ((DelimPos <= 0) || (DelimPos >= (ZabbixScope.length() - 1))) {
 								Misc.FAIL("Invalid Zabbix Scope '%s'", ZabbixScope);
+							}
 						}
 					}
 					
-					if (LogFile != null) {
+					if ((LogFile != null) && !LogFile.FileName.isEmpty()) {
 						Logger.Fine("Checking log output file '%s'...", LogFile);
 						File LogOutputFile = new File(LogFile.FileName);
-						if (!LogOutputFile.exists()) try {
-							LogOutputFile.createNewFile();
-						} catch (Throwable e) {
-							Misc.FAIL("Failed to create log file '%s'", LogFile);
+						if (!LogOutputFile.exists()) {
+							try {
+								LogOutputFile.createNewFile();
+							} catch (Throwable e) {
+								Misc.FAIL("Failed to create log file '%s'", LogFile);
+							}
 						}
 						if (!LogOutputFile.canWrite()) {
 							Misc.FAIL("Could not write to log file '%s'", LogFile);
@@ -817,7 +823,9 @@ public final class DebugLog {
 					attachConsoleHandler();
 				}
 				if (Source.LogFile != null) {
-					attachFileHandler(Source.LogFile);
+					if (!Source.LogFile.FileName.isEmpty()) {
+						attachFileHandler(Source.LogFile);
+					}
 				}
 				if (Source.Log4J) {
 					attachLog4JHandler();
@@ -1226,7 +1234,9 @@ public final class DebugLog {
 			
 			@Override
 			synchronized public void close() {
-				if (isClosed()) Misc.FAIL("Handler already closed");
+				if (isClosed()) {
+					Misc.FAIL("Handler already closed");
+				}
 				
 				if (!Closed) {
 					Closed = true;
@@ -1240,7 +1250,9 @@ public final class DebugLog {
 			
 			@Override
 			synchronized public void flush() {
-				if (isClosed()) Misc.FAIL("Handler already closed");
+				if (isClosed()) {
+					Misc.FAIL("Handler already closed");
+				}
 				
 				_flush();
 			}
@@ -1256,7 +1268,9 @@ public final class DebugLog {
 			
 			@Override
 			public void publish(LogRecord record) {
-				if (isClosed()) Misc.FAIL("Handler already closed");
+				if (isClosed()) {
+					Misc.FAIL("Handler already closed");
+				}
 				
 				Container.add(record);
 				if (LogThread != null) if (Waiting) {
@@ -1296,7 +1310,9 @@ public final class DebugLog {
 						// Check and notify flush waiters
 						Queue.notifyAll();
 						// Check if queue has been closed
-						if (Queue.isClosed() && tellState().isRunning()) EnterState(State.TERMINATING);
+						if (Queue.isClosed() && tellState().isRunning()) {
+							EnterState(State.TERMINATING);
+						}
 					}
 					if (tellState().isRunning()) {
 						// Wait for new message with a timeout
@@ -1304,8 +1320,9 @@ public final class DebugLog {
 						LockSupport.parkNanos(this, TimeUnit.MSEC.Convert(100, TimeUnit.NSEC));
 						Waiting = false;
 					}
-				} else
+				} else {
 					Sink.log(record);
+				}
 			}
 		}
 		

@@ -32,7 +32,6 @@
 package com.necla.am.zwutils.Misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -289,8 +288,9 @@ public class Misc {
 			StackTraceElement[] Stack = Failure.getStackTrace();
 			Failure.setStackTrace(popCallerStackTrace(Stack, PopFrame + 5));
 		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
+			if (e instanceof InvocationTargetException) {
 				e = ((InvocationTargetException) e).getTargetException();
+			}
 			Misc.CascadeThrow(e);
 		}
 		throw Failure;
@@ -339,8 +339,9 @@ public class Misc {
 			StackTraceElement[] Stack = Failure.getStackTrace();
 			Failure.setStackTrace(sliceCallerStackTrace(Stack, PopFrame + 5, FrameCnt));
 		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
+			if (e instanceof InvocationTargetException) {
 				e = ((InvocationTargetException) e).getTargetException();
+			}
 			Misc.CascadeThrow(e);
 		}
 		throw Failure;
@@ -565,7 +566,9 @@ public class Misc {
 	public static String stripPathNameExt(String PathName) {
 		int pathidx = PathName.lastIndexOf(PATH_DELIMITER);
 		int extidx = PathName.lastIndexOf(EXT_DELIMITER);
-		if (extidx <= pathidx) extidx = PathName.length();
+		if (extidx <= pathidx) {
+			extidx = PathName.length();
+		}
 		
 		if (pathidx != -1)
 			return PathName.substring(pathidx + 1, extidx);
@@ -604,32 +607,15 @@ public class Misc {
 		int idx = Base.lastIndexOf(PATH_DELIMITER) + 1;
 		
 		StringBuilder StrBuf = new StringBuilder().append(Base);
-		if (idx < Base.length()) StrBuf.append(PATH_DELIMITER);
+		if (idx < Base.length()) {
+			StrBuf.append(PATH_DELIMITER);
+		}
 		StrBuf.append(Append);
 		
-		for (String token : More)
+		for (String token : More) {
 			StrBuf.append(PATH_DELIMITER).append(token);
-		return StrBuf.toString();
-	}
-	
-	/**
-	 * Probe the current working directory and application directory for file
-	 *
-	 * @param PathName
-	 *          - Path name of the file
-	 * @return File object if file is found, null otherwise
-	 */
-	public static File probeFile(String PathName) {
-		File File = new File(PathName);
-		if (!File.exists()) {
-			String AppPath = Misc
-					.stripFileName(Misc.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-			File = new File(appendPathName(AppPath, PathName));
-			if (!File.exists()) {
-				File = null;
-			}
 		}
-		return File;
+		return StrBuf.toString();
 	}
 	
 	/**
@@ -664,7 +650,7 @@ public class Misc {
 					break;
 				}
 			}
-			return Str.substring(0, Lim - Count + 1);
+			return Str.substring(0, (Lim - Count) + 1);
 		}
 	}
 	
@@ -726,7 +712,7 @@ public class Misc {
 			if (this == To) return Time;
 			
 			long TimeMS = Unit.Convert(Time, TimeUnit.MSEC);
-			TimeMS = TimeMS - NATIVE_OFFSET_MS + To.NATIVE_OFFSET_MS;
+			TimeMS = (TimeMS - NATIVE_OFFSET_MS) + To.NATIVE_OFFSET_MS;
 			return TimeUnit.MSEC.Convert(TimeMS, Unit);
 		}
 		
@@ -1043,11 +1029,13 @@ public class Misc {
 	
 	@SafeVarargs
 	public static <T> Map<String, T> StringMap(String[] Keys, T... values) {
-		if (Keys.length < values.length)
+		if (Keys.length < values.length) {
 			Misc.FAIL("Excessive value entries (%d)", values.length - Keys.length);
+		}
 		Map<String, T> Ret = new HashMap<>();
-		for (int i = 0; i < Keys.length; i++)
+		for (int i = 0; i < Keys.length; i++) {
 			Ret.put(Keys[i], i < values.length? values[i] : null);
+		}
 		return Ret;
 	}
 	

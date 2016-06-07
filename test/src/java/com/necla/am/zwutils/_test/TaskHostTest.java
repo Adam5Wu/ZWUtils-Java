@@ -63,7 +63,7 @@ public class TaskHostTest {
 	}
 	
 	public static final String TaskGroup = TaskHostTest.class.getSimpleName();
-	public static final File ConfigFile = DataFile.DeriveConfigFile("");
+	public static final File ConfigFile = DataFile.DeriveConfigFile();
 	
 	public static void main(String[] args) {
 		
