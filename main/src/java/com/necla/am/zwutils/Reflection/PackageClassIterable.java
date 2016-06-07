@@ -37,7 +37,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
@@ -76,8 +75,9 @@ public class PackageClassIterable implements Iterable<String> {
 			String resPath = res.getPath();
 			switch (res.getProtocol()) {
 				case "jar":
-					if (!resPath.startsWith("file:"))
+					if (!resPath.startsWith("file:")) {
 						Misc.FAIL("Unable to handle Jar with path '%s'", resPath);
+					}
 					resPath = resPath.substring(5).replaceFirst("[.]jar[!].*", ".jar");
 					DelegateIterable = new JarClassIterable(resPath, pkgname, filter);
 					break;
@@ -108,7 +108,7 @@ public class PackageClassIterable implements Iterable<String> {
 		
 		@Override
 		public List<String> call() throws Exception {
-			List<String> Ret = new LinkedList<>(); // ArrayList is not usable due to https://github.com/npgall/mobility-rpc/issues/13
+			List<String> Ret = new ArrayList<>();
 			PackageClassIterable LocalPCIterable = PackageClassIterable.Create(Path, Filter);
 			LocalPCIterable.forEach(Ret::add);
 			return Ret;
@@ -152,10 +152,9 @@ public class PackageClassIterable implements Iterable<String> {
 			RemoteClassLoaders.viaMobilityRPC RemoteLoader = (RemoteClassLoaders.viaMobilityRPC) loader;
 			return new PackageClassIterable(pkgname, filter, RemoteLoader.RPCSession,
 					RemoteLoader.RPCConnection);
-		} else {
+		} else
 			// Local package iteration
 			return new PackageClassIterable(loader.getResource(PackagePath), pkgname, filter);
-		}
 	}
 	
 	@Override
@@ -196,9 +195,11 @@ public class PackageClassIterable implements Iterable<String> {
 						JarEntry entry = Entries.nextElement();
 						String entryName = entry.getName();
 						if (entryName.endsWith(".class")&& entryName.startsWith(BasePath)
-								&& entryName.length() > BasePath.length()) {
+								&& (entryName.length() > BasePath.length())) {
 							String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
-							if ((Filter != null) && !Filter.Accept(new LazyNamedClassSolver(Ret))) continue;
+							if ((Filter != null) && !Filter.Accept(new LazyNamedClassSolver(Ret))) {
+								continue;
+							}
 							return Ret;
 						}
 					} catch (Throwable e) {
@@ -216,7 +217,9 @@ public class PackageClassIterable implements Iterable<String> {
 			
 			@Override
 			public String next() {
-				if (!hasNext()) Misc.FAIL(NoSuchElementException.class, "End of iteration");
+				if (!hasNext()) {
+					Misc.FAIL(NoSuchElementException.class, "End of iteration");
+				}
 				
 				String Ret = next;
 				next = FindNext();
@@ -274,7 +277,9 @@ public class PackageClassIterable implements Iterable<String> {
 						String entryName = BaseName + ClassFile.getCanonicalPath()
 								.substring(BasePathLen + (BaseName.isEmpty()? 1 : 0));
 						String Ret = entryName.replace('/', '.').replace('\\', '.').replace(".class", "");
-						if ((Filter != null) && !Filter.Accept(new LazyNamedClassSolver(Ret))) continue;
+						if ((Filter != null) && !Filter.Accept(new LazyNamedClassSolver(Ret))) {
+							continue;
+						}
 						return Ret;
 					} catch (Throwable e) {
 						// Eat exception
@@ -291,7 +296,9 @@ public class PackageClassIterable implements Iterable<String> {
 			
 			@Override
 			public String next() {
-				if (!hasNext()) Misc.FAIL(NoSuchElementException.class, "End of iteration");
+				if (!hasNext()) {
+					Misc.FAIL(NoSuchElementException.class, "End of iteration");
+				}
 				
 				String Ret = next;
 				next = FindNext();
