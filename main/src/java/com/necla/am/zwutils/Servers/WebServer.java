@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Servers;
 
 import java.io.EOFException;
 import java.io.FileInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -477,19 +478,30 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		protected static class DefensiveInputStream extends InputStream {
 			
 			protected final InputStream IN;
+			protected final InputStream SSLIN;
 			protected final String RemoteDispIdent;
 			
 			protected final Field SSLEOF;
 			
-			public DefensiveInputStream(InputStream SSLStream, String ReportIdent) {
-				IN = SSLStream;
+			public DefensiveInputStream(InputStream WrappedStream, String ReportIdent) {
+				IN = WrappedStream;
 				RemoteDispIdent = ReportIdent;
+				
+				InputStream _SSLIN = null;
+				try {
+					Field _IN = FilterInputStream.class.getDeclaredField("in");
+					_IN.setAccessible(true);
+					_SSLIN = (InputStream) _IN.get(WrappedStream);
+				} catch (Throwable e) {
+					Misc.CascadeThrow(e, "Unable to unwrap input stream");
+				}
+				SSLIN = _SSLIN;
 				
 				Field _SSLEOF = null;
 				try {
 					Class<?> C = Class.forName("sun.net.httpserver.SSLStreams$InputStream");
-					if (!C.isAssignableFrom(SSLStream.getClass())) {
-						Misc.FAIL("Class '%s' is not a descendent", SSLStream.getClass());
+					if (!C.isAssignableFrom(SSLIN.getClass())) {
+						Misc.FAIL("Class '%s' is not a descendent", SSLIN.getClass());
 					}
 					_SSLEOF = C.getDeclaredField("eof");
 					_SSLEOF.setAccessible(true);
@@ -514,7 +526,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					} else {
 						if (SSLEOF != null) {
 							try {
-								if (SSLEOF.getBoolean(IN)) {
+								if (SSLEOF.getBoolean(SSLIN)) {
 									CLog.Warn("%s: SSL stream EOF detected, defensive connection discard",
 											RemoteDispIdent);
 									close();
@@ -558,7 +570,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 		}
 		
-		protected class RequestProcessor {
+		protected static class RequestProcessor {
 			
 			private HttpExchange HE;
 			private InputStream BODY = null;
