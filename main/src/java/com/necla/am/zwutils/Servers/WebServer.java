@@ -31,6 +31,7 @@
 
 package com.necla.am.zwutils.Servers;
 
+import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -147,21 +148,24 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						if (HandlerDict.isKnown(Tokens[0])) {
 							HandlerClsRef = HandlerDict.Get(Tokens[0]);
 							CLog.Fine("Handler class: %s (short-hand '%s')", HandlerClsRef.FullName(), Tokens[0]);
-						} else
+						} else {
 							HandlerClsRef = new DirectClassSolver(Tokens[0]);
+						}
 						
 						Class<?> HandlerCls = HandlerClsRef.toClass();
-						if (!WebHandler.class.isAssignableFrom(HandlerCls))
+						if (!WebHandler.class.isAssignableFrom(HandlerCls)) {
 							Misc.FAIL("Class '%s' does not descend from %s", HandlerCls.getName(),
 									WebHandler.class.getSimpleName());
+						}
 						
 						Constructor<?> WHC = null;
 						try {
-							if (ConfigInfo == null)
+							if (ConfigInfo == null) {
 								WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class);
-							else
+							} else {
 								WHC =
 										HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
+							}
 							WHC.setAccessible(true);
 						} catch (Throwable e) {
 							Misc.CascadeThrow(e, "No appropriate constructor found in class '%s'",
@@ -189,7 +193,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					StringBuilder StrBuf = new StringBuilder();
 					StrBuf.append("Handler: ").append(From.CHandler.getDeclaringClass().getName());
 					
-					if (From.ConfigInfo != null) StrBuf.append("; Config: ").append(From.ConfigInfo);
+					if (From.ConfigInfo != null) {
+						StrBuf.append("; Config: ").append(From.ConfigInfo);
+					}
 					return StrBuf.toString();
 				}
 				
@@ -338,19 +344,24 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						} catch (UnknownHostException e) {
 							Misc.CascadeThrow(e, "Problem resolving address");
 						}
-					} else
+					} else {
 						Address = null;
+					}
 					
 					ILog.Fine("Checking Port...");
-					if ((Port <= 0) || (Port > MAX_PORTNUM)) Misc.ERROR("Invalid port number (%d)", Port);
+					if ((Port <= 0) || (Port > MAX_PORTNUM)) {
+						Misc.ERROR("Invalid port number (%d)", Port);
+					}
 					
 					ILog.Fine("Checking IO Timeout Interval...");
-					if ((IOTimeout < MIN_TIMEOUT) || (IOTimeout > MAX_TIMEOUT))
+					if ((IOTimeout < MIN_TIMEOUT) || (IOTimeout > MAX_TIMEOUT)) {
 						Misc.ERROR("Invalid IO Timeout Interval (%d)", IOTimeout);
+					}
 					
 					ILog.Fine("Checking Shutdown Grace Period...");
-					if ((ShutdownGrace < MIN_WAITTIME) || (ShutdownGrace > MAX_WAITTIME))
+					if ((ShutdownGrace < MIN_WAITTIME) || (ShutdownGrace > MAX_WAITTIME)) {
 						Misc.ERROR("Invalid shutdown grace period (%d)", ShutdownGrace);
+					}
 					
 					if (CertStoreFile != null) {
 						ILog.Fine("Checking Certificate Storage...");
@@ -362,14 +373,16 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						}
 						
 						ILog.Fine("Checking SSL Session Cache Size...");
-						if ((SSLSessionCacheSize < 0) || (SSLSessionCacheSize > MAX_SSLSESSIONCNT))
+						if ((SSLSessionCacheSize < 0) || (SSLSessionCacheSize > MAX_SSLSESSIONCNT)) {
 							Misc.ERROR("Invalid SSL session cache size (%d)", SSLSessionCacheSize);
+						}
 						
 						ILog.Fine("Checking SSL Session Lifespan...");
 						if ((SSLSessionTimeout < MIN_SSLSESSIONLIFE)
-								|| (SSLSessionTimeout > MAX_SSLSESSIONLIFE))
+								|| (SSLSessionTimeout > MAX_SSLSESSIONLIFE)) {
 							Misc.ERROR("Invalid SSL session lifespan (%s)",
 									Misc.FormatDeltaTime(TimeUnit.SEC.Convert(SSLSessionTimeout, TimeUnit.MSEC)));
+						}
 						
 						ILog.Fine("Checking Client Authentication Setting...");
 						if (SSLNeedClientAuth) {
@@ -457,9 +470,98 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			SERVER.PerfLog(CONTEXT, Metrics, Values);
 		}
 		
-		protected static class RequestProcessor {
+		/*
+		 * This wrapper class works around a Sun JRE bug in which a broken SSL connection is not considered as
+		 * closed, causing infinite loop for functions which try to read a fixed amount of data from the socket
+		 */
+		protected static class DefensiveInputStream extends InputStream {
+			
+			protected final InputStream IN;
+			protected final String RemoteDispIdent;
+			
+			protected final Field SSLEOF;
+			
+			public DefensiveInputStream(InputStream SSLStream, String ReportIdent) {
+				IN = SSLStream;
+				RemoteDispIdent = ReportIdent;
+				
+				Field _SSLEOF = null;
+				try {
+					Class<?> C = Class.forName("sun.net.httpserver.SSLStreams$InputStream");
+					if (!C.isAssignableFrom(SSLStream.getClass())) {
+						Misc.FAIL("Class '%s' is not a descendent", SSLStream.getClass());
+					}
+					_SSLEOF = C.getDeclaredField("eof");
+					_SSLEOF.setAccessible(true);
+				} catch (Throwable e) {
+					CLog.Warn("%s: Error detecting Sun HTTPServer SSLStream - %s", RemoteDispIdent,
+							e.getLocalizedMessage());
+				}
+				SSLEOF = _SSLEOF;
+			}
+			
+			@Override
+			public int read(byte[] b, int off, int len) throws IOException {
+				Misc.ASSERT((off + len) <= b.length, "Invalid read buffer size");
+				
+				int rem = len;
+				while (rem > 0) {
+					int count = IN.read(b, off, rem);
+					if (count < 0) throw new EOFException();
+					if (count > 0) {
+						off += count;
+						rem -= count;
+					} else {
+						if (SSLEOF != null) {
+							try {
+								if (SSLEOF.getBoolean(IN)) {
+									CLog.Warn("%s: SSL stream EOF detected, defensive connection discard",
+											RemoteDispIdent);
+									close();
+									break;
+								}
+							} catch (Throwable e) {
+								CLog.Warn("%s: Error detecting SSL stream EOF, defensive connection discard - %s",
+										RemoteDispIdent, e.getLocalizedMessage());
+								close();
+								break;
+							}
+						}
+					}
+				}
+				return len - rem;
+			}
+			
+			// We need to use reflection trick to forcefully poke the "closed" flag of the
+			// underlying LeftOverInputStream instance, otherwise its own close() function will
+			// try to call drain() later, causing thread to hang.
+			public static void close(InputStream IN) {
+				try {
+					Class<?> C = Class.forName("sun.net.httpserver.LeftOverInputStream");
+					Field F = C.getDeclaredField("closed");
+					F.setAccessible(true);
+					F.set(IN, true);
+				} catch (Throwable e) {
+					CLog.logExcept(e);
+				}
+			}
+			
+			@Override
+			public void close() throws IOException {
+				close(IN);
+			}
+			
+			@Override
+			public int read() throws IOException {
+				return IN.read();
+			}
+			
+		}
+		
+		protected class RequestProcessor {
 			
 			private HttpExchange HE;
+			private InputStream BODY = null;
 			
 			protected final InetSocketAddress RemoteAddr;
 			protected final String RemoteDispIdent;
@@ -481,7 +583,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			}
 			
 			protected final InputStream BODY() {
-				return HE.getRequestBody();
+				if (BODY == null) {
+					BODY = (HE instanceof HttpExchange)? new DefensiveInputStream(HE.getRequestBody(),
+							RemoteDispIdent) : HE.getRequestBody();
+				}
+				return BODY;
 			}
 			
 			protected Map<String, List<String>> RHEADERS = new HashMap<>();
@@ -516,9 +622,10 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				int RCODE = RP.Serve(HE.getRequestURI());
 				
 				if (!RP.DropRequest) {
-					if (HE.getRequestBody().read() != -1)
+					if (HE.getRequestBody().read() != -1) {
 						ILog.Warn("%s: Left-over payload data (connection will not be reused)",
 								RP.RemoteDispIdent);
+					}
 				}
 				
 				synchronized (ReplyStats) {
@@ -532,23 +639,35 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						Misc.FormatSize(RBODYLEN));
 				
 				HE.sendResponseHeaders(RCODE, RBODYLEN);
-				if (RBODYLEN > 0) try (OutputStream RBODY = HE.getResponseBody()) {
-					WritableByteChannel WChannel = Channels.newChannel(RBODY);
-					while (RP.RBODY.remaining() > 0)
-						WChannel.write(RP.RBODY);
+				if (RBODYLEN > 0) {
+					try (OutputStream RBODY = HE.getResponseBody()) {
+						WritableByteChannel WChannel = Channels.newChannel(RBODY);
+						while (RP.RBODY.remaining() > 0) {
+							WChannel.write(RP.RBODY);
+						}
+					}
 				}
 				
-				if (RP.DropRequest) HE.close();
+				if (RP.DropRequest) {
+					// Pro-actively apply the anti-hang trick before closing
+					DefensiveInputStream.close(HE.getRequestBody());
+					HE.close();
+				}
 			} catch (Throwable e) {
-				HE.close();
-				if (ILog.isLoggable(Level.FINE))
+				if (ILog.isLoggable(Level.FINE)) {
 					ILog.logExcept(e, "Error serving request");
-				else
+				} else {
 					ILog.Warn("[%s:%d]: Error serving request %s '%s' - %s",
 							HE.getRemoteAddress().getAddress().getHostAddress(), HE.getRemoteAddress().getPort(),
 							HE.getRequestMethod(), HE.getRequestURI(),
 							(e.getLocalizedMessage() != null? e.getLocalizedMessage() : e.getClass().getName()));
+				}
 				ExceptCount.incrementAndGet();
+				
+				// Pro-actively apply the anti-hang trick before closing
+				DefensiveInputStream.close(HE.getRequestBody());
+				HE.close();
+				
 				Class<? extends Throwable> ExceptClass = e.getClass();
 				synchronized (ExceptStats) {
 					long Count = ExceptStats.containsKey(ExceptClass)? ExceptStats.get(ExceptClass) : 0;
@@ -621,10 +740,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		Config.Handlers.forEach((Context, HandlerConf) -> {
 			try {
 				Object Handler;
-				if (HandlerConf.ConfigInfo == null)
+				if (HandlerConf.ConfigInfo == null) {
 					Handler = HandlerConf.CHandler.newInstance(this, Context);
-				else
+				} else {
 					Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo);
+				}
 				Handlers.put(Context, (WebHandler) Handler);
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e, "Failed to initialize handler '%s'", Context);
@@ -672,10 +792,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		ILog.Fine("Creating HTTP%s Service...", Config.CertStore != null? "S" : "");
 		try {
 			if (Config.CertStore != null) {
-				if (Config.Address != null)
+				if (Config.Address != null) {
 					Server = HttpsServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
-				else
+				} else {
 					Server = HttpsServer.create(new InetSocketAddress(Config.Port), 0);
+				}
 				
 				// Setup SSL
 				SSLContext SSLCtx = SSLContext.getInstance("TLS");
@@ -691,16 +812,21 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					
 					@Override
 					public void configure(HttpsParameters params) {
-						if (Config.SSLWantClientAuth) params.setWantClientAuth(Config.SSLWantClientAuth);
-						if (Config.SSLNeedClientAuth) params.setNeedClientAuth(Config.SSLNeedClientAuth);
+						if (Config.SSLWantClientAuth) {
+							params.setWantClientAuth(Config.SSLWantClientAuth);
+						}
+						if (Config.SSLNeedClientAuth) {
+							params.setNeedClientAuth(Config.SSLNeedClientAuth);
+						}
 					}
 					
 				});
 			} else {
-				if (Config.Address != null)
+				if (Config.Address != null) {
 					Server = HttpServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
-				else
+				} else {
 					Server = HttpServer.create(new InetSocketAddress(Config.Port), 0);
+				}
 			}
 			
 			// Setup Handlers
@@ -760,13 +886,14 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	}
 	
 	protected void PerfLog(String context, String[] Metrics, Object[] Values) {
-		if (Metrics.length != Values.length)
+		if (Metrics.length != Values.length) {
 			Misc.FAIL("Unbalanced metric and value count (%d <> %d)", Metrics.length, Values.length);
+		}
 		if (Metrics.length > 0) {
 			Object[] LogBatch = new Object[Metrics.length * 2];
 			for (int i = 0; i < Metrics.length; i++) {
 				LogBatch[i * 2] = Metrics[i] + ',' + (context != null? '/' + context : "Server");
-				LogBatch[i * 2 + 1] = Values[i];
+				LogBatch[(i * 2) + 1] = Values[i];
 			}
 			ZBXLog.ZInfo(LogBatch);
 		}
@@ -776,7 +903,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	protected void postTask(State RefState) {
 		ILog.Fine("Shutting down thread pool...");
 		List<Runnable> WaitList = ThreadPool.shutdownNow();
-		if (!WaitList.isEmpty()) ILog.Warn("There are %d pending service requests", WaitList.size());
+		if (!WaitList.isEmpty()) {
+			ILog.Warn("There are %d pending service requests", WaitList.size());
+		}
 		super.postTask(RefState);
 	}
 	
