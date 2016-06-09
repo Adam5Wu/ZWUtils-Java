@@ -69,23 +69,21 @@ task NSGen(type: Copy, dependsOn: GenClean) {
 sourceSets {
 	main {
 		java {
-			srcDir 'main/src/java'
-			exclude '**/_Namespace.java'
+			srcDirs = [ 'main/src/java' ]
+			excludes = [ '**/_Namespace.java' ]
 		}
 		resources {
-			srcDir 'main/res'
-			include '**/*'
-			srcDir 'main/src/java'
-			exclude '**/*.java'
+			srcDirs = [ 'main/res', 'main/src/java' ]
+			excludes = [ '**/*.java' ]
 		}
 	}
 // TODO: Currently test only works with eclipse
 //	test {
 //		java {
-//			srcDir 'test/src/java'
+//			srcDirs = [ 'test/src/java' ]
 //		}
 //		resources {
-//			srcDir 'test/res'
+//			srcDirs = [ 'test/res' ]
 //		}
 //	}
 }
