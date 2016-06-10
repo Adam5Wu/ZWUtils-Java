@@ -85,6 +85,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsExchange;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 
@@ -596,7 +597,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			protected final InputStream BODY() {
 				if (BODY == null) {
-					BODY = (HE instanceof HttpExchange)? new DefensiveInputStream(HE.getRequestBody(),
+					BODY = (HE instanceof HttpsExchange)? new DefensiveInputStream(HE.getRequestBody(),
 							RemoteDispIdent) : HE.getRequestBody();
 				}
 				return BODY;
@@ -661,8 +662,10 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				}
 				
 				if (RP.DropRequest) {
-					// Pro-actively apply the anti-hang trick before closing
-					DefensiveInputStream.close(HE.getRequestBody());
+					if (HE instanceof HttpsExchange) {
+						// Pro-actively apply the anti-hang trick before closing
+						DefensiveInputStream.close(HE.getRequestBody());
+					}
 					HE.close();
 				}
 			} catch (Throwable e) {
@@ -677,7 +680,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				ExceptCount.incrementAndGet();
 				
 				// Pro-actively apply the anti-hang trick before closing
-				DefensiveInputStream.close(HE.getRequestBody());
+				if (HE instanceof HttpsExchange) {
+					DefensiveInputStream.close(HE.getRequestBody());
+				}
 				HE.close();
 				
 				Class<? extends Throwable> ExceptClass = e.getClass();
