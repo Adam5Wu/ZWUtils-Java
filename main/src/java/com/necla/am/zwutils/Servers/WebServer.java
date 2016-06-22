@@ -520,6 +520,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				while (rem > 0) {
 					int count = IN.read(b, off, rem);
 					if (count < 0) {
+						if (rem == len) return -1;
 						break;
 					}
 					if (count > 0) {
