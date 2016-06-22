@@ -31,7 +31,6 @@
 
 package com.necla.am.zwutils.Servers;
 
-import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -520,7 +519,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				int rem = len;
 				while (rem > 0) {
 					int count = IN.read(b, off, rem);
-					if (count < 0) throw new EOFException();
+					if (count < 0) {
+						break;
+					}
 					if (count > 0) {
 						off += count;
 						rem -= count;
