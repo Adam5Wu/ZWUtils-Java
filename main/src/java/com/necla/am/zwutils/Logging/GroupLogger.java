@@ -86,8 +86,9 @@ public class GroupLogger implements IGroupLogger {
 			Object... params) {
 		if (msg.equals(ZabbixHandler.LOG_TRIGGER)) {
 			_Log.logp(level, sourceClass, sourceMethod, msg, params);
-		} else
+		} else {
 			_Log.logp(level, sourceClass, sourceMethod, String.format(msg, params));
+		}
 	}
 	
 	public static final String LOGMSG_FUNCTIONENTRY = "(Function Entry)";
@@ -630,6 +631,10 @@ public class GroupLogger implements IGroupLogger {
 		
 		public PerInst(String LogGroup) {
 			this.LogGroup = LogGroup;
+			
+			// DO NOT REMOVE: pro-actively refer to DebugLog module so that it can get initialized *before*
+			// GlobalConfig is referred to, otherwise deadlock will occur when initializing threaded log spoolers
+			Finest("Logger created");
 		}
 		
 		@Override
