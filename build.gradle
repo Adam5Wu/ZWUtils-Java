@@ -47,6 +47,7 @@ task Bless(type:Exec) {
 		println '! Blessed source generation is not supported on this platform'
 		ext.blessDir = 'main/src/java'
 	}
+	ignoreExitValue = true
 }
 
 import org.apache.tools.ant.filters.ReplaceTokens

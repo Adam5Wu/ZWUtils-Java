@@ -3,7 +3,8 @@
 * Oracle JDK 1.8
 * Gradle 2.10+
 * (Recommended) Ubuntu 14+
-* (Recommended) Eclipse Mars
+	* (If not using Windows) System Utilities: git sed cut unix2dos tar
+* (Recommended, for development) Eclipse Mars
 
 ## Building
 ### Gradle commandline
