@@ -31,7 +31,9 @@
 
 package com.necla.am.zwutils.Logging;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
@@ -1304,26 +1306,35 @@ public final class DebugLog {
 		
 		@Override
 		protected void doTask() {
-			while (!tellState().isTerminating() || !Queue.Container.isEmpty()) {
-				LogRecord record = Queue.handle();
-				if (record == null) {
-					synchronized (Queue) {
-						// Check and notify flush waiters
-						Queue.notifyAll();
-						// Check if queue has been closed
-						if (Queue.isClosed() && tellState().isRunning()) {
-							EnterState(State.TERMINATING);
+			try {
+				while (!tellState().isTerminating() || !Queue.Container.isEmpty()) {
+					LogRecord record = Queue.handle();
+					if (record == null) {
+						synchronized (Queue) {
+							// Check and notify flush waiters
+							Queue.notifyAll();
+							// Check if queue has been closed
+							if (Queue.isClosed() && tellState().isRunning()) {
+								EnterState(State.TERMINATING);
+							}
 						}
+						if (tellState().isRunning()) {
+							// Wait for new message with a timeout
+							Waiting = true;
+							LockSupport.parkNanos(this, TimeUnit.MSEC.Convert(100, TimeUnit.NSEC));
+							Waiting = false;
+						}
+					} else {
+						Sink.log(record);
 					}
-					if (tellState().isRunning()) {
-						// Wait for new message with a timeout
-						Waiting = true;
-						LockSupport.parkNanos(this, TimeUnit.MSEC.Convert(100, TimeUnit.NSEC));
-						Waiting = false;
-					}
-				} else {
-					Sink.log(record);
 				}
+			} catch (Throwable e) {
+				Sink.log(Level.SEVERE, "Unhandled log daemon exception - " + e.getLocalizedMessage());
+				OutputStream StackTrace = new ByteArrayOutputStream();
+				PrintStream STStream = new PrintStream(StackTrace);
+				e.printStackTrace(STStream);
+				STStream.flush();
+				Sink.log(Level.SEVERE, StackTrace.toString());
 			}
 		}
 		
