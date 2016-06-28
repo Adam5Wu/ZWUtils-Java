@@ -452,7 +452,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			
 			@Override
 			public void loadDefaults() {
-				RetryInterval = TimeUnit.SEC.Convert(60, TimeUnit.MSEC);
+				RetryInterval = TimeUnit.SEC.Convert(30, TimeUnit.MSEC);
 				FailInterval = TimeUnit.SEC.Convert(10, TimeUnit.MSEC);
 				
 				RPs = new HashMap<>();
