@@ -571,6 +571,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			Misc.CascadeThrow(e);
 		}
 		
+		LastSuccess = LastFailure = ITimeStamp.Impl.Now();
 		RemoteInit();
 		
 		CLog.Fine("Starting Zabbix report daemon thread...");
