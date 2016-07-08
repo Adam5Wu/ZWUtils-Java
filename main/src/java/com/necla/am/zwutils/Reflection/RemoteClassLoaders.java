@@ -27,11 +27,10 @@ public class RemoteClassLoaders {
 		protected static final String LogGroup = "ZWUtils.Reflection.RemoteClassLoaders.MobilityRPC";
 		protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 		
-		public final MobilitySession RPCSession;
+		public MobilitySession RPCSession;
 		public final ConnectionId RPCConnection;
-		protected final SessionClassLoader RPCClassLoader;
 		
-		protected int RetryCount = 5;
+		protected int RetryCount = 3;
 		
 		protected static class RPCEndPoint {
 			public final MobilityController Controller;
@@ -90,8 +89,6 @@ public class RemoteClassLoaders {
 			RPCSession = Session;
 			RPCConnection =
 					new ConnectionId(RemoteAddr.getAddress().getHostAddress(), RemoteAddr.getPort());
-			
-			RPCClassLoader = RPCSession.getSessionClassLoader();
 		}
 		
 		@Override
@@ -118,11 +115,16 @@ public class RemoteClassLoaders {
 			int Trial = 0;
 			while (Trial++ <= RetryCount) {
 				try {
+					SessionClassLoader RPCClassLoader = RPCSession.getSessionClassLoader();
 					RPCClassLoader.setThreadLocalConnectionId(RPCConnection);
 					return RPCClassLoader.getResource(name);
 				} catch (IllegalStateException e) {
-					CLog.Warn("Error loading remote resource '%s' (#%d) - %s", name, Trial,
-							e.getLocalizedMessage());
+					CLog.logExcept(e, "Error loading remote resource '%s' (#%d) - %s", name, Trial);
+					
+					// Give up current session and get a new one
+					MobilitySession NewSession = RPCSession.getMobilityController().newSession();
+					RPCSession.release();
+					RPCSession = NewSession;
 				}
 			}
 			return null;
