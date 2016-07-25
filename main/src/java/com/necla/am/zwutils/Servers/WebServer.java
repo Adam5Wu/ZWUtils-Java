@@ -621,7 +621,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			}
 			
 			public int Serve(URI uri) throws Throwable {
-				RBODY = ByteBuffer.wrap(TEXT_UNIMPLEMENTED.getBytes(StandardCharsets.UTF_8));// .asReadOnlyBuffer();
+				RBODY = ByteBuffer.wrap(TEXT_UNIMPLEMENTED.getBytes(StandardCharsets.UTF_8)); //.asReadOnlyBuffer();
 				AddHeader("Content-Type", "text/plain; charset=utf-8");
 				return HttpURLConnection.HTTP_NOT_FOUND;
 			}
