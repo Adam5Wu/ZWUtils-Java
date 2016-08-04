@@ -138,7 +138,7 @@ public class ConfigTest {
 		
 		public static void Save(Container<Mutable, ReadOnly> Config, String FileName, String Comments)
 				throws IOException {
-			Container.SaveToFile(Config, "", LogGroup + ".Config", FileName, Comments);
+			Container.SaveToFile(Config, "", LogGroup + ".Config", FileName, Comments, true);
 		}
 	}
 	

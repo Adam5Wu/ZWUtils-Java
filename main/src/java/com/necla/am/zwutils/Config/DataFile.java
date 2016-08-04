@@ -150,8 +150,7 @@ public class DataFile extends Properties {
 					Conf = new FileInputStream(ConfigFile);
 				} else {
 					// If not exist, probe within Jar bundle
-					ConfigFileName =
-							ConfigRelAppRoot? INIFileName.substring(1) : Misc.appendPathName(JarDir, INIFileName);
+					ConfigFileName = ConfigRelAppRoot? INIFileName.substring(1) : INIFileName;
 					String ResourceName = Misc.appendPathName(JarDir, INIFileName);
 					if (Misc.PATH_DELIMITER != File.separatorChar) {
 						ResourceName = ResourceName.replace(File.separatorChar, Misc.PATH_DELIMITER);
