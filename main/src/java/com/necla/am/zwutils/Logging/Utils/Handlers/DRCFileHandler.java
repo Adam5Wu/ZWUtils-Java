@@ -102,10 +102,11 @@ public class DRCFileHandler extends Handler {
 			throws IOException, SecurityException {
 		LogFile = new File(fileName);
 		ITimeStamp LastLogTS;
-		if (append && LogFile.exists())
+		if (append && LogFile.exists()) {
 			LastLogTS = new ITimeStamp.Impl(LogFile.lastModified());
-		else
+		} else {
 			LastLogTS = ITimeStamp.Impl.Now();
+		}
 		LastLogDAY = LastLogTS.VALUE(TimeSystem.UNIX, TimeUnit.DAY);
 		Append = append;
 		Compressed = compressed;
@@ -115,7 +116,9 @@ public class DRCFileHandler extends Handler {
 	@Override
 	public void setFormatter(Formatter newFormatter) throws SecurityException {
 		SaveFormatter = newFormatter;
-		if (DelegateHandler != null) DelegateHandler.setFormatter(newFormatter);
+		if (DelegateHandler != null) {
+			DelegateHandler.setFormatter(newFormatter);
+		}
 	}
 	
 	@Override
@@ -126,7 +129,9 @@ public class DRCFileHandler extends Handler {
 	@Override
 	public void setEncoding(String encoding) throws SecurityException, UnsupportedEncodingException {
 		SaveEncoding = encoding;
-		if (DelegateHandler != null) DelegateHandler.setEncoding(encoding);
+		if (DelegateHandler != null) {
+			DelegateHandler.setEncoding(encoding);
+		}
 	}
 	
 	@Override
@@ -137,7 +142,9 @@ public class DRCFileHandler extends Handler {
 	@Override
 	public void setFilter(Filter newFilter) throws SecurityException {
 		SaveFilter = newFilter;
-		if (DelegateHandler != null) DelegateHandler.setFilter(newFilter);
+		if (DelegateHandler != null) {
+			DelegateHandler.setFilter(newFilter);
+		}
 	}
 	
 	@Override
@@ -148,7 +155,9 @@ public class DRCFileHandler extends Handler {
 	@Override
 	public void setErrorManager(ErrorManager em) {
 		SaveErrorManager = em;
-		if (DelegateHandler != null) DelegateHandler.setErrorManager(em);
+		if (DelegateHandler != null) {
+			DelegateHandler.setErrorManager(em);
+		}
 	}
 	
 	@Override
@@ -158,23 +167,35 @@ public class DRCFileHandler extends Handler {
 	
 	@Override
 	public boolean isLoggable(LogRecord record) {
-		return getHandler().isLoggable(record);
+		Handler LogHandle = getHandler();
+		return LogHandle != null? LogHandle.isLoggable(record) : false;
 	}
 	
 	@Override
 	public void flush() {
-		if (DelegateHandler != null) DelegateHandler.flush();
+		if (DelegateHandler != null) {
+			DelegateHandler.flush();
+		}
 	}
 	
 	@Override
 	public void publish(LogRecord record) {
-		getHandler().publish(record);
+		Handler LogHandle = getHandler();
+		if (LogHandle != null) {
+			try {
+				LogHandle.publish(record);
+			} catch (Throwable e) {
+				// Eat any exception
+			}
+		}
 	}
 	
 	@Override
 	public void setLevel(Level newLevel) throws SecurityException {
 		SaveLevel = newLevel;
-		if (DelegateHandler != null) DelegateHandler.setLevel(newLevel);
+		if (DelegateHandler != null) {
+			DelegateHandler.setLevel(newLevel);
+		}
 	}
 	
 	@Override
@@ -193,9 +214,12 @@ public class DRCFileHandler extends Handler {
 	
 	DateFormat RotateExtFormatter = new SimpleDateFormat("yyyy-MM-dd");
 	
-	Handler getHandler() {
-		if (Closed) Misc.ERROR("Handler already closed");
+	synchronized Handler getHandler() {
+		if (Closed) {
+			Misc.ERROR("Handler already closed");
+		}
 		
+		File RotLogFile = null;
 		if (CheckDAY) {
 			ITimeStamp Now = ITimeStamp.Impl.Now();
 			long NowDAY = Now.VALUE(TimeSystem.UNIX, TimeUnit.DAY);
@@ -205,55 +229,71 @@ public class DRCFileHandler extends Handler {
 					DelegateHandler.close();
 					DelegateHandler = null;
 				}
-				File RotLogFile = null;
-				if (LogFile.exists() && LogFile.length() > 0) {
+				if (LogFile.exists() && (LogFile.length() > 0)) {
 					String RotateExt =
 							Misc.FormatTS(LastLogDAY, TimeSystem.UNIX, TimeUnit.DAY, RotateExtFormatter);
 					RotLogFile = new File(String.format("%s.%s", LogFile.getPath(), RotateExt));
-					if (RotLogFile.exists()) RotLogFile.delete();
+					if (RotLogFile.exists()) {
+						RotLogFile.delete();
+					}
 					LogFile.renameTo(RotLogFile);
 				}
 				LastLogDAY = NowDAY;
-				if ((RotLogFile != null) && Compressed) {
-					try {
-						File CompLogFile = new File(RotLogFile.getPath() + ".gz");
-						if (CompLogFile.exists()) CompLogFile.delete();
-						FileOutputStream CompLogOut = new FileOutputStream(CompLogFile);
-						try (	GZIPOutputStream GZOut = new GZIPOutputStream(CompLogOut);
-									FileInputStream RotLogIn = new FileInputStream(RotLogFile);) {
-							int length;
-							byte[] buffer = new byte[8192];
-							while ((length = RotLogIn.read(buffer, 0, 8192)) != -1)
-								GZOut.write(buffer, 0, length);
-						}
-						RotLogFile.delete();
-					} catch (Throwable e) {
-						DebugLog.Logger.logExcept(e, "Failed to compress rotated log file '%s'", RotLogFile);
-					}
-				}
 			} else {
 				long DAYHeadTime =
 						Now.MillisecondsTo(new ITimeStamp.Impl(NowDAY + 1, TimeSystem.UNIX, TimeUnit.DAY));
-				CheckDAY = DAYHeadTime <= 2 * CheckResolution;
+				CheckDAY = DAYHeadTime <= (2 * CheckResolution);
 			}
 		}
-		if (DelegateHandler == null) try {
-			DelegateHandler = new FileHandler(LogFile.getPath(), Append);
-			if (SaveErrorManager != null)
-				DelegateHandler.setErrorManager(SaveErrorManager);
-			else
-				SaveErrorManager = DelegateHandler.getErrorManager();
-			if (SaveFormatter != null) DelegateHandler.setFormatter(SaveFormatter);
-			if (SaveLevel != null)
-				DelegateHandler.setLevel(SaveLevel);
-			else
-				DelegateHandler.getLevel();
-			if (SaveEncoding != null) DelegateHandler.setEncoding(SaveEncoding);
-			if (SaveFilter != null) DelegateHandler.setFilter(SaveFilter);
-		} catch (Throwable e) {
-			DebugLog.DirectErrOut()
-					.println(String.format("WARNING: Failed to open log file '%s' - %s", LogFile, e));
+		if (DelegateHandler == null) {
+			try {
+				DelegateHandler = new FileHandler(LogFile.getPath(), Append);
+				if (SaveErrorManager != null) {
+					DelegateHandler.setErrorManager(SaveErrorManager);
+				} else {
+					SaveErrorManager = DelegateHandler.getErrorManager();
+				}
+				if (SaveFormatter != null) {
+					DelegateHandler.setFormatter(SaveFormatter);
+				}
+				if (SaveLevel != null) {
+					DelegateHandler.setLevel(SaveLevel);
+				} else {
+					DelegateHandler.getLevel();
+				}
+				if (SaveEncoding != null) {
+					DelegateHandler.setEncoding(SaveEncoding);
+				}
+				if (SaveFilter != null) {
+					DelegateHandler.setFilter(SaveFilter);
+				}
+			} catch (Throwable e) {
+				DebugLog.DirectErrOut()
+						.println(String.format("WARNING: Failed to open log file '%s' - %s", LogFile, e));
+			}
 		}
+		
+		if ((RotLogFile != null) && Compressed) {
+			try {
+				File CompLogFile = new File(RotLogFile.getPath() + ".gz");
+				if (CompLogFile.exists()) {
+					CompLogFile.delete();
+				}
+				FileOutputStream CompLogOut = new FileOutputStream(CompLogFile);
+				try (	GZIPOutputStream GZOut = new GZIPOutputStream(CompLogOut);
+							FileInputStream RotLogIn = new FileInputStream(RotLogFile);) {
+					int length;
+					byte[] buffer = new byte[8192];
+					while ((length = RotLogIn.read(buffer, 0, 8192)) != -1) {
+						GZOut.write(buffer, 0, length);
+					}
+				}
+				RotLogFile.delete();
+			} catch (Throwable e) {
+				DebugLog.Logger.logExcept(e, "Failed to compress rotated log file '%s'", RotLogFile);
+			}
+		}
+		
 		return DelegateHandler;
 	}
 }
