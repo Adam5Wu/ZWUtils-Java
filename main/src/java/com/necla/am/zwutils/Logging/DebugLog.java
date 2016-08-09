@@ -31,9 +31,7 @@
 
 package com.necla.am.zwutils.Logging;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
@@ -1329,12 +1327,15 @@ public final class DebugLog {
 					}
 				}
 			} catch (Throwable e) {
-				Sink.log(Level.SEVERE, "Unhandled log daemon exception - " + e.getLocalizedMessage());
-				OutputStream StackTrace = new ByteArrayOutputStream();
-				PrintStream STStream = new PrintStream(StackTrace);
-				e.printStackTrace(STStream);
-				STStream.flush();
-				Sink.log(Level.SEVERE, StackTrace.toString());
+				// If we are having problem logging, try not to do more logging
+				// Sink.log(Level.SEVERE, "Unhandled log daemon exception - " + e.getLocalizedMessage());
+				// OutputStream StackTrace = new ByteArrayOutputStream();
+				// PrintStream STStream = new PrintStream(StackTrace);
+				// e.printStackTrace(STStream);
+				// STStream.flush();
+				// Sink.log(Level.SEVERE, StackTrace.toString());
+				DebugLog.StdErr.println("Unhandled log daemon exception - " + e.getLocalizedMessage());
+				e.printStackTrace(DebugLog.StdErr);
 			}
 		}
 		
