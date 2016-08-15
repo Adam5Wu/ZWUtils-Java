@@ -31,11 +31,13 @@
 
 package com.necla.am.zwutils.Servers;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -46,9 +48,12 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.KeyStore;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,10 +70,15 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.necla.am.zwutils.Config.Container;
+import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataMap;
+import com.necla.am.zwutils.FileSystem.SingleDirFileIterable;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
+import com.necla.am.zwutils.Misc.Misc.SizeUnit;
+import com.necla.am.zwutils.Misc.Misc.TimeSystem;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
@@ -289,6 +299,16 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 				SuffixClassDictionary HandlerDict =
 						new SuffixClassDictionary(LogGroup + ".HandlerDict", this.getClass().getClassLoader());
+				try {
+					// Add all built-in handlers
+					for (String cname : PackageClassIterable.Create(WebServer.class.getPackage(),
+							new WebHandlerFilter())) {
+						HandlerDict.Add(cname);
+					}
+				} catch (Throwable e) {
+					Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for built-in handlers");
+				}
+				
 				DataMap ClsSearchMap = new DataMap("ClsSearch", confMap, String.valueOf(CLSSEARCHPKG_PFX));
 				for (String SearchKey : ClsSearchMap.keySet()) {
 					String pkgname = ClsSearchMap.getText(SearchKey);
@@ -723,6 +743,219 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		
 		public long GetExceptCount() {
 			return ExceptCount.get();
+		}
+		
+	}
+	
+	public static class ResHandler extends WebHandler {
+		
+		public static final String LogGroup = "ZWUtils.Servers.Web.ResHandler";
+		
+		public static class ConfigData {
+			
+			protected static final String KEY_PREFIX = "WebHandler.Resources.";
+			protected static final String TOKEN_DELIM = ";";
+			
+			public static class Mutable extends Data.Mutable {
+				
+				// Declare mutable configurable fields (public)
+				public String ResRoot;
+				public boolean ShowDir;
+				public int MaxResSize;
+				
+				@Override
+				public void loadDefaults() {
+					ResRoot = null;
+					ShowDir = false;
+					MaxResSize = (int) SizeUnit.MB.Convert(32, SizeUnit.BYTE);
+				}
+				
+				@Override
+				public void loadFields(DataMap confMap) {
+					ResRoot = confMap.getText("Root");
+					ShowDir = confMap.getBoolDef("ShowDir", ShowDir);
+					MaxResSize = confMap.getIntDef("MaxSize", MaxResSize);
+				}
+				
+				public static final int MIN_RESSIZE = 1024;
+				public static final int MAX_RESSIZE = (int) SizeUnit.MB.Convert(128, SizeUnit.BYTE);
+				
+				protected class Validation implements Data.Mutable.Validation {
+					
+					@Override
+					public void validateFields() {
+						ILog.Fine("Checking resource root...");
+						File ResRootDir = new File(ResRoot);
+						if (!ResRootDir.isDirectory()) {
+							Misc.ERROR("Resource directory '%s' D.N.E.", ResRoot);
+						}
+						
+						ILog.Fine("Checking maximum resource size...");
+						if ((MaxResSize < MIN_RESSIZE) || (MaxResSize > MAX_RESSIZE)) {
+							Misc.ERROR("Invalid maximum resource size (%d)", MaxResSize);
+						}
+					}
+					
+				}
+				
+				@Override
+				protected Validation needValidation() {
+					return new Validation();
+				}
+				
+			}
+			
+			public static class ReadOnly extends Data.ReadOnly {
+				
+				// Declare read-only configurable fields (public)
+				public final String ResRoot;
+				public final boolean ShowDir;
+				public final int MaxResSize;
+				
+				public ReadOnly(IGroupLogger Logger, Mutable Source) {
+					super(Logger, Source);
+					
+					// Copy all fields from Source
+					ResRoot = Source.ResRoot;
+					ShowDir = Source.ShowDir;
+					MaxResSize = Source.MaxResSize;
+				}
+				
+			}
+			
+			public static Container<Mutable, ReadOnly> Create(String ConfFilePath) throws Throwable {
+				return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config",
+						new File(ConfFilePath), KEY_PREFIX);
+			}
+			
+		}
+		
+		protected ConfigData.ReadOnly Config;
+		
+		public ResHandler(WebServer server, String context, String ConfFilePath) throws Throwable {
+			super(server, context);
+			
+			Config = ConfigData.Create(ConfFilePath).reflect();
+		}
+		
+		@Override
+		public RequestProcessor getProcessor(HttpExchange he) {
+			return new Processor(he);
+		}
+		
+		public static final String HEADER_CONTENTTYPE = "Content-Type";
+		public static final String HEADER_LOCATION = "Location";
+		public static final String HEADER_LASTMODIFIED = "Last-Modified";
+		public static final String HEADER_IFMODIFIEDSINCE = "If-Modified-Since";
+		
+		protected class Processor extends WebHandler.RequestProcessor {
+			
+			protected SimpleDateFormat DataFormatter =
+					new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+			
+			public Processor(HttpExchange he) {
+				super(he);
+			}
+			
+			@Override
+			public int Serve(URI uri) throws Throwable {
+				// Only accept GET request
+				if (!METHOD().equals("GET")) {
+					ILog.Warn("Method not allowed");
+					AddHeader("Allow", "GET");
+					return HttpURLConnection.HTTP_BAD_METHOD;
+				}
+				
+				// Do not accept any query or fragment
+				if (uri.getQuery() != null) {
+					ILog.Warn("Non-empty query not allowed");
+					return HttpURLConnection.HTTP_BAD_REQUEST;
+				}
+				if (uri.getFragment() != null) {
+					ILog.Warn("Non-empty fragment not allowed");
+					return HttpURLConnection.HTTP_BAD_REQUEST;
+				}
+				
+				// Parse relative paths
+				String RelPath = uri.getPath().substring(CONTEXT.length() + 1);
+				File GetFile = new File(Misc.appendPathName(Config.ResRoot, RelPath));
+				if (!GetFile.exists()) {
+					ILog.Warn("Resource '%s' D.N.E.", RelPath);
+					return HttpURLConnection.HTTP_NOT_FOUND;
+				}
+				
+				if (GetFile.isDirectory()) {
+					if (!Config.ShowDir) {
+						ILog.Warn("Resource directory '%s' not listable", RelPath);
+						return HttpURLConnection.HTTP_FORBIDDEN;
+					}
+					
+					if (!RelPath.isEmpty() && !RelPath.endsWith("/")) {
+						AddHeader(HEADER_LOCATION, uri.getPath() + '/');
+						return HttpURLConnection.HTTP_MOVED_PERM;
+					}
+					
+					StringBuilder StrBuf = new StringBuilder();
+					StrBuf.append(String.format("<p>Directory content of '%s':", uri.getPath()));
+					StrBuf.append("<ul>");
+					if (!RelPath.isEmpty()) {
+						StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ".."))
+								.append("..").append("</a>");
+					}
+					for (File Item : new SingleDirFileIterable(GetFile)) {
+						String ItemName = Item.isDirectory()? Item.getName() + '/' : Item.getName();
+						StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ItemName))
+								.append(ItemName).append("</a>");
+					}
+					StrBuf.append("</ul>");
+					
+					AddHeader(HEADER_CONTENTTYPE, "text/html; charset=utf-8");
+					RBODY = ByteBuffer.wrap(StrBuf.toString().getBytes(StandardCharsets.UTF_8));
+					return HttpURLConnection.HTTP_OK;
+				}
+				
+				if (!GetFile.canRead()) {
+					ILog.Warn("Resource '%s' unreadable", RelPath);
+					return HttpURLConnection.HTTP_FORBIDDEN;
+				}
+				
+				String type = Files.probeContentType(GetFile.toPath());
+				if (type == null) {
+					ILog.Warn("Resource '%s' type unknown", RelPath);
+					return HttpURLConnection.HTTP_FORBIDDEN;
+				}
+				
+				long LastModified = GetFile.lastModified();
+				List<String> ModificationCheck = RHEADERS.get(HEADER_IFMODIFIEDSINCE);
+				if (ModificationCheck != null) {
+					String ModificationTS = ModificationCheck.get(0);
+					if (ModificationTS.length() > 1) {
+						ILog.Warn("Multiple modification check headers, using the first (%s)", ModificationTS);
+					}
+					long CheckLastModified = DataFormatter.parse(ModificationTS).getTime();
+					if (LastModified == CheckLastModified) return HttpURLConnection.HTTP_NOT_MODIFIED;
+				}
+				
+				AddHeader(HEADER_CONTENTTYPE, type);
+				AddHeader(HEADER_LASTMODIFIED,
+						Misc.FormatTS(LastModified, TimeSystem.UNIX, TimeUnit.MSEC, DataFormatter));
+				
+				try (RandomAccessFile GetData = new RandomAccessFile(GetFile, "r")) {
+					FileChannel DataChannel = GetData.getChannel();
+					long DataSize = DataChannel.size();
+					if (DataSize > Config.MaxResSize) {
+						ILog.Warn("Resource '%s' exceeded size constraint (%s > %s)", RelPath,
+								Misc.FormatSize(DataSize), Misc.FormatSize(Config.MaxResSize));
+						return HttpURLConnection.HTTP_ENTITY_TOO_LARGE;
+					}
+					
+					RBODY = ByteBuffer.allocate((int) DataSize);
+					RBODY.put(DataChannel.map(FileChannel.MapMode.READ_ONLY, 0, DataSize)).rewind();
+				}
+				
+				return HttpURLConnection.HTTP_OK;
+			}
+			
 		}
 		
 	}
