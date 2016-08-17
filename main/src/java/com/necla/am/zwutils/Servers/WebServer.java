@@ -52,6 +52,8 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.spi.FileTypeDetector;
 import java.security.KeyStore;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -749,6 +751,23 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	public static class ResHandler extends WebHandler {
 		
+		// Complement commonly served resource mime type
+		public static final class CommonResTypeDetector extends FileTypeDetector {
+			
+			@Override
+			public String probeContentType(final Path path) throws IOException {
+				String FileName = path.getFileName().toString();
+				int ExtSep = FileName.lastIndexOf('.');
+				String FileExt = (ExtSep > 0)? FileName.substring(ExtSep + 1) : "";
+				switch (FileExt) {
+					case "js":
+						return "text/javascript";
+				}
+				return null;
+			}
+			
+		}
+		
 		public static final String LogGroup = "ZWUtils.Servers.Web.ResHandler";
 		
 		public static class ConfigData {
@@ -922,17 +941,18 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				String type = Files.probeContentType(GetFile.toPath());
 				if (type == null) {
 					ILog.Warn("Resource '%s' type unknown", RelPath);
-					return HttpURLConnection.HTTP_FORBIDDEN;
+					return HttpURLConnection.HTTP_INTERNAL_ERROR;
 				}
 				
-				long LastModified = GetFile.lastModified();
-				List<String> ModificationCheck = RHEADERS.get(HEADER_IFMODIFIEDSINCE);
+				long LastModified = TimeUnit.MSEC.Convert(GetFile.lastModified(), TimeUnit.SEC);
+				List<String> ModificationCheck = HEADERS().get(HEADER_IFMODIFIEDSINCE);
 				if (ModificationCheck != null) {
 					String ModificationTS = ModificationCheck.get(0);
-					if (ModificationTS.length() > 1) {
+					if (ModificationCheck.size() > 1) {
 						ILog.Warn("Multiple modification check headers, using the first (%s)", ModificationTS);
 					}
-					long CheckLastModified = DataFormatter.parse(ModificationTS).getTime();
+					long CheckLastModified =
+							TimeUnit.MSEC.Convert(DataFormatter.parse(ModificationTS).getTime(), TimeUnit.SEC);
 					if (LastModified == CheckLastModified) return HttpURLConnection.HTTP_NOT_MODIFIED;
 				}
 				
