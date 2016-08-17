@@ -887,8 +887,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 				// Do not accept any query or fragment
 				if (uri.getQuery() != null) {
-					ILog.Warn("Non-empty query not allowed");
-					return HttpURLConnection.HTTP_BAD_REQUEST;
+					ILog.Warn("Query on resource file ignored (%s)", uri.getQuery());
 				}
 				if (uri.getFragment() != null) {
 					ILog.Warn("Non-empty fragment not allowed");
