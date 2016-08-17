@@ -941,16 +941,22 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						Misc.FormatTS(LastModified, TimeSystem.UNIX, TimeUnit.MSEC, DataFormatter));
 				
 				try (RandomAccessFile GetData = new RandomAccessFile(GetFile, "r")) {
-					FileChannel DataChannel = GetData.getChannel();
-					long DataSize = DataChannel.size();
-					if (DataSize > Config.MaxResSize) {
-						ILog.Warn("Resource '%s' exceeded size constraint (%s > %s)", RelPath,
-								Misc.FormatSize(DataSize), Misc.FormatSize(Config.MaxResSize));
-						return HttpURLConnection.HTTP_ENTITY_TOO_LARGE;
+					try (FileChannel DataChannel = GetData.getChannel()) {
+						long DataSize = DataChannel.size();
+						if (DataSize > Config.MaxResSize) {
+							ILog.Warn("Resource '%s' exceeded size constraint (%s > %s)", RelPath,
+									Misc.FormatSize(DataSize), Misc.FormatSize(Config.MaxResSize));
+							return HttpURLConnection.HTTP_ENTITY_TOO_LARGE;
+						}
+						
+						RBODY = ByteBuffer.allocate((int) DataSize);
+						ByteBuffer DataMap = DataChannel.map(FileChannel.MapMode.READ_ONLY, 0, DataSize);
+						try {
+							RBODY.put(DataMap).rewind();
+						} finally {
+							((sun.nio.ch.DirectBuffer) DataMap).cleaner().clean();
+						}
 					}
-					
-					RBODY = ByteBuffer.allocate((int) DataSize);
-					RBODY.put(DataChannel.map(FileChannel.MapMode.READ_ONLY, 0, DataSize)).rewind();
 				}
 				
 				return HttpURLConnection.HTTP_OK;
