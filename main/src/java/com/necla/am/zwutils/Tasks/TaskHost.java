@@ -688,7 +688,7 @@ public class TaskHost extends Poller {
 			try {
 				Configurable.setConfiguration(TaskConfig);
 			} catch (Throwable e) {
-				Misc.CascadeThrow(e);
+				Misc.CascadeThrow(e, "Failed to configure task '%s'", Task);
 			}
 		}
 		
