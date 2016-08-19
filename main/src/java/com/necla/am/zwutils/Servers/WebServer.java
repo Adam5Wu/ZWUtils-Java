@@ -697,7 +697,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					ILog.logExcept(e, "Error serving request");
 				} else {
 					ILog.Warn("[%s:%d]: Error serving request %s '%s' - %s",
-							HE.getRemoteAddress().getAddress().getHostAddress(), HE.getRemoteAddress().getPort(),
+							HE.getRemoteAddress().getHostString(), HE.getRemoteAddress().getPort(),
 							HE.getRequestMethod(), HE.getRequestURI(),
 							(e.getLocalizedMessage() != null? e.getLocalizedMessage() : e.getClass().getName()));
 				}
@@ -1123,8 +1123,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	@Override
 	protected void doTask() {
 		InetSocketAddress SockAddr = Server.getAddress();
-		ILog.Info("Starting up Web server (%s:%d)...", SockAddr.getAddress().getHostAddress(),
-				SockAddr.getPort());
+		ILog.Info("Starting up Web server (%s:%d)...", SockAddr.getHostString(), SockAddr.getPort());
 		Server.start();
 		ILog.Info("Web server started");
 		

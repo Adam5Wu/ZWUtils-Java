@@ -77,7 +77,7 @@ public class RemoteClassLoaders {
 				RPCEndPoint EndPoint = Iter.next();
 				if (EndPoint.Controller == RPCController) {
 					CLog.Fine("Cleanning up MobilityRPC RemoteClassLoader %s:%d",
-							EndPoint.RemoteAddr.getAddress().getHostAddress(), EndPoint.RemoteAddr.getPort());
+							EndPoint.RemoteAddr.getHostString(), EndPoint.RemoteAddr.getPort());
 					Iter.remove();
 				}
 			}
@@ -87,8 +87,7 @@ public class RemoteClassLoaders {
 			super();
 			
 			RPCSession = Session;
-			RPCConnection =
-					new ConnectionId(RemoteAddr.getAddress().getHostAddress(), RemoteAddr.getPort());
+			RPCConnection = new ConnectionId(RemoteAddr.getHostString(), RemoteAddr.getPort());
 		}
 		
 		@Override

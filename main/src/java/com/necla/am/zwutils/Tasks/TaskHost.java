@@ -133,7 +133,7 @@ public class TaskHost extends Poller {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 				}
 				
-				return From.getAddress().getHostAddress() + ':' + From.getPort();
+				return From.getHostString() + ':' + From.getPort();
 			}
 			
 		}
@@ -277,8 +277,9 @@ public class TaskHost extends Poller {
 						} catch (Throwable e) {
 							Misc.CascadeThrow(e, "Failed to load task server '%s' target address", ServName);
 						}
-					} else
+					} else {
 						ILog.Warn("Unrecognized task host setup '%s' = '%s'", Key, setupMap.getText(Key));
+					}
 				}
 				
 				Set<String> BundleConfigTasks = new HashSet<>();
@@ -382,8 +383,9 @@ public class TaskHost extends Poller {
 												ILog.Finer("@: [%s]<", DataTok);
 												// Special dependency on the task host
 												DataTok = null;
-											} else
+											} else {
 												ILog.Finer("@: [%s]<", DataTok);
+											}
 											HostedTask.TaskDep.add(DataTok);
 										}
 									}
@@ -425,12 +427,14 @@ public class TaskHost extends Poller {
 								ILog.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0],
 										TaskTok[1], confMap.getText(Key));
 						}
-					} else
+					} else {
 						HostedTask.ClassDesc = confMap.getText(Key);
+					}
 				}
 				TasksWithBundledConfig.removeAll(BundleConfigTasks);
-				if (!TasksWithBundledConfig.isEmpty())
+				if (!TasksWithBundledConfig.isEmpty()) {
 					ILog.Warn("Unused bundled configuration found for tasks: %s", BundleConfigTasks);
+				}
 			}
 			
 			protected class Validation extends Poller.ConfigData.Mutable.Validation {
@@ -442,8 +446,10 @@ public class TaskHost extends Poller {
 					HostedTaskRecs.forEach((TaskName, HostedTask) -> {
 						ILog.Finer("+Checking task '%s'..", TaskName);
 						
-						if (HostedTask.ClassDesc == null) Misc.FAIL(NoSuchElementException.class,
-								"Task '%s' misses class descriptor", TaskName);
+						if (HostedTask.ClassDesc == null) {
+							Misc.FAIL(NoSuchElementException.class, "Task '%s' misses class descriptor",
+									TaskName);
+						}
 						
 						if (HostedTask.TaskDep != null) {
 							HostedTask.TaskDep.forEach(DepTaskName -> {
@@ -646,9 +652,10 @@ public class TaskHost extends Poller {
 				
 				// Finally, just directly look up from class loader
 				TaskClassRef = new DirectClassSolver(ClassDesc);
-				if (!TaskRunnable.class.isAssignableFrom(TaskClassRef.toClass()))
+				if (!TaskRunnable.class.isAssignableFrom(TaskClassRef.toClass())) {
 					Misc.FAIL("Class '%s' is not runnable task (does not implement %s interface)", ClassDesc,
 							TaskRunnable.class.getSimpleName());
+				}
 				ILog.Fine("Task class loaded from %s", ClassDesc);
 				break;
 			}
@@ -668,8 +675,9 @@ public class TaskHost extends Poller {
 			Class<TaskRunnable> TaskClass = (Class<TaskRunnable>) ClassRef.toClass();
 			Task = TaskClass.getDeclaredConstructor(String.class).newInstance(TaskName);
 		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
+			if (e instanceof InvocationTargetException) {
 				e = ((InvocationTargetException) e).getTargetException();
+			}
 			Misc.CascadeThrow(e);
 		}
 		
@@ -717,7 +725,9 @@ public class TaskHost extends Poller {
 	protected TaskRunnable CreateRemoteTaskRunnable(String TaskName, String RemoteName,
 			String ClassDesc, DataMap TaskConfig) {
 		InetSocketAddress RemoteAddress = Config.RemoteTaskServers.get(RemoteName);
-		if (RemoteAddress == null) Misc.FAIL("Undefined remote server '%s'", RemoteName);
+		if (RemoteAddress == null) {
+			Misc.FAIL("Undefined remote server '%s'", RemoteName);
+		}
 		
 		// Lookup task class on remote server
 		ILog.Fine("Looking up task class '%s' from remote server %s (%s)...", ClassDesc, RemoteName,
@@ -726,7 +736,7 @@ public class TaskHost extends Poller {
 		MobilitySession RPCSession = NeedRPC().newSession();
 		try {
 			ConnectionId RPCConnection =
-					new ConnectionId(RemoteAddress.getAddress().getHostAddress(), RemoteAddress.getPort());
+					new ConnectionId(RemoteAddress.getHostString(), RemoteAddress.getPort());
 			String RemoteClassName =
 					RPCSession.execute(RPCConnection, new RemoteTaskRunnableLookup(ClassDesc));
 			ILog.Fine("Task class %s found on remote server", RemoteClassName);
@@ -803,8 +813,9 @@ public class TaskHost extends Poller {
 					HostedTask.TaskDep.forEach(DepTaskName -> {
 						if (DepTaskName == null) {
 							Dependent.AddDependency(this);
-						} else
+						} else {
 							Dependent.AddDependency(Tasks.get(DepTaskName));
+						}
 					});
 				}
 			});
@@ -817,23 +828,29 @@ public class TaskHost extends Poller {
 			TermTasks
 					.addAll(Config.TermTaskNames.stream().map(RunTasks::get).collect(Collectors.toList()));
 			
-			if (Config.ReturnTaskName != null) ReturnTask = RunTasks.get(Config.ReturnTaskName);
+			if (Config.ReturnTaskName != null) {
+				ReturnTask = RunTasks.get(Config.ReturnTaskName);
+			}
 		} catch (Throwable e) {
 			Misc.CascadeThrow(e, "Error while resolving task dependencies");
 		}
 		ILog.Fine("*@<");
 		
-		if (RunTasks.isEmpty()) Misc.ERROR("No task to run");
+		if (RunTasks.isEmpty()) {
+			Misc.ERROR("No task to run");
+		}
 		
-		if (JoinTasks.isEmpty()) ILog.Warn("No join task specified");
+		if (JoinTasks.isEmpty()) {
+			ILog.Warn("No join task specified");
+		}
 		
 		if (Config.HostingAddress != null) {
 			ILog.Info("Starting task hosting on %s",
 					ConfigData.StringFromInetSocketAddress.parseOrFail(Config.HostingAddress),
 					EmbeddedMobilityServer.DEFAULT_PORT);
 			MobilityController RPC = NeedRPC();
-			RPC.getConnectionManager().bindConnectionListener(new ConnectionId(
-					Config.HostingAddress.getAddress().getHostAddress(), Config.HostingAddress.getPort()));
+			RPC.getConnectionManager().bindConnectionListener(
+					new ConnectionId(Config.HostingAddress.getHostString(), Config.HostingAddress.getPort()));
 			HostDirectory.put(RPC, this);
 		}
 	}
@@ -867,7 +884,9 @@ public class TaskHost extends Poller {
 						// Eat exception
 					}
 				});
-				if (BadTasks.size() > 0) ILog.Warn("%d tasks failed to start", BadTasks.size());
+				if (BadTasks.size() > 0) {
+					ILog.Warn("%d tasks failed to start", BadTasks.size());
+				}
 				ILog.Finer("*@<");
 				JoinTasks.retainAll(GoodTasks);
 			}
@@ -889,7 +908,9 @@ public class TaskHost extends Poller {
 				while (true) {
 					try {
 						// Since it is already in terminated state, the thread will finish very soon
-						if (Task.Join(-1)) break;
+						if (Task.Join(-1)) {
+							break;
+						}
 						Thread.yield();
 					} catch (InterruptedException e) {
 						if (GlobalConfig.DEBUG_CHECK) {
@@ -1024,7 +1045,7 @@ public class TaskHost extends Poller {
 	
 	synchronized public static void RegisterTaskAlias(String Alias,
 			Class<? extends ITask> TaskClass) {
-		Misc.ASSERT(Alias != null && !Alias.isEmpty(), "Alias must be specified");
+		Misc.ASSERT((Alias != null) && !Alias.isEmpty(), "Alias must be specified");
 		
 		Map<String, String> CMap = (ClassMap == null? (ClassMap = new HashMap<>()) : ClassMap);
 		
