@@ -88,7 +88,9 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	
 	@Override
 	public void close() {
-		if (RepQueue == null) Misc.ERROR("Subscriber '%s' already closed", Name);
+		if (RepQueue == null) {
+			Misc.ERROR("Subscriber '%s' already closed", Name);
+		}
 		RepQueue = null;
 	}
 	
@@ -105,7 +107,22 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	}
 	
 	public boolean TryPut(X Payload) {
-		if (RepQueue.offer(Payload)) {
+		return TryPut(Payload, 0);
+	}
+	
+	public boolean TryPut(X Payload, int Timeout) {
+		boolean Ret = false;
+		try {
+			if (Timeout > 0) {
+				Ret = RepQueue.offer(Payload, Timeout, TimeUnit.SECONDS);
+			} else {
+				Ret = RepQueue.offer(Payload);
+			}
+		} catch (InterruptedException e) {
+			ILog.Warn("Subscriber '%s' enqueue interrupted - %s", Name, e);
+		}
+		
+		if (Ret) {
 			InCount.incrementAndGet();
 			return true;
 		}
@@ -115,42 +132,61 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	public void Put(X Payload) {
 		InCount.incrementAndGet();
 		if (BatchQueueLen > 0) {
-			while (!RepQueue.offer(Payload))
+			while (!RepQueue.offer(Payload)) {
 				BatchDiscard(RepQueue);
-		} else
+			}
+		} else {
 			try {
 				RepQueue.put(Payload);
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e);
 			}
+		}
 	}
 	
-	public X Get(int Timeout) throws InterruptedException {
-		return RepQueue.poll(Timeout, TimeUnit.SECONDS);
+	public X Get(int Timeout) {
+		X Ret = null;
+		try {
+			if (Timeout > 0) {
+				Ret = RepQueue.poll(Timeout, TimeUnit.SECONDS);
+			} else {
+				Ret = RepQueue.take();
+			}
+		} catch (InterruptedException e) {
+			ILog.Warn("Subscriber '%s' dequeue interrupted - %s", Name, e);
+		}
+		
+		return Ret;
 	}
 	
 	public void Restock(X Payload) {
 		OutCount.decrementAndGet();
 		if (BatchQueueLen > 0) {
-			while (!RepQueue.offerLast(Payload))
+			while (!RepQueue.offerLast(Payload)) {
 				BatchDiscard(RepQueue);
-		} else
+			}
+		} else {
 			try {
 				RepQueue.putLast(Payload);
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e);
 			}
+		}
 	}
 	
 	public Collection<X> MultiGet(int Count) {
-		if (Count == 0) Count = RepQueue.size();
+		if (Count == 0) {
+			Count = RepQueue.size();
+		}
 		Collection<X> Drain = new ArrayList<>(Count);
 		MultiGet(Drain, Count);
 		return Drain;
 	}
 	
 	public int MultiGet(Collection<X> Drain, int Count) {
-		if (Count == 0) Count = RepQueue.size();
+		if (Count == 0) {
+			Count = RepQueue.size();
+		}
 		int DrainCnt = RepQueue.drainTo(Drain, Count);
 		OutCount.addAndGet(DrainCnt);
 		return DrainCnt;
@@ -267,10 +303,11 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				LaneAdd.Notify(NewLane);
 				Queues.add(NewLane);
 				
-				if (NonCritical.Notify(Lane))
+				if (NonCritical.Notify(Lane)) {
 					LeftOver.forEach(Payload -> Demux.GetLane(Payload).onSubscription(Payload));
-				else
+				} else {
 					ILog.Warn("Dropping %d split-residual items", LeftOver.size());
+				}
 			} finally {
 				InsertionLock.unlock();
 			}
@@ -296,10 +333,11 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				LaneRemove.Notify(Lane);
 				Queues.remove(Lane);
 				
-				if (NonCritical.Notify(Lane))
+				if (NonCritical.Notify(Lane)) {
 					LeftOver.forEach(Payload -> Demux.GetLane(Payload).onSubscription(Payload));
-				else
+				} else {
 					ILog.Warn("Dropping %d merge-residual items", LeftOver.size());
+				}
 			} finally {
 				InsertionLock.unlock();
 			}
