@@ -173,6 +173,12 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> void SaveToFile(
+			Container<M, R> Container, String Prefix, String Name, String FileName, String Comments)
+			throws IOException {
+		SaveToFile(Container, Prefix, Name, FileName, Comments, true);
+	}
+	
+	public static <M extends Data.Mutable, R extends Data.ReadOnly> void SaveToFile(
 			Container<M, R> Container, String Prefix, String Name, String FileName, String Comments,
 			boolean Overwrite) throws IOException {
 		DataMap confMap = Container.save();
