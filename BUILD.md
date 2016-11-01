@@ -1,7 +1,7 @@
 # Environment Setup and Building
 ## Prerequisites
 * Oracle JDK 1.8
-* Gradle 2.10+
+* Gradle 2.10+ (limited to major version 2)
 * (Recommended) Ubuntu 14+
 	* (If not using Windows) System Utilities: git sed cut unix2dos tar
 * (Recommended, for development) Eclipse Mars
