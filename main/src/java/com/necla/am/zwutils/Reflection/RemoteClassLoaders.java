@@ -100,7 +100,9 @@ public class RemoteClassLoaders {
 			
 			try (InputStream BinaryStream = Binary.openStream()) {
 				byte[] BinaryData = new byte[BinaryStream.available()];
-				BinaryStream.read(BinaryData, 0, BinaryData.length);
+				if (BinaryStream.read(BinaryData, 0, BinaryData.length) != BinaryData.length) {
+					Misc.FAIL("Failed to complete receive class bytecode");
+				}
 				return defineClass(name, BinaryData, 0, BinaryData.length);
 			} catch (IOException e) {
 				Misc.CascadeThrow(e, "Unable to load class '%s'", name);

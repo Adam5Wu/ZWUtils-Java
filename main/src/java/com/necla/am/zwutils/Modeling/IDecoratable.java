@@ -90,7 +90,9 @@ public interface IDecoratable {
 		
 		@Override
 		public T Data() {
-			if (isDecorated()) Misc.FAILN(IllegalStateException.class, 1, "Decorated data (%s)", NOTE);
+			if (isDecorated()) {
+				Misc.FAILN(IllegalStateException.class, 1, "Decorated data (%s)", NOTE);
+			}
 			return Data;
 		}
 		
@@ -113,7 +115,9 @@ public interface IDecoratable {
 			if (!isDecorated()) return PrintData();
 			
 			StringBuffer StrBuf = new StringBuffer();
-			if (isDecorated()) StrBuf.append(super.toString()).append(':');
+			if (isDecorated()) {
+				StrBuf.append(super.toString()).append(':');
+			}
 			
 			StrBuf.append(PrintData());
 			return StrBuf.toString();
@@ -156,7 +160,7 @@ public interface IDecoratable {
 			// Fast acceptance
 			if (super.equals(obj)) return true;
 			// Fast rejection
-			if (hashCode() != obj.hashCode()) return false;
+			if ((obj == null) || (hashCode() != obj.hashCode())) return false;
 			// if (obj instanceof Value<?>) return equals((Value<?>) obj);
 			// return false;
 			return equals((Value<?>) obj);
@@ -172,7 +176,9 @@ public interface IDecoratable {
 		
 		@Override
 		public final int hashCode() {
-			if (_HashCache == null) _HashCache = HashCode();
+			if (_HashCache == null) {
+				_HashCache = HashCode();
+			}
 			return _HashCache;
 		}
 		
