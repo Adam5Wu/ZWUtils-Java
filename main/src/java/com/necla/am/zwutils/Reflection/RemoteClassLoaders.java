@@ -120,7 +120,8 @@ public class RemoteClassLoaders {
 					RPCClassLoader.setThreadLocalConnectionId(RPCConnection);
 					return RPCClassLoader.getResource(name);
 				} catch (IllegalStateException e) {
-					CLog.logExcept(e, "Error loading remote resource '%s' (#%d) - %s", name, Trial);
+					CLog.logExcept(e, "Error loading remote resource '%s' (#%d) - %s", name, Trial,
+							e.getLocalizedMessage());
 					
 					// Give up current session and get a new one
 					MobilitySession NewSession = RPCSession.getMobilityController().newSession();
