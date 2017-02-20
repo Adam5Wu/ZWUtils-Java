@@ -806,7 +806,14 @@ public class Misc {
 		return Formatter.format(new Date(TimeMS));
 	}
 	
-	protected static DateFormat DateFormatter = new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS");
+	// SimpleDateFormat is not threadsafe
+	// Ref: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
+	protected static ThreadLocal<DateFormat> DateFormatter = new ThreadLocal<DateFormat>() {
+		@Override
+		protected DateFormat initialValue() {
+			return new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS");
+		}
+	};
 	
 	/**
 	 * Format a time stamp of given system and unit into built-in date format
@@ -819,7 +826,7 @@ public class Misc {
 	 *          - Time unit
 	 */
 	public static String FormatTS(long Time, TimeSystem System, TimeUnit Unit) {
-		return FormatTS(Time, System, Unit, DateFormatter);
+		return FormatTS(Time, System, Unit, DateFormatter.get());
 	}
 	
 	/**
