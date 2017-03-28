@@ -62,7 +62,9 @@ import org.python.core.CompileMode;
 import org.python.core.CompilerFlags;
 import org.python.core.Py;
 import org.python.core.PyCode;
+import org.python.core.PyInteger;
 import org.python.core.PyObject;
+import org.python.core.PyString;
 import org.python.core.PySystemState;
 
 import com.esotericsoftware.reflectasm.FieldAccess;
@@ -2100,6 +2102,7 @@ public class ObjectTrap {
 		
 		public static enum Result {
 			Match,
+			Script,
 			Unmatch,
 			Error
 		}
@@ -2123,8 +2126,10 @@ public class ObjectTrap {
 		public final IHook H;
 		public final String ScrRef;
 		
+		protected int ThisIP;
 		protected int MatchNext;
 		protected int UnmatchNext;
+		protected int ScriptNext;
 		
 		public Fork(String name, IScope scope, IHook hook, String scrref) {
 			ILog = new GroupLogger.PerInst(ObjectTrap.this.ILog.GroupName() + '.' + name);
@@ -2134,6 +2139,11 @@ public class ObjectTrap {
 			ScrRef = scrref;
 			MatchNext = 0;
 			UnmatchNext = 1;
+			ScriptNext = -1;
+		}
+		
+		public void SetIP(int Value) {
+			ThisIP = Value;
 		}
 		
 		@Override
@@ -2150,12 +2160,32 @@ public class ObjectTrap {
 							return Local;
 						});
 					} else {
-						if (!ScriptExec(ScrRef, Local -> {
+						PyObject ScriptLocals = ScriptExec(ScrRef, Local -> {
 							Local.__setitem__("TAP_OBJECT", Py.java2py(obj)); //$NON-NLS-1$
 							Local.__setitem__("TAP_SCOPED", Py.java2py(Scoped)); //$NON-NLS-1$
 							Local.__setitem__("LOG", Py.java2py(ILog)); //$NON-NLS-1$
 							return Local;
-						})) return Result.Error;
+						});
+						
+						// Check script controlled next IP
+						PyObject ScriptRet = ScriptLocals.__finditem__("NEXT"); //$NON-NLS-1$
+						if (ScriptRet == null) {
+							ScriptNext = MatchNext;
+						} else if (ScriptRet instanceof PyInteger) {
+							ScriptNext = ScriptRet.asInt();
+						} else if (ScriptRet instanceof PyString) {
+							Integer NextIP = TrapMap.get(ScriptRet.asString());
+							if (NextIP == null) {
+								ILog.Warn(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_BADADDR"), //$NON-NLS-1$
+										ScriptRet.asString()); 
+								return Result.Error;
+							}
+							ScriptNext = NextIP - ThisIP;
+						} else {
+							ILog.Warn(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_UNKNOWN"), ScriptRet); //$NON-NLS-1$
+							return Result.Error;
+						}
+						return Result.Script;
 					}
 				}
 				return Result.Match;
@@ -2174,6 +2204,8 @@ public class ObjectTrap {
 			switch (R) {
 				case Match:
 					return MatchNext;
+				case Script:
+					return ScriptNext;
 				case Unmatch:
 				case Error:
 					return UnmatchNext;
@@ -2237,6 +2269,7 @@ public class ObjectTrap {
 	}
 	
 	List<IFork> Trap = null;
+	Map<String, Integer> TrapMap = null;
 	
 	@SuppressWarnings("serial")
 	public static class SuffixClassNameSolver extends ArrayList<String> {
@@ -2578,19 +2611,16 @@ public class ObjectTrap {
 		return Prep.Perform(ScriptLocals.get());
 	}
 	
-	protected boolean ScriptExec(String Name, IScriptExecPrep Prep) {
-		if (Scripts == null) return false;
-		
-		PyCode Code = Scripts.get(Name);
+	protected PyObject ScriptExec(String Name, IScriptExecPrep Prep) {
+		PyCode Code = Scripts != null? Scripts.get(Name) : null;
 		if (Code == null) {
-			ILog.Warn(Messages.Localize("Debugging.ObjectTrap.NO_SUCH_SCRIPT"), Name); //$NON-NLS-1$
-			return false;
+			Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.NO_SUCH_SCRIPT"), Name); //$NON-NLS-1$
 		}
 		
 		Py.setSystemState(ScriptSystemStates.get());
 		Py.exec(Code, ScriptGlobals, ScriptPrep(Prep));
 		Py.flushLine();
-		return true;
+		return ScriptLocals.get();
 	}
 	
 	protected void CreateScript(String Name, String CodeStr, Map<String, PyCode> _Scripts) {
@@ -2613,7 +2643,7 @@ public class ObjectTrap {
 				Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.SCRIPT_DUPLICATE_NAME"), Name); //$NON-NLS-1$
 			}
 			ILog.Config(Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FILE"), //$NON-NLS-1$
-					CodeCont.getName()); 
+					CodeCont.getName());
 			_Scripts.put(Name, ScriptCompile(Name, new FileInputStream(CodeCont)));
 			ILog.Config(":{%s}", Name); //$NON-NLS-1$
 		} catch (Throwable e) {
@@ -2642,6 +2672,7 @@ public class ObjectTrap {
 	
 	public void Update(DataMap config) {
 		List<IFork> InstTrap = new ArrayList<>();
+		Map<String, Integer> InstTrapMap = new HashMap<>();
 		Map<String, PyCode> InstScripts = new HashMap<>();
 		Map<String, Collection<IFork>> ForkGroups = new HashMap<>();
 		ILog.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_START")); //$NON-NLS-1$
@@ -2668,7 +2699,7 @@ public class ObjectTrap {
 						payload.length > 1? HookMaker.Create(Scope.Type(), payload[1].trim(), ClassDict) : null;
 				String ScrRef =
 						payload.length > 2? ParseProcDesc(name, payload[2].trim(), InstScripts) : null;
-				IFork F = new Fork(name, Scope, Hook, ScrRef);
+				Fork F = new Fork(name, Scope, Hook, ScrRef);
 				if (Group != null) {
 					if (!ForkGroups.containsKey(Group)) {
 						ForkGroups.put(Group, new Stack<>());
@@ -2677,6 +2708,8 @@ public class ObjectTrap {
 					FG.add(F);
 				} else {
 					InstTrap.add(F);
+					F.SetIP(InstTrap.size());
+					InstTrapMap.put(name, InstTrap.size());
 				}
 				ILog.Config(":%s", F); //$NON-NLS-1$
 			} catch (Throwable e) {
@@ -2692,12 +2725,15 @@ public class ObjectTrap {
 				GF.UnmatchNext = GIdx > 1? GIdx : 1;
 				ILog.Config(Messages.Localize("Debugging.ObjectTrap.FORK_GROUP_LABEL"), GF); //$NON-NLS-1$
 				InstTrap.add(GF);
+				GF.SetIP(InstTrap.size());
+				InstTrapMap.put(GF.Name, InstTrap.size());
 				GIdx--;
 			}
 		}
 		ILog.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_FINISH"), //$NON-NLS-1$
 				InstTrap.size(), ForkGroups.size());
 		Trap = InstTrap.isEmpty()? null : InstTrap;
+		TrapMap = InstTrapMap.isEmpty()? null : InstTrapMap;
 		Scripts = InstScripts.isEmpty()? null : InstScripts;
 	}
 	
