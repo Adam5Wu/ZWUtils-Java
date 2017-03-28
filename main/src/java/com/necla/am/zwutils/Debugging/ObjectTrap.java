@@ -2164,6 +2164,7 @@ public class ObjectTrap {
 							Local.__setitem__("TAP_OBJECT", Py.java2py(obj)); //$NON-NLS-1$
 							Local.__setitem__("TAP_SCOPED", Py.java2py(Scoped)); //$NON-NLS-1$
 							Local.__setitem__("LOG", Py.java2py(ILog)); //$NON-NLS-1$
+							Local.__setitem__("NEXT", null); //$NON-NLS-1$
 							return Local;
 						});
 						
@@ -2177,7 +2178,7 @@ public class ObjectTrap {
 							Integer NextIP = TrapMap.get(ScriptRet.asString());
 							if (NextIP == null) {
 								ILog.Warn(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_BADADDR"), //$NON-NLS-1$
-										ScriptRet.asString()); 
+										ScriptRet.asString());
 								return Result.Error;
 							}
 							ScriptNext = NextIP - ThisIP;
