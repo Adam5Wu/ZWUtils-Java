@@ -105,6 +105,9 @@ dependencies {
 	compile 'com.googlecode.mobilityrpc:mobility-rpc:1.2.1'
 	compile 'com.esotericsoftware:reflectasm:1.11.3'
 	compile 'org.python:jython:2.7.+'
+	compile 'org.scala-lang:scala-compiler:2.12.1'
+	compile 'org.scala-lang:scala-reflect:2.12.1'
+	compile 'org.scala-lang:scala-library:2.12.1'
 }
 
 allprojects {
