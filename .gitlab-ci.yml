@@ -1,6 +1,10 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 before_script:
-  - git submodule update --init --recursive
-  - set -a && . ~/publish.env.ZWUtils-Java
+#  - . ~/.sshagent && sshagent_init
+#  - git submodule update --init --recursive
+  - set -a && . ~/publish.env
 
 stages:
   - build
