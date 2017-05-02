@@ -160,7 +160,8 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 					Misc.FAIL(IllegalStateException.class, "Illegal task state: %s", CurState);
 			}
 		} catch (Throwable e) {
-			ILog.logExcept(e, "Terminated by unhandled exception");
+			ILog.Error("Terminated by unhandled exception");
+			ILog.logExcept(e);
 			FatalException = e;
 		} finally {
 			tryEnterState(State.TERMINATING);
@@ -300,24 +301,29 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	protected boolean Sleep(long Time) {
 		boolean Interrupted = false;
 		
-		if (GlobalConfig.DEBUG_CHECK && (WorkerThread == null))
+		if (GlobalConfig.DEBUG_CHECK && (WorkerThread == null)) {
 			Misc.FAIL("Not supposed to be called while task thread is not running");
+		}
 		
 		if (Time != 0) {
 			Sleeping = true;
-			if (Time > 0)
+			if (Time > 0) {
 				// Positive sleep = wait normally
 				LockSupport.parkNanos(this, TimeUnit.MSEC.Convert(Time, TimeUnit.NSEC));
-			else
+			} else {
 				// Negative sleep = wait forever
 				LockSupport.park(this);
+			}
 			Sleeping = false;
 			
 			Interrupted = Thread.interrupted();
-			if (GlobalConfig.DEBUG_CHECK && Interrupted) ILog.Warn("Sleep interrupted");
-		} else
+			if (GlobalConfig.DEBUG_CHECK && Interrupted) {
+				ILog.Warn("Sleep interrupted");
+			}
+		} else {
 			// Zero sleep = yield
 			Thread.yield();
+		}
 		
 		return Interrupted;
 	}
@@ -326,9 +332,12 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		if (Sleeping) {
 			Sleeping = false;
 			if (WorkerThread == null) {
-				if (ILog.isLoggable(Level.FINE)) ILog.Warn("Task thread already terminated");
-			} else
+				if (ILog.isLoggable(Level.FINE)) {
+					ILog.Warn("Task thread already terminated");
+				}
+			} else {
 				LockSupport.unpark(WorkerThread);
+			}
 		}
 	}
 	
