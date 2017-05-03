@@ -63,7 +63,7 @@ import com.necla.am.zwutils.i18n.Messages;
  * @version 1.05 - Dec. 2015: Adopt resource bundle based localization
  * @version 1.05 - Jan. 20 2016: Initial public release
  */
-public abstract class CanonicalCacheMap<K, V> {
+public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	
 	public static final String LogGroup = "ZWUtils.Caching.CMap"; //$NON-NLS-1$
 	protected final IGroupLogger ILog;
@@ -168,6 +168,21 @@ public abstract class CanonicalCacheMap<K, V> {
 		CleanTS = new AtomicLong(System.currentTimeMillis());
 	}
 	
+	@Override
+	public long Insertions() {
+		return InsertCounter.get();
+	}
+	
+	@Override
+	public long Expirations() {
+		return ExpireCounter.get();
+	}
+	
+	@Override
+	public long HitCount() {
+		return HitCounter.get();
+	}
+	
 	/**
 	 * Returns a reference queue for key references
 	 */
@@ -217,7 +232,7 @@ public abstract class CanonicalCacheMap<K, V> {
 						}
 					}
 				}
-				double StrongRate = StrongCnt * 100D / (StrongCnt + WeakCnt);
+				double StrongRate = (StrongCnt * 100D) / (StrongCnt + WeakCnt);
 				String StrongStatStr =
 						(StrongCnt == 0)? Messages.Localize("Caching.CanonicalCacheMap.NOT_APPLICABLE") : //$NON-NLS-1$
 								String.format("%.2f @%s", StrongHits / (double) StrongCnt, //$NON-NLS-1$
@@ -254,9 +269,9 @@ public abstract class CanonicalCacheMap<K, V> {
 					//ILog.Warn("Ineffective key expiration (should be extremely rare!)");
 				}
 			} else {
-				if (HitCounter.incrementAndGet() % CleanCycle == 0) {
+				if ((HitCounter.incrementAndGet() % CleanCycle) == 0) {
 					long Now = System.currentTimeMillis();
-					if (Now - CleanTS.get() > BGDecayDelay) {
+					if ((Now - CleanTS.get()) > BGDecayDelay) {
 						// Decay scan of the rest of the cache
 						int DecayCount = LRUDecay(-1, -1, Now);
 						
@@ -265,8 +280,9 @@ public abstract class CanonicalCacheMap<K, V> {
 				}
 			}
 			return Ret;
-		} else
+		} else {
 			MissCounter.incrementAndGet();
+		}
 		return null;
 	}
 	
@@ -388,30 +404,36 @@ public abstract class CanonicalCacheMap<K, V> {
 		// Prevent cleanup contention
 		if (CurTS == null) {
 			CurTS = System.currentTimeMillis();
-			if (CurTS - CleanTS.get() < StaleDelay * 2) return -1;
+			if ((CurTS - CleanTS.get()) < (StaleDelay * 2)) return -1;
 		} else {
 			long LastClean = CleanTS.get();
-			if (CurTS - LastClean < StaleDelay * 2) return -1;
+			if ((CurTS - LastClean) < (StaleDelay * 2)) return -1;
 			if (!CleanTS.compareAndSet(LastClean, CurTS)) return -2;
 		}
 		
 		int Decayed = 0;
 		Iterator<IValueRef<V>> LRUIter = GCIterator.getAndSet(NullIter);
 		if (LRUIter != NullIter) {
-			if (LRUIter == null) LRUIter = Cache.values().iterator();
+			if (LRUIter == null) {
+				LRUIter = Cache.values().iterator();
+			}
 			while (scanlimit-- != 0) {
 				if (!LRUIter.hasNext()) {
 					LRUIter = null;
 					break;
 				}
 				IValueRef<V> VRef = LRUIter.next();
-				if (VRef.Weak()) continue;
+				if (VRef.Weak()) {
+					continue;
+				}
 				IKeyRef KRef = VRef.RefKey();
 				long RefAge = KRef.Age(CurTS);
 				if (RefAge >= StaleDelay) {
 					if (KRef.Decay(RefAge, CurTS)) {
 						VRef.Weaken();
-						if (++Decayed == decaylimit) break;
+						if (++Decayed == decaylimit) {
+							break;
+						}
 					}
 				}
 			}
@@ -426,7 +448,9 @@ public abstract class CanonicalCacheMap<K, V> {
 	protected void CleaningCheck(long InsertCnt) {
 		// Perform an incremental cache decay scan
 		LRUDecay(DEF_MAPSIZE, 1, null);
-		if (InsertCnt % CleanCycle == 0) Cleanup();
+		if ((InsertCnt % CleanCycle) == 0) {
+			Cleanup();
+		}
 	}
 	
 	/**
@@ -435,8 +459,9 @@ public abstract class CanonicalCacheMap<K, V> {
 	public int Cleanup() {
 		// First, check all expired values, and expire their keys
 		int ExpCnt = CheckExpiredValues();
-		if (ExpCnt > 0)
+		if (ExpCnt > 0) {
 			ILog.Fine(Messages.Localize("Caching.CanonicalCacheMap.DISCOVER_EXPIRED"), ExpCnt); //$NON-NLS-1$
+		}
 		// Then perform actual cleaning
 		return DoCleaning();
 	}
@@ -478,8 +503,9 @@ public abstract class CanonicalCacheMap<K, V> {
 		if (Size < (Watermark >>> 1)) {
 			ILog.Fine(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_START")); //$NON-NLS-1$
 			InsertionLock.lock();
-			while (InsertWorker.get() != InsertWaiter.get())
+			while (InsertWorker.get() != InsertWaiter.get()) {
 				Thread.yield();
+			}
 			
 			try {
 				// Perform map shrinking
@@ -488,9 +514,10 @@ public abstract class CanonicalCacheMap<K, V> {
 					Cache = new ConcurrentHashMap<>(Cache);
 					ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_COMPLETE"), //$NON-NLS-1$
 							Watermark, Size);
-				} else
+				} else {
 					ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.SHRINK_ABORT"), //$NON-NLS-1$
 							HighWatermark.get());
+				}
 			} finally {
 				InsertionLock.unlock();
 			}
@@ -500,8 +527,8 @@ public abstract class CanonicalCacheMap<K, V> {
 		long Miss = MissCounter.get();
 		long NearHit = NearHitCounter.get();
 		long Insert = InsertCounter.get();
-		double HitRatio = Hit * 100D / (Hit + Miss + NearHit);
-		double NewRatio = Insert * 100D / (Miss + NearHit);
+		double HitRatio = (Hit * 100D) / (Hit + Miss + NearHit);
+		double NewRatio = (Insert * 100D) / (Miss + NearHit);
 		ILog.Info(Messages.Localize("Caching.CanonicalCacheMap.LOOKUP_STATISTICS"), //$NON-NLS-1$
 				Size, Hit, HitRatio, Miss, NearHit, NewRatio, RushInsertCounter.get(), ExpireCounter.get(),
 				RushFreeCounter.get());
@@ -587,7 +614,9 @@ public abstract class CanonicalCacheMap<K, V> {
 			int Count = 0;
 			Reference<? extends V> ValueRef;
 			while ((ValueRef = ExpiredValues.poll()) != null)
-				if (ExpireKeyRef((IValueRef<V>) ValueRef)) Count++;
+				if (ExpireKeyRef((IValueRef<V>) ValueRef)) {
+					Count++;
+				}
 			return Count;
 		}
 		
@@ -691,11 +720,12 @@ public abstract class CanonicalCacheMap<K, V> {
 				StringBuilder StrBuf = new StringBuilder();
 				K xRef = get();
 				StrBuf.append("<RefKey"); //$NON-NLS-1$
-				if (xRef != null)
+				if (xRef != null) {
 					StrBuf.append(':').append(xRef.toString());
-				else
+				} else {
 					StrBuf.append(Messages.Localize("Caching.CanonicalCacheMap.EXPIRED_STATE")) //$NON-NLS-1$
 							.append(System.identityHashCode(this));
+				}
 				StrBuf.append('>');
 				return StrBuf.toString();
 			}
@@ -737,11 +767,12 @@ public abstract class CanonicalCacheMap<K, V> {
 					StringBuilder StrBuf = new StringBuilder();
 					StrBuf.append("<WeakRefValue"); //$NON-NLS-1$
 					Object O = super.get();
-					if (O != null)
+					if (O != null) {
 						StrBuf.append(':').append(O.toString());
-					else
+					} else {
 						StrBuf.append(Messages.Localize("Caching.CanonicalCacheMap.EXPIRED_STATE")) //$NON-NLS-1$
 								.append(System.identityHashCode(this));
+					}
 					return StrBuf.append('>').toString();
 				}
 				
@@ -918,11 +949,12 @@ public abstract class CanonicalCacheMap<K, V> {
 							.append(xRef.toString());
 				} else {
 					xRef = VRef.get();
-					if (xRef != null)
+					if (xRef != null) {
 						StrBuf.append(':').append(xRef.toString());
-					else
+					} else {
 						StrBuf.append(Messages.Localize("Caching.CanonicalCacheMap.EXPIRED_STATE")) //$NON-NLS-1$
 								.append(System.identityHashCode(this));
+					}
 				}
 				return StrBuf.append('>').toString();
 			}
