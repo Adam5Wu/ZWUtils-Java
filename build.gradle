@@ -29,7 +29,7 @@ apply plugin: 'eclipse'
 
 compileJava {
 	sourceCompatibility = '1.8'
-	options.encoding 'UTF-8'
+	options.encoding = 'UTF-8'
 }
 
 import org.gradle.internal.os.OperatingSystem;
