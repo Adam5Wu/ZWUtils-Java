@@ -89,10 +89,12 @@ public class Canonicalizer {
 	
 	public void Register(Class<?> C, Class<?>... CParams) {
 		Constructor<?> CC = null;
-		if ((CParams.length != 1) || !C.equals(CParams[0])) try {
-			CC = C.getConstructor(CParams);
-		} catch (NoSuchMethodException | SecurityException e) {
-			Misc.CascadeThrow(e);
+		if ((CParams.length != 1) || !C.equals(CParams[0])) {
+			try {
+				CC = C.getConstructor(CParams);
+			} catch (NoSuchMethodException | SecurityException e) {
+				Misc.CascadeThrow(e);
+			}
 		}
 		Register(C, CC, new HashSet<>(Collections.singletonList(C)));
 	}
@@ -100,16 +102,22 @@ public class Canonicalizer {
 	protected void Register(Class<?> C, Constructor<?> CC, Set<Class<?>> Pending) {
 		if (CC != null) {
 			Class<?>[] CCP = CC.getParameterTypes();
-			if (CCP.length == 0) Misc.FAIL(IllegalArgumentException.class,
-					Messages.Localize("Caching.Canonicalizer.NOAC_DEFAULTCONSTRUCT"), C.getName()); //$NON-NLS-1$
+			if (CCP.length == 0) {
+				Misc.FAIL(IllegalArgumentException.class,
+						Messages.Localize("Caching.Canonicalizer.NOAC_DEFAULTCONSTRUCT"), C.getName()); //$NON-NLS-1$
+			}
 			for (int PIdx = 0; PIdx < CCP.length; PIdx++) {
 				Class<?> CP = CCP[PIdx];
 				if (!PClass.contains(CP) && !CClass.containsKey(CP)) {
-					if (CP.equals(Object.class)) Misc.FAIL(IllegalStateException.class,
-							Messages.Localize("Caching.Canonicalizer.NOAC_GENERICPARAM"), PIdx); //$NON-NLS-1$
+					if (CP.equals(Object.class)) {
+						Misc.FAIL(IllegalStateException.class,
+								Messages.Localize("Caching.Canonicalizer.NOAC_GENERICPARAM"), PIdx); //$NON-NLS-1$
+					}
 					
-					if (Pending.contains(CP)) Misc.FAIL(IllegalStateException.class,
-							Messages.Localize("Caching.Canonicalizer.NOAC_TYPERECURSIVE"), PIdx, CP.getName()); //$NON-NLS-1$
+					if (Pending.contains(CP)) {
+						Misc.FAIL(IllegalStateException.class,
+								Messages.Localize("Caching.Canonicalizer.NOAC_TYPERECURSIVE"), PIdx, CP.getName()); //$NON-NLS-1$
+					}
 					
 					ILog.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_PARAM"), PIdx, CP.getName()); //$NON-NLS-1$
 					Pending.add(CP);
@@ -119,8 +127,9 @@ public class Canonicalizer {
 			}
 			CC.setAccessible(true);
 		} else {
-			if (ILog.isLoggable(Level.CONFIG))
+			if (ILog.isLoggable(Level.CONFIG)) {
 				ILog.Warn(Messages.Localize("Caching.Canonicalizer.SELF_CANONICAL"), C.getName()); //$NON-NLS-1$
+			}
 			// Detected self-canonicalizing class
 			AClass.add(C);
 		}
@@ -130,13 +139,15 @@ public class Canonicalizer {
 	@SuppressWarnings("unchecked")
 	protected void Register(Class<?> C, Set<Class<?>> Pending) {
 		if (PClass.contains(C)) {
-			if (ILog.isLoggable(Level.CONFIG))
+			if (ILog.isLoggable(Level.CONFIG)) {
 				ILog.Info(Messages.Localize("Caching.Canonicalizer.PRIMITIVE_TYPE"), C.getSimpleName()); //$NON-NLS-1$
+			}
 			return;
 		}
 		if (CClass.containsKey(C)) {
-			if (ILog.isLoggable(Level.CONFIG))
+			if (ILog.isLoggable(Level.CONFIG)) {
 				ILog.Info(Messages.Localize("Caching.Canonicalizer.KNOWN_CLASS"), C.getName()); //$NON-NLS-1$
+			}
 			return;
 		}
 		
@@ -149,7 +160,9 @@ public class Canonicalizer {
 				return;
 			} else {
 				// Default construction is not eligible for auto-canonicalization
-				if (CC.getParameterTypes().length == 0) continue;
+				if (CC.getParameterTypes().length == 0) {
+					continue;
+				}
 				// Certain types of parameter are not eligible
 				for (Class<?> CP : CC.getParameterTypes()) {
 					if (CP.equals(Object.class)) {
@@ -165,26 +178,30 @@ public class Canonicalizer {
 						break;
 					}
 				}
-				if (CC == null) continue;
+				if (CC == null) {
+					continue;
+				}
 				
-				if (CCC == null)
+				if (CCC == null) {
 					CCC = CC;
-				else {
-					if (CCC.getClass().equals(Constructor.class))
+				} else {
+					if (CCC.getClass().equals(Constructor.class)) {
 						CCC = new ArrayList<Constructor<?>>(Collections.singletonList((Constructor<?>) CCC));
+					}
 					((List<Constructor<?>>) CCC).add(CC);
 				}
 			}
 		}
-		if (CCC == null)
+		if (CCC == null) {
 			ILog.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_NOCONSTRUCT"), C.getName()); //$NON-NLS-1$
-		else if (CCC.getClass().equals(Constructor.class)) {
+		} else if (CCC.getClass().equals(Constructor.class)) {
 			// Although Hint is not provided, since there is only one candidate, we try anyway
 			Constructor<?> CC = (Constructor<?>) CCC;
 			if (ILog.isLoggable(Level.CONFIG)) {
 				List<String> CPS = new ArrayList<>();
-				for (Class<?> CP : CC.getParameterTypes())
+				for (Class<?> CP : CC.getParameterTypes()) {
 					CPS.add(CP.getSimpleName());
+				}
 				ILog.Config(Messages.Localize("Caching.Canonicalizer.CONSTRUCT_AUTOSEL"), CPS); //$NON-NLS-1$
 			}
 			Register(C, CC, Pending);
@@ -196,8 +213,9 @@ public class Canonicalizer {
 				for (int CIdx = 0; CIdx < CCL.size(); CIdx++) {
 					Constructor<?> CC = CCL.get(CIdx);
 					List<String> CPS = new ArrayList<>();
-					for (Class<?> CP : CC.getParameterTypes())
+					for (Class<?> CP : CC.getParameterTypes()) {
 						CPS.add(CP.getSimpleName());
+					}
 					ILog.Info("%d. %s", CIdx, CPS); //$NON-NLS-1$
 				}
 			}
@@ -232,8 +250,9 @@ public class Canonicalizer {
 			Values = values;
 			
 			int hashcode = 0;
-			for (Object value : values)
+			for (Object value : values) {
 				hashcode = hashcode ^ value.hashCode();
+			}
 			HashCode = hashcode;
 		}
 		
@@ -260,16 +279,21 @@ public class Canonicalizer {
 		public String toString() {
 			StringBuilder StrBuf = new StringBuilder();
 			StrBuf.append('(');
-			for (Object value : Values)
+			for (Object value : Values) {
 				StrBuf.append(value).append(',');
-			if (Values.length > 0) StrBuf.deleteCharAt(StrBuf.length() - 1);
+			}
+			if (Values.length > 0) {
+				StrBuf.deleteCharAt(StrBuf.length() - 1);
+			}
 			StrBuf.append(')');
 			return StrBuf.toString();
 		}
 		
 		public static TParamContainer wrap(Object[] values, int size) {
-			if (values.length != size) Misc.FAIL(IllegalArgumentException.class,
-					Messages.Localize("Caching.Canonicalizer.BADAC_PARAMCOUNT"), size, values.length); //$NON-NLS-1$
+			if (values.length != size) {
+				Misc.FAIL(IllegalArgumentException.class,
+						Messages.Localize("Caching.Canonicalizer.BADAC_PARAMCOUNT"), size, values.length); //$NON-NLS-1$
+			}
 			return new TParamContainer(values);
 		}
 		
@@ -308,7 +332,9 @@ public class Canonicalizer {
 		AutoMagic<?> GMagic;
 		synchronized (MagicStore) {
 			GMagic = MagicStore.get(C);
-			if (GMagic == null) MagicStore.put(C, GMagic = Instance(C));
+			if (GMagic == null) {
+				MagicStore.put(C, GMagic = Instance(C));
+			}
 		}
 		return GMagic;
 	}

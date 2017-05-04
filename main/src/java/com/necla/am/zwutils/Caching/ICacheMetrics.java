@@ -9,4 +9,6 @@ public interface ICacheMetrics {
 	
 	public long HitCount();
 	
+	public long MissCount();
+	
 }

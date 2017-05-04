@@ -183,6 +183,11 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 		return HitCounter.get();
 	}
 	
+	@Override
+	public long MissCount() {
+		return MissCounter.get();
+	}
+	
 	/**
 	 * Returns a reference queue for key references
 	 */
