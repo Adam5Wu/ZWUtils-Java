@@ -34,6 +34,7 @@ package com.necla.am.zwutils.Reflection;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.ProviderNotFoundException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -92,8 +93,8 @@ public class PackageClassIterable implements Iterable<String> {
 			}
 		} else {
 			DelegateIterable = EmptyList;
-			Misc.FAIL(TypeNotPresentException.class,
-					"Unable to enumerate package '%a' with no resource URL", pkgname);
+			Misc.FAIL(ProviderNotFoundException.class,
+					"Unable to enumerate package '%s' with no resource URL", pkgname);
 		}
 	}
 	
