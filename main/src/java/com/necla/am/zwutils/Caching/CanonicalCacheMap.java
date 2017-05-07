@@ -152,14 +152,18 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 		this(Name, DEF_MAPSIZE);
 	}
 	
-	public CanonicalCacheMap(String Name, int mapsize) {
-		this(Name, DEF_MAPSIZE, DEF_CLEANCYCLE, DEF_STALEDELAY, DEF_BGDECAYDELAY);
+	public CanonicalCacheMap(String Name, int initmapsize) {
+		this(Name, initmapsize, DEF_CLEANCYCLE, DEF_STALEDELAY, DEF_BGDECAYDELAY);
 	}
 	
-	public CanonicalCacheMap(String Name, int mapsize, int cleaningcycles, int staledelay,
+	public CanonicalCacheMap(String Name, int initmapsize, int cleaningcycles) {
+		this(Name, initmapsize, cleaningcycles, DEF_STALEDELAY, DEF_BGDECAYDELAY);
+	}
+	
+	public CanonicalCacheMap(String Name, int initmapsize, int cleaningcycles, int staledelay,
 			int bgdecaydelay) {
 		ILog = new GroupLogger.PerInst(LogGroup + '[' + Name + ']');
-		Cache = new ConcurrentHashMap<>(mapsize);
+		Cache = new ConcurrentHashMap<>(initmapsize);
 		CleanCycle = cleaningcycles;
 		ExpiredKeys = MakeKeyQueue();
 		StaleDelay = staledelay;
@@ -279,6 +283,8 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 					if ((Now - CleanTS.get()) > BGDecayDelay) {
 						// Decay scan of the rest of the cache
 						int DecayCount = LRUDecay(-1, -1, Now);
+						// Cleanup after whole cache decay
+						Cleanup();
 						
 						CollectStats(Now, DecayCount);
 					}
@@ -580,12 +586,17 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			this(Name, DEF_MAPSIZE);
 		}
 		
-		public Classic(String Name, int mapsize) {
-			this(Name, DEF_MAPSIZE, DEF_CLEANCYCLE, DEF_STALEDELAY, DEF_BGDECAYDELAY);
+		public Classic(String Name, int initmapsize) {
+			this(Name, initmapsize, DEF_CLEANCYCLE, DEF_STALEDELAY, DEF_BGDECAYDELAY);
 		}
 		
-		public Classic(String Name, int mapsize, int cleaningcycles, int staledelay, int bgdecaydelay) {
-			super(Name, mapsize, cleaningcycles, staledelay, bgdecaydelay);
+		public Classic(String Name, int initmapsize, int cleaningcycles) {
+			this(Name, initmapsize, cleaningcycles, DEF_STALEDELAY, DEF_BGDECAYDELAY);
+		}
+		
+		public Classic(String Name, int initmapsize, int cleaningcycles, int staledelay,
+				int bgdecaydelay) {
+			super(Name, initmapsize, cleaningcycles, staledelay, bgdecaydelay);
 			ExpiredValues = new ReferenceQueue<>();
 		}
 		
@@ -811,8 +822,12 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			this(Name, DEF_MAPSIZE);
 		}
 		
-		public Auto(String Name, int mapsize) {
-			this(Name, mapsize, DEF_CLEANCYCLE, DEF_STALEDELAY, DEF_BGDECAYDELAY);
+		public Auto(String Name, int initmapsize) {
+			this(Name, initmapsize, DEF_CLEANCYCLE, DEF_STALEDELAY, DEF_BGDECAYDELAY);
+		}
+		
+		public Auto(String Name, int initmapsize, int cleaningcycles) {
+			this(Name, initmapsize, cleaningcycles, DEF_STALEDELAY, DEF_BGDECAYDELAY);
 		}
 		
 		public Auto(String Name, int mapsize, int cleaningcycles, int staledelay, int bgdecaydelay) {
