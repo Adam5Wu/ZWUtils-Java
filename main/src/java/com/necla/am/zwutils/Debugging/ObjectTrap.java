@@ -32,9 +32,7 @@
 package com.necla.am.zwutils.Debugging;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -49,26 +47,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.python.core.CompileMode;
-import org.python.core.CompilerFlags;
-import org.python.core.Py;
-import org.python.core.PyCode;
-import org.python.core.PyInteger;
-import org.python.core.PyObject;
-import org.python.core.PyString;
-import org.python.core.PySystemState;
 
 import com.esotericsoftware.reflectasm.FieldAccess;
 import com.esotericsoftware.reflectasm.MethodAccess;
@@ -96,19 +82,6 @@ import com.necla.am.zwutils.Tasks.Samples.Poller;
 import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
 import com.necla.am.zwutils.i18n.Messages;
 
-import scala.collection.Iterator;
-import scala.collection.JavaConversions;
-import scala.collection.Seq;
-import scala.io.Codec;
-import scala.reflect.internal.util.AbstractFileClassLoader;
-import scala.reflect.internal.util.BatchSourceFile;
-import scala.reflect.internal.util.SourceFile;
-import scala.reflect.io.AbstractFile;
-import scala.runtime.AbstractFunction1;
-import scala.runtime.BoxedUnit;
-import scala.tools.nsc.GenericRunnerSettings;
-import scala.tools.nsc.interpreter.IMain;
-
 
 /**
  * Run-time object inspection utility
@@ -123,6 +96,8 @@ import scala.tools.nsc.interpreter.IMain;
 public class ObjectTrap {
 	
 	public static final String LogGroup = "ZWUtils.Debugging.OTap"; //$NON-NLS-1$
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	
 	protected final IGroupLogger ILog;
 	
 	protected final SuffixClassDictionary ClassDict;
@@ -2136,21 +2111,33 @@ public class ObjectTrap {
 	}
 	
 	@FunctionalInterface
-	public interface IForkScript {
-		
+	public static interface IForkScript {
 		Object Exec(String N, IFork.Result R, Object O, Object S, IGroupLogger L);
+	}
+	
+	protected Map<String, IForkScript> Scripts = null;
+	
+	public static interface IForkScriptCompiler {
+		
+		IForkScript Compile(String Name, File CodeCont);
 		
 	}
 	
+	public static interface IForkScriptExecuter {
+		
+		void ExecEnvPrep(Map<String, Object> Envs);
+		
+	}
+	
+	public static interface IForkScriptEngine extends IForkScriptCompiler, IForkScriptExecuter {}
+	
+	protected Map<String, IForkScriptEngine> ScriptEngines = new HashMap<>();
+	protected Set<IForkScriptEngine> ActiveScriptEngines = new HashSet<>();
+	
 	IForkScript Script_AssignScope = (N, R, O, S, L) -> {
-		if (R == IFork.Result.Match) {
-			_Py_ScriptPrep(Local -> {
-				Local.__setitem__(N, Py.java2py(S));
-				return Local;
-			});
-			_N_ScriptPrep(Local -> {
-				Local.put(N, S);
-				return Local;
+		if ((Scripts != null) && (R == IFork.Result.Match)) {
+			ActiveScriptEngines.forEach(ENG -> {
+				ENG.ExecEnvPrep(Collections.singletonMap(N, S));
 			});
 		}
 		return null;
@@ -2360,6 +2347,61 @@ public class ObjectTrap {
 		} catch (IOException e) {
 			Misc.CascadeThrow(e);
 		}
+		
+		ForkScriptEngineInit(this);
+	}
+	
+	public void RegisterScriptEngine(String Name, IForkScriptEngine ENG) {
+		ILog.Info("Registering ForkScript Engine '%s'...", Name);
+		IForkScriptEngine Existing = ScriptEngines.putIfAbsent(Name, ENG);
+		if (Existing != null) {
+			Misc.ERROR("Extention '%s' already registered to script '%s'", Name, Existing);
+		}
+	}
+	
+	@FunctionalInterface
+	public static interface IForkScriptEngineFactory {
+		void Register(ObjectTrap OT);
+	}
+	
+	protected static Collection<IForkScriptEngineFactory> ForkScriptEngineLoader = new ArrayList<>();
+	
+	protected static final String AddonPackage = "com.necla.am.zwutils.addon.ObjectTrap";
+	static {
+		try {
+			for (String CName : PackageClassIterable.Create(AddonPackage, ClassSolver -> {
+				try {
+					return IForkScriptEngineFactory.class.isAssignableFrom(ClassSolver.toClass());
+				} catch (Throwable e) {
+					// Eat exception
+					return false;
+				}
+			})) {
+				CLog.Config("Registering ForkScript addon class '%s'...", CName);
+				try {
+					@SuppressWarnings("unchecked")
+					Class<? extends IForkScriptEngineFactory> CLS =
+							(Class<? extends IForkScriptEngineFactory>) Class.forName(CName);
+					ForkScriptEngineLoader.add(CLS.newInstance());
+				} catch (Throwable e) {
+					CLog.Warn("Unable to instantiate ForkScript addon class '%s' - %s", CName, e);
+					if (GlobalConfig.DEBUG_CHECK) {
+						CLog.logExcept(e);
+					}
+				}
+			}
+		} catch (TypeNotPresentException e) {
+			CLog.Info("No ForkScript addon present");
+		} catch (Exception e) {
+			CLog.Warn("Unable to scan ForkScript addon class - %s", e);
+			if (GlobalConfig.DEBUG_CHECK) {
+				CLog.logExcept(e);
+			}
+		}
+	}
+	
+	protected static void ForkScriptEngineInit(ObjectTrap OT) {
+		ForkScriptEngineLoader.forEach(Init -> Init.Register(OT));
 	}
 	
 	ITask.TaskRun Watcher = null;
@@ -2466,8 +2508,6 @@ public class ObjectTrap {
 		}
 	}
 	
-	public static final char SYM_SCRIPT = '%';
-	public static final char SYM_SCRIPTFILE = '<';
 	public static final char SYM_CGROUP = '$';
 	
 	public static final char SYM_ASCLASS = '?';
@@ -2589,261 +2629,27 @@ public class ObjectTrap {
 		});
 	}
 	
-	//------
-	// Python script environment
-	//------
-	
-	static {
-		Properties props = new Properties();
-		
-		//props.put("python.home","path to the Lib folder");
-		props.put("python.import.site", "false"); //$NON-NLS-1$ //$NON-NLS-2$
-		
-		// Used to prevent: console: Failed to install '': java.nio.charset.UnsupportedCharsetException: cp0.
-		props.put("python.console.encoding", "UTF-8"); //$NON-NLS-1$ //$NON-NLS-2$
-		
-		// Don't respect java accessibility, so that we can access protected members on subclasses
-		//props.put("python.security.respectJavaAccessibility", "false");
-		
-		PySystemState.initialize(System.getProperties(), props, new String[0]);
-	}
-	
-	protected ThreadLocal<PySystemState> _Py_ScriptSystemStates = new ThreadLocal<PySystemState>() {
-		@Override
-		protected PySystemState initialValue() {
-			return new PySystemState();
-		}
-	};
-	protected PyObject _Py_ScriptGlobals = Py.newStringMap();
-	protected ThreadLocal<PyObject> _Py_ScriptLocals = new ThreadLocal<PyObject>() {
-		@Override
-		protected PyObject initialValue() {
-			return Py.newStringMap();
-		}
-	};
-	protected CompilerFlags _Py_ScriptCFlags = new CompilerFlags();
-	
-	protected PyCode _Py_ScriptCompile(String Name, String CodeStr) {
-		return Py.compile_flags(CodeStr, Name, CompileMode.exec, _Py_ScriptCFlags);
-	}
-	
-	protected PyCode _Py_ScriptCompile(String Name, InputStream CodeStr) {
-		return Py.compile_flags(CodeStr, Name, CompileMode.exec, _Py_ScriptCFlags);
-	}
-	
-	protected Map<String, Object> Scripts = null;
-	
-	@FunctionalInterface
-	protected static interface _Py_IScriptExecPrep {
-		PyObject Perform(PyObject ScriptLocal);
-	}
-	
-	protected PyObject _Py_ScriptPrep(_Py_IScriptExecPrep Prep) {
-		if (Scripts == null) return null;
-		
-		return Prep.Perform(_Py_ScriptLocals.get());
-	}
-	
-	public class PythonForkScript implements IForkScript {
-		
-		final PyCode Code;
-		final Set<IFork.Result> Filter;
-		
-		public PythonForkScript(PyCode code) {
-			this(code, EnumSet.of(IFork.Result.Match));
-		}
-		
-		public PythonForkScript(PyCode code, Set<IFork.Result> filter) {
-			Code = code;
-			Filter = filter;
-		}
-		
-		@Override
-		public Object Exec(String N, IFork.Result R, Object O, Object S, IGroupLogger L) {
-			if (Filter.contains(R)) {
-				Py.setSystemState(_Py_ScriptSystemStates.get());
-				PyObject ScriptLocals = _Py_ScriptPrep(Local -> {
-					Local.__setitem__("TAP_RESULT", Py.java2py(R.name())); //$NON-NLS-1$
-					Local.__setitem__("TAP_OBJECT", Py.java2py(O)); //$NON-NLS-1$
-					if (R == IFork.Result.Match) {
-						Local.__setitem__("TAP_SCOPED", Py.java2py(S)); //$NON-NLS-1$
-					} else {
-						Local.__setitem__("TAP_SCOPED", null); //$NON-NLS-1$
-					}
-					Local.__setitem__("LOG", Py.java2py(L)); //$NON-NLS-1$
-					Local.__setitem__("NEXT", null); //$NON-NLS-1$
-					return Local;
-				});
-				Py.exec(Code, _Py_ScriptGlobals, ScriptLocals);
-				Py.flushLine();
-				
-				PyObject ScriptRet = ScriptLocals.__finditem__("NEXT"); //$NON-NLS-1$
-				
-				if (ScriptRet instanceof PyInteger) return ScriptRet.asInt();
-				if (ScriptRet instanceof PyString) return ScriptRet.asString();
-			}
-			return null;
-		}
-		
-	}
-	
-	protected IForkScript _Py_CreateScript(String Name, String CodeStr) {
-		try {
-			ILog.Config(Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_EMBED"), Name); //$NON-NLS-1$
-			return new PythonForkScript(_Py_ScriptCompile(Name, CodeStr));
-		} catch (Throwable e) {
-			Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FAILURE"), //$NON-NLS-1$
-					Name);
-		}
-		return null;
-	}
-	
-	protected IForkScript _Py_CreateScript(String Name, File CodeCont) {
-		try {
-			ILog.Config(Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FILE"), //$NON-NLS-1$
-					CodeCont.getName());
-			return new PythonForkScript(_Py_ScriptCompile(Name, new FileInputStream(CodeCont)));
-		} catch (Throwable e) {
-			Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FAILURE"), //$NON-NLS-1$
-					Name);
-		}
-		return null;
-	}
-	
-	//------
-	// Native script environment
-	//------
-	
-	protected ConcurrentMap<String, Object> _N_ScriptGlobals = new ConcurrentHashMap<>();
-	protected ThreadLocal<Map<String, Object>> _N_ScriptLocals =
-			new ThreadLocal<Map<String, Object>>() {
-				@Override
-				protected Map<String, Object> initialValue() {
-					return new HashMap<>();
-				}
-			};
-	
-	@FunctionalInterface
-	protected static interface _N_IScriptExecPrep {
-		Map<String, Object> Perform(Map<String, Object> ScriptLocal);
-	}
-	
-	protected Map<String, Object> _N_ScriptPrep(_N_IScriptExecPrep Prep) {
-		if (Scripts == null) return null;
-		
-		return Prep.Perform(_N_ScriptLocals.get());
-	}
-	
-	public static interface INativeForkScript {
-		
-		Object Exec(String N, IFork.Result R, Object O, Object S, IGroupLogger L,
-				ConcurrentMap<String, Object> GlobalScope, Map<String, Object> LocalScope);
-		
-	}
-	
-	public class NativeForkScript implements IForkScript {
-		
-		final INativeForkScript Code;
-		final Set<IFork.Result> Filter;
-		
-		public NativeForkScript(INativeForkScript code) {
-			this(code, EnumSet.of(IFork.Result.Match));
-		}
-		
-		public NativeForkScript(INativeForkScript code, Set<IFork.Result> filter) {
-			Code = code;
-			Filter = filter;
-		}
-		
-		@Override
-		public Object Exec(String N, IFork.Result R, Object O, Object S, IGroupLogger L) {
-			if (Filter.contains(R))
-				return Code.Exec(N, R, O, S, L, _N_ScriptGlobals, _N_ScriptLocals.get());
-			return null;
-		}
-		
-	}
-	
-	protected class _S_ErrorHandler extends AbstractFunction1<String, BoxedUnit> {
-		@Override
-		public BoxedUnit apply(String message) {
-			ILog.Warn("Scala interpreter error: " + message);
-			return BoxedUnit.UNIT;
-		}
-	}
-	
-	protected IMain _S_NewInterpreter() {
-		// Setup the compiler/interpreter
-		GenericRunnerSettings settings = new GenericRunnerSettings(new _S_ErrorHandler());
-		
-		// In scala this is settings.usejavacp.value = true;
-		// It it through this setting that the compiled code is able to reference the
-		// `MustConform` interface. The runtime classpath leaks into the compiler classpath, but
-		// we're OK with that in this use case.
-		settings.usejavacp().v_$eq(true);
-		return new IMain(settings);
-	}
-	
-	protected IForkScript _S_CreateScript(String Name, File CodeCont) {
-		try {
-			ILog.Config(Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FILE"), //$NON-NLS-1$
-					CodeCont.getName());
-			List<SourceFile> sources = Collections.singletonList(new BatchSourceFile(
-					AbstractFile.getFile(new scala.reflect.io.File(CodeCont, Codec.UTF8()))));
-			Seq<SourceFile> seq = JavaConversions.collectionAsScalaIterable(sources).toSeq();
-			
-			IMain Interpreter = _S_NewInterpreter();
-			Interpreter.compileSources(seq);
-			
-			AbstractFileClassLoader CL = Interpreter.classLoader();
-			AbstractFile CLRoot = CL.root();
-			Iterator<AbstractFile> it = CLRoot.iterator();
-			while (it.hasNext()) {
-				AbstractFile classFile = it.next();
-				String name = classFile.name().replace(".class", "");
-				Class<?> clazz = CL.findClass(name);
-				if (INativeForkScript.class.isAssignableFrom(clazz))
-					return new NativeForkScript((INativeForkScript) clazz.newInstance());
-			}
-			Misc.FAIL("No class found implements 'INativeForkScript' interface");
-		} catch (Throwable e) {
-			Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FAILURE"), //$NON-NLS-1$
-					Name);
-		}
-		return null;
-	}
-	
-	//------
-	// Common script helper utilites
-	//------
-	
-	protected IForkScript ParseProcDesc(String Name, String Desc, Map<String, Object> _Scripts) {
+	protected IForkScript ParseProcDesc(String Name, String Desc, Map<String, IForkScript> _Scripts,
+			Set<IForkScriptEngine> _Engines) {
 		if (Desc.isEmpty()) return Script_AssignScope;
 		
-		IForkScript Ret = null;
-		if (Desc.charAt(0) == SYM_SCRIPTFILE) {
-			switch (Misc.stripPackageName(Desc).toUpperCase()) {
-				case "PY":
-					Ret = _Py_CreateScript(Desc, new File(Desc.substring(1)));
-					break;
-				case "SCALA":
-					Ret = _S_CreateScript(Desc, new File(Desc.substring(1)));
-					break;
-				default:
-					Misc.ERROR("Unrecognized extension for script file '%s'", Desc);
+		IForkScript Ret = _Scripts.get(Name);
+		if (Ret == null) {
+			IForkScriptEngine Engine = ScriptEngines.get(Misc.stripPackageName(Desc).toUpperCase());
+			if (Engine == null) {
+				Misc.ERROR("Unrecognized extension for script file '%s'", Desc);
 			}
-		} else {
-			// Only python script can be embeded
-			Ret = _Py_CreateScript(Name, Desc);
+			_Scripts.put(Name, Ret = Engine.Compile(Desc, new File(Desc)));
+			_Engines.add(Engine);
 		}
-		_Scripts.put(Name, Ret);
 		return Ret;
 	}
 	
 	public void Update(DataMap config) {
 		List<IFork> InstTrap = new ArrayList<>();
 		Map<String, Integer> InstTrapMap = new HashMap<>();
-		Map<String, Object> InstScripts = new HashMap<>();
+		Set<IForkScriptEngine> InstEngines = new HashSet<>();
+		Map<String, IForkScript> InstScripts = new HashMap<>();
 		Map<String, Collection<IFork>> ForkGroups = new HashMap<>();
 		ILog.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_START")); //$NON-NLS-1$
 		for (String name : new TreeSet<>(config.keySet())) {
@@ -2855,8 +2661,8 @@ public class ObjectTrap {
 				IScope Scope = CreateScopePath(payload[0].trim());
 				IHook Hook =
 						payload.length > 1? HookMaker.Create(Scope.Type(), payload[1].trim(), ClassDict) : null;
-				IForkScript Script =
-						payload.length > 2? ParseProcDesc(name, payload[2].trim(), InstScripts) : null;
+				IForkScript Script = payload.length > 2? ParseProcDesc(name, payload[2].trim(), InstScripts,
+						InstEngines) : null;
 				Fork F = new Fork(name, Scope, Hook, Script);
 				if (Group != null) {
 					if (!ForkGroups.containsKey(Group)) {
@@ -2893,6 +2699,7 @@ public class ObjectTrap {
 		Trap = InstTrap.isEmpty()? null : InstTrap;
 		TrapMap = InstTrapMap.isEmpty()? null : InstTrapMap;
 		Scripts = InstScripts.isEmpty()? null : InstScripts;
+		ActiveScriptEngines = InstEngines.isEmpty()? null : InstEngines;
 	}
 	
 	public int Count() {

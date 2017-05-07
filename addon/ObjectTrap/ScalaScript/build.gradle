@@ -6,20 +6,7 @@ buildscript {
 	}
 	dependencies {
 		classpath "gradle.plugin.com.zoltu.gradle.plugin:git-versioning:2.0.19"
-		classpath "se.bjurr.gitchangelog:git-changelog-gradle-plugin:1.44"
-		classpath 'org.ajoberstar:gradle-git:1.7.1'
 	}
-}
-
-apply plugin: "se.bjurr.gitchangelog.git-changelog-gradle-plugin"
-
-import org.ajoberstar.grgit.*
-
-task ChangeLog(type: se.bjurr.gitchangelog.plugin.gradle.GitChangelogTask) {
-	filePath = "build/CHANGELOG.md";
-	
-	def repo = Grgit.open(project.file('.'))
-	toRef = repo.branch.getCurrent().fullName
 }
 
 apply plugin: "com.zoltu.git-versioning"
@@ -32,25 +19,6 @@ compileJava {
 	options.encoding = 'UTF-8'
 }
 
-import org.gradle.internal.os.OperatingSystem;
-
-task Bless(type:Exec) {
-	if (OperatingSystem.current().isLinux() || OperatingSystem.current().isMacOsX()) {
-		commandLine 'bash', 'Bless/Bless.sh'
-		ext.blessDir = 'build/blessed/main/src/java'
-	} else if (OperatingSystem.current().isWindows()) {
-		// Bless script does not support Windows (at least not "natively")
-		commandLine 'cmd', '/c', 'echo'
-		println '! Blessed source generation disabled on Windows'
-		ext.blessDir = 'main/src/java'
-	} else {
-		ChangeLog.commandLine 'echo'
-		println '! Blessed source generation is not supported on this platform'
-		ext.blessDir = 'main/src/java'
-	}
-	ignoreExitValue = true
-}
-
 import org.apache.tools.ant.filters.ReplaceTokens
 
 task GenClean(type: Delete) {
@@ -58,7 +26,7 @@ task GenClean(type: Delete) {
 }
 
 task NSGen(type: Copy, dependsOn: GenClean) {
-	from 'main/src/java'
+	from 'src/java'
 	into 'build/gen/src'
 	include '**/_Namespace.java'
 
@@ -71,23 +39,14 @@ task NSGen(type: Copy, dependsOn: GenClean) {
 sourceSets {
 	main {
 		java {
-			srcDirs = [ 'main/src/java' ]
+			srcDirs = [ 'src/java' ]
 			excludes = [ '**/_Namespace.java' ]
 		}
 		resources {
-			srcDirs = [ 'main/res', 'main/src/java' ]
+			srcDirs = [ 'res', 'src/java' ]
 			excludes = [ '**/*.java' ]
 		}
 	}
-// TODO: Currently test only works with eclipse
-//	test {
-//		java {
-//			srcDirs = [ 'test/src/java' ]
-//		}
-//		resources {
-//			srcDirs = [ 'test/res' ]
-//		}
-//	}
 }
 
 compileJava {
@@ -99,12 +58,10 @@ repositories {
 }
 
 dependencies {
-	compile 'com.google.code.gson:gson:2.3.1'
-	compile 'javax.mail:mail:1.4.7'
-	compile 'org.slf4j:jul-to-slf4j:1.7.13'
-	compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.5'
-	compile 'com.googlecode.mobilityrpc:mobility-rpc:1.2.1'
-	compile 'com.esotericsoftware:reflectasm:1.11.3'
+	compile 'com.necla.am:ZWUtils-Java:1.0.+'
+	compile 'org.scala-lang:scala-compiler:2.12.1'
+	compile 'org.scala-lang:scala-reflect:2.12.1'
+	compile 'org.scala-lang:scala-library:2.12.1'
 }
 
 allprojects {
@@ -119,22 +76,14 @@ javadoc {
 	classpath = configurations.compile
 }
 
-jar {
-	dependsOn ChangeLog
-	from ChangeLog.filePath
-}
-
-task sourcesJar(type: Jar, dependsOn: [classes,ChangeLog,Bless]) {
+task sourcesJar(type: Jar, dependsOn: [classes]) {
 	classifier = 'sources'
-	FileTree srctree = fileTree(Bless.blessDir){
-		include '**/*.java'
-	}
-	from srctree, ChangeLog.filePath
+	from sourceSets.main.java
 }
 
-task javadocJar(type: Jar, dependsOn: [javadoc,ChangeLog]) {
+task javadocJar(type: Jar, dependsOn: [javadoc]) {
 	classifier = 'javadoc'
-	from javadoc.destinationDir, ChangeLog.filePath
+	from javadoc.destinationDir
 }
 
 artifacts {

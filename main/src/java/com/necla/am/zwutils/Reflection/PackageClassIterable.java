@@ -91,8 +91,9 @@ public class PackageClassIterable implements Iterable<String> {
 					DelegateIterable = null;
 			}
 		} else {
-			Misc.FAIL("Unable to enumerate package '%a' with no resource URL", pkgname);
 			DelegateIterable = EmptyList;
+			Misc.FAIL(TypeNotPresentException.class,
+					"Unable to enumerate package '%a' with no resource URL", pkgname);
 		}
 	}
 	
