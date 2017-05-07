@@ -5,6 +5,7 @@ before_script:
 #  - . ~/.sshagent && sshagent_init
 #  - git submodule update --init --recursive
   - set -a && . ~/publish.env
+  - set -e && set -opipefail
 
 stages:
   - build
@@ -15,10 +16,13 @@ build_package:
   cache:
     paths:
       - build/
+      - "addon/*/*/build"
     key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
     - gradle build
+    - ( cd addon/ObjectTrap/PyScript && gradle build )
+    - ( cd addon/ObjectTrap/ScalaScript && gradle build )
   tags:
     - java
     - gradle
@@ -32,10 +36,13 @@ deploy_package:
   cache:
     paths:
       - build/
+      - "addon/*/*/build"
     key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
     - gradle upload
+    - ( cd addon/ObjectTrap/PyScript && gradle upload )
+    - ( cd addon/ObjectTrap/ScalaScript && gradle upload )
   tags:
     - java
     - gradle

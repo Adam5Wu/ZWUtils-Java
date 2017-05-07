@@ -53,8 +53,23 @@ compileJava {
 	source NSGen.outputs.files
 }
 
-repositories {
-	mavenCentral()
+def MavenSrc = System.getenv("MAVENSRC_URL");
+
+if (MavenSrc == null) {
+	repositories {
+		mavenCentral()
+	}
+} else {
+	repositories {
+		maven {
+			url MavenSrc
+		}
+	}
+}
+
+configurations.all {
+	resolutionStrategy.cacheDynamicVersionsFor 60, 'seconds'
+	resolutionStrategy.cacheChangingModulesFor 60, 'seconds'
 }
 
 dependencies {
@@ -67,6 +82,9 @@ allprojects {
 		options.addStringOption('Xdoclint:none', '-quiet')
 		options.addStringOption('tag', 'note:a:"Note:"')
 	}
+	tasks.withType(Jar) {
+        baseName = "ZWUtils-Addon-ObjectTrap-$project.name"
+    }
 }
 
 javadoc {
