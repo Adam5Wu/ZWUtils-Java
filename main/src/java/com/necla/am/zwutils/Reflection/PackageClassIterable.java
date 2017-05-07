@@ -148,14 +148,14 @@ public class PackageClassIterable implements Iterable<String> {
 			throws IOException {
 		String PackagePath = pkgname.replace('.', '/') + '/';
 		URL PackageURL = loader.getResource(PackagePath);
-		if (PackageURL.getProtocol().equals("mobility-rpc")) {
+		if ((PackageURL != null) && PackageURL.getProtocol().equals("mobility-rpc")) {
 			// Special remote package iteration
 			RemoteClassLoaders.viaMobilityRPC RemoteLoader = (RemoteClassLoaders.viaMobilityRPC) loader;
 			return new PackageClassIterable(pkgname, filter, RemoteLoader.RPCSession,
 					RemoteLoader.RPCConnection);
 		} else
 			// Local package iteration
-			return new PackageClassIterable(loader.getResource(PackagePath), pkgname, filter);
+			return new PackageClassIterable(PackageURL, pkgname, filter);
 	}
 	
 	@Override
