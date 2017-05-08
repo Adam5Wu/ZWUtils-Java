@@ -15,6 +15,7 @@ import com.googlecode.mobilityrpc.controller.MobilityController;
 import com.googlecode.mobilityrpc.network.ConnectionId;
 import com.googlecode.mobilityrpc.session.MobilitySession;
 import com.googlecode.mobilityrpc.session.impl.SessionClassLoader;
+import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
@@ -120,8 +121,12 @@ public class RemoteClassLoaders {
 					RPCClassLoader.setThreadLocalConnectionId(RPCConnection);
 					return RPCClassLoader.getResource(name);
 				} catch (IllegalStateException e) {
-					CLog.logExcept(e, "Error loading remote resource '%s' (#%d) - %s", name, Trial,
+					CLog.Warn("Error loading remote resource '%s' - %s", name, Trial,
 							e.getLocalizedMessage());
+					if (GlobalConfig.DEBUG_CHECK) {
+						CLog.logExcept(e);
+					}
+					CLog.Warn("Retrying %d of %d...", Trial, RetryCount);
 					
 					// Give up current session and get a new one
 					MobilitySession NewSession = RPCSession.getMobilityController().newSession();
