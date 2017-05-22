@@ -70,6 +70,7 @@ import com.necla.am.zwutils.Reflection.PackageClassIterable.IClassFilter;
 import com.necla.am.zwutils.Reflection.RemoteClassLoaders;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
+import com.necla.am.zwutils.Tasks.Samples.AltMain;
 import com.necla.am.zwutils.Tasks.Samples.Companion;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
 import com.necla.am.zwutils.Tasks.Samples.ProcStats;
@@ -1070,6 +1071,7 @@ public class TaskHost extends Poller {
 		RegisterTaskAlias(TimedEvent.class);
 		RegisterTaskAlias(Companion.class);
 		RegisterTaskAlias(SignalEvent.class);
+		RegisterTaskAlias(AltMain.class);
 	}
 	
 	// Default TaskHost routine (for fully modular applications)
