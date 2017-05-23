@@ -118,7 +118,9 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 		public String toString() {
 			StringBuilder StrBuf = new StringBuilder();
 			for (int i = Level; i > 0; i--) {
-				if (i < Level) StrBuf.append('.');
+				if (i < Level) {
+					StrBuf.append('.');
+				}
 				StrBuf.append(Tokens.get(Tokens.size() - i));
 			}
 			return StrBuf.toString();
@@ -138,7 +140,9 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 		@Override
 		public Class<?> toClass() {
 			try {
-				if (CInst == null) CInst = Loader.loadClass(CName);
+				if (CInst == null) {
+					CInst = Loader.loadClass(CName);
+				}
 			} catch (ClassNotFoundException e) {
 				Misc.CascadeThrow(e);
 			}
@@ -202,11 +206,15 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	
 	public ISuffixClassSolver Get(String cname) {
 		Object Ret = Query(cname);
-		if (Ret == null) Misc.FAIL(NoSuchElementException.class,
-				Messages.Localize("Debugging.SuffixClassDictionary.CLASS_NOT_FOUND"), cname); //$NON-NLS-1$
+		if (Ret == null) {
+			Misc.FAIL(NoSuchElementException.class,
+					Messages.Localize("Debugging.SuffixClassDictionary.CLASS_NOT_FOUND"), cname); //$NON-NLS-1$
+		}
 		
-		if (!(Ret instanceof ISuffixClassSolver)) Misc.FAIL(IllegalArgumentException.class,
-				Messages.Localize("Debugging.SuffixClassDictionary.CLASS_MATCH_MULTI"), cname, Ret); //$NON-NLS-1$
+		if (!(Ret instanceof ISuffixClassSolver)) {
+			Misc.FAIL(IllegalArgumentException.class,
+					Messages.Localize("Debugging.SuffixClassDictionary.CLASS_MATCH_MULTI"), cname, Ret); //$NON-NLS-1$
+		}
 		
 		return (ISuffixClassSolver) Ret;
 	}
@@ -229,8 +237,9 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 				CollList = new ArrayList<>();
 				CollList.add(CollEntry);
 				DictIn(CollEntry);
-			} else
+			} else {
 				CollList = (List<IClassSolver>) CVal;
+			}
 			CollList.add(sclass);
 		}
 	}
@@ -238,8 +247,9 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	public void Add(String cname) {
 		IClassSolver Solver = Lookup(cname);
 		if (Solver != null) {
-			if (ILog.isLoggable(Level.FINE))
-				ILog.Warn(("Debugging.SuffixClassDictionary.CLASS_KNOWN"), Solver, cname); //$NON-NLS-1$
+			if (ILog.isLoggable(Level.FINE)) {
+				ILog.Warn(Messages.Localize("Debugging.SuffixClassDictionary.CLASS_KNOWN"), Solver, cname); //$NON-NLS-1$
+			}
 			return;
 		}
 		
