@@ -61,8 +61,8 @@ public abstract class NotifiableTask extends RunnableTask implements ITask.TaskN
 		
 		MessageDispatcher = new Dispatchers.DemuxDispatcher<>(getName() + ".Events");
 		
-		OnTerminate = TaskTerm -> {
-			ITask SenderTask = TaskTerm.GetSender();
+		OnTerminate = MessageTerm -> {
+			ITask SenderTask = MessageTerm.GetSender();
 			if (SenderTask != null) {
 				ILog.Entry("+Termination request from %s", SenderTask);
 			} else {
@@ -71,8 +71,8 @@ public abstract class NotifiableTask extends RunnableTask implements ITask.TaskN
 			Terminate(0);
 			ILog.Exit("*Termination request handled");
 		};
-		OnWakeup = TaskWake -> {
-			ITask SenderTask = TaskWake.GetSender();
+		OnWakeup = MessageWake -> {
+			ITask SenderTask = MessageWake.GetSender();
 			if (SenderTask != null) {
 				ILog.Fine("Wakeup request from %s", SenderTask);
 			} else {
@@ -86,7 +86,12 @@ public abstract class NotifiableTask extends RunnableTask implements ITask.TaskN
 	
 	@Override
 	public void onSubscription(IMessage.Categorized<String, ITask.Message> Payload) {
-		MessageDispatcher.SetPayload(Payload.GetCategory(), Payload.GetData());
+		onSubscription(Payload.GetCategory(), Payload.GetData());
+	}
+	
+	@Override
+	public void onSubscription(String Category, ITask.Message Data) {
+		MessageDispatcher.SetPayload(Category, Data);
 	}
 	
 	public void AddNotificationHandler(String Category, ISubscription<ITask.Message> Handler) {

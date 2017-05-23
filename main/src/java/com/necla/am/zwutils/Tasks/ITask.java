@@ -235,7 +235,9 @@ public interface ITask {
 	 * Event notification control interface
 	 */
 	interface Notifiable extends IMessage.MultiplexedSubscription<String, Message> {
-		// No additional methods
+		
+		void onSubscription(String Category, ITask.Message Data);
+		
 	}
 	
 	interface TaskNotifiable extends ITask, Notifiable {
