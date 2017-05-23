@@ -32,9 +32,12 @@
 package com.necla.am.zwutils.Tasks;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,6 +52,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import com.googlecode.mobilityrpc.MobilityRPC;
 import com.googlecode.mobilityrpc.controller.MobilityController;
@@ -242,6 +247,7 @@ public class TaskHost extends Poller {
 				super.loadFields(confMap);
 				
 				// Process host configuration ahead of time
+				String[] ClassPaths = null;
 				DataMap setupMap = new DataMap("Setup", confMap, String.valueOf(CONFIG_TASK_SETUP));
 				for (String Key : setupMap.keySet()) {
 					if (Key.equals(CONFIG_TASK_SETUP_RETURN)) {
@@ -250,8 +256,49 @@ public class TaskHost extends Poller {
 						String pkgname = setupMap.getText(Key);
 						try {
 							int ClassCount = 0;
+							
+							// Try current class loader
 							ClassLoader CL = this.getClass().getClassLoader();
-							for (String cname : PackageClassIterable.Create(pkgname, CL,
+							String PackagePath = pkgname.replace('.', '/') + '/';
+							URL PackageURL = CL.getResource(PackagePath);
+							
+							// Try all class paths
+							if (PackageURL == null) {
+								if (ClassPaths == null) {
+									RuntimeMXBean RuntimeMX = ManagementFactory.getRuntimeMXBean();
+									ClassPaths = RuntimeMX.getClassPath().split(File.pathSeparator);
+								}
+								
+								for (String ClassPath : ClassPaths) {
+									try {
+										if (ClassPath.endsWith(".jar") || ClassPath.endsWith(".zip")) {
+											try (ZipFile zip = new ZipFile(ClassPath)) {
+												ZipEntry entry = zip.getEntry(PackagePath);
+												if (entry != null) {
+													PackageURL = new URL(
+															"jar:" + new File(ClassPath).toURI().toURL() + "!/" + PackagePath);
+													break;
+												}
+											}
+										} else {
+											File Path = new File(ClassPath + '/' + PackagePath);
+											if (Path.isDirectory()) {
+												PackageURL = Path.toURI().toURL();
+												break;
+											}
+										}
+									} catch (Throwable e) {
+										ILog.Warn("Unable to explore class path '%s' - %s", ClassPath, e);
+									}
+								}
+							}
+							
+							// Fail if still not resolved
+							if (PackageURL == null) {
+								Misc.ERROR("Unable to resolve package");
+							}
+							
+							for (String cname : new PackageClassIterable(PackageURL, pkgname,
 									new TaskRunnableFilter())) {
 								TaskClassDict.Add(cname);
 								ClassCount++;
