@@ -46,6 +46,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -299,11 +300,12 @@ public class ProcStats extends Companion {
 			LogItems.add(HostName);
 		}
 		if (Config.Stats.contains(ConfigData.StatType.APPINFO)) {
+			Set<String> ClassEnumeration = new HashSet<>();
+			String MainComponentClass = null;
 			// Class info
 			try {
 				String[] ClassPaths = RuntimeMX.getClassPath().split(File.pathSeparator);
 				
-				int PackageMainCount = 0;
 				for (String ClassPath : ClassPaths) {
 					URL ClassRoot;
 					if (ClassPath.endsWith(".jar") || ClassPath.endsWith(".zip")) {
@@ -316,6 +318,12 @@ public class ProcStats extends Companion {
 						return Entry.SimpleName().equals(Config.CompNS);
 					})) {
 						try {
+							if (ClassEnumeration.contains(NSClass)) {
+								ILog.Fine("Ignored duplicated namespace class '%s' in '%s'", NSClass, ClassPath);
+								continue;
+							}
+							ClassEnumeration.add(NSClass);
+							
 							// Component Version
 							Class<?> NS = Class.forName(NSClass);
 							
@@ -357,11 +365,15 @@ public class ProcStats extends Companion {
 							ILog.Info("%s '%s': %s (%s)", MainComponent? "Application" : "Component", NAME, VER,
 									BUILD);
 							if (MainComponent) {
-								PackageMainCount++;
-								LogItems.add("Application,Name");
-								LogItems.add(NAME);
-								LogItems.add("Application,Version");
-								LogItems.add(String.format("%s|%s", VER, BUILD));
+								if (MainComponentClass == null) {
+									MainComponentClass = NSClass;
+									LogItems.add("Application,Name");
+									LogItems.add(NAME);
+									LogItems.add("Application,Version");
+									LogItems.add(String.format("%s|%s", VER, BUILD));
+								} else {
+									ILog.Warn("Ignored extra main component specification!");
+								}
 							} else {
 								LogItems.add(String.format("Component,%s", NAME));
 								LogItems.add(String.format("%s|%s", VER, BUILD));
@@ -372,12 +384,8 @@ public class ProcStats extends Companion {
 					}
 				}
 				
-				if (PackageMainCount != 1) {
-					if (PackageMainCount < 1) {
-						ILog.Warn("Missing main component specification!");
-					} else {
-						ILog.Error("Multiple main component specifications!");
-					}
+				if (MainComponentClass == null) {
+					ILog.Warn("Missing main component specification!");
 				}
 			} catch (Throwable e) {
 				Misc.CascadeThrow(e);
