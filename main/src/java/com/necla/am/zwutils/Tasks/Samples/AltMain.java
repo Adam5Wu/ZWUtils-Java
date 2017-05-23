@@ -127,7 +127,7 @@ public class AltMain
 	protected void doTask() {
 		if (!tellState().isTerminating()) {
 			try {
-				Config.MainEntry.invoke(null, (Object[]) Config.MainArgs);
+				Config.MainEntry.invoke(null, (Object) Config.MainArgs);
 			} catch (InvocationTargetException e) {
 				Misc.CascadeThrow(e.getTargetException(), "Unhandled exception in main entry");
 			} catch (Throwable e) {
