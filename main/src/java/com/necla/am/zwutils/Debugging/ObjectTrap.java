@@ -2336,7 +2336,7 @@ public class ObjectTrap {
 	}
 	
 	public ObjectTrap(Class<?> c, String pkgname, ClassLoader loader) {
-		ILog = new GroupLogger.PerInst(LogGroup + String.format(".%s", c.getSimpleName())); //$NON-NLS-1$
+		ILog = new GroupLogger.PerInst(LogGroup + '@' + c.getSimpleName());
 		ObjClass = c;
 		
 		ClassDict = new SuffixClassDictionary(pkgname, loader);
@@ -2403,85 +2403,6 @@ public class ObjectTrap {
 	
 	protected static void ForkScriptEngineInit(ObjectTrap OT) {
 		ForkScriptEngineLoader.forEach(Init -> Init.Register(OT));
-	}
-	
-	ITask.TaskRun Watcher = null;
-	
-	public static interface ITrapConfigState {
-		
-		void Configured(int ForkCount);
-		
-	}
-	
-	synchronized public void WatchConfig(String WatchFileName, int PollInterval,
-			ITrapConfigState notifier) {
-		if (Watcher != null) {
-			if (WatchFileName != null) {
-				Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_DEFINED")); //$NON-NLS-1$
-			}
-			try {
-				Watcher.Stop(-1);
-			} catch (InterruptedException e) {
-				ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_STOP_ERROR")); //$NON-NLS-1$
-			}
-			Watcher = null;
-		} else {
-			if (WatchFileName == null) {
-				ILog.Warn(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_UNDEFINED")); //$NON-NLS-1$
-				return;
-			}
-			
-			Poller ConfigPoller = new Poller(ILog.GroupName()) {
-				
-				ITimeStamp ConfigTS = new ITimeStamp.Impl(0);
-				
-				@Override
-				protected boolean Poll() {
-					DataFile TapConfig = new DataFile(ILog.GroupName(), WatchFileName);
-					ITimeStamp TapTS = TapConfig.lastModified();
-					if (!TapTS.equals(ConfigTS)) {
-						ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
-								WatchFileName, TapTS);
-						try {
-							ConfigTS = TapTS;
-							DataMap TapDesc = new DataMap(TapConfig);
-							TapDesc.SetEnvSubstitution(false);
-							Update(TapDesc);
-							ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), Count()); //$NON-NLS-1$
-							notifier.Configured(Count());
-						} catch (Throwable e) {
-							ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
-						}
-					}
-					return true;
-				}
-				
-			};
-			
-			try {
-				ConfigPoller
-						.setConfiguration(String.format("%s=%d", Poller.ConfigData.Mutable.CONFIG_TIMERES, //$NON-NLS-1$
-								TimeUnit.SEC.Convert(PollInterval, TimeUnit.MSEC)), ""); //$NON-NLS-1$
-			} catch (Throwable e) {
-				Misc.CascadeThrow(e);
-			}
-			
-			Watcher = new DaemonRunner(ConfigPoller);
-			try {
-				Watcher.Start(-1);
-			} catch (InterruptedException e) {
-				ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
-				while (!Watcher.tellState().hasTerminated()) {
-					try {
-						Watcher.Stop(-1);
-					} catch (InterruptedException e1) {
-						ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
-					}
-				}
-				Watcher = null;
-				Misc.CascadeThrow(e);
-			}
-		}
 	}
 	
 	@FunctionalInterface
@@ -2710,41 +2631,127 @@ public class ObjectTrap {
 		return InstTrap.size();
 	}
 	
-	public static abstract class ForDummies
-			implements AutoCloseable, ITrapNotifiable, ITrapConfigState {
+	public static abstract class Dynamic implements AutoCloseable, ITrapNotifiable {
 		
+		protected final IGroupLogger ILog;
 		public static final int DEF_POLLINTERVAL = 5;
 		
 		protected final ObjectTrap TheTrap;
 		
-		public ForDummies(Class<?> c, String ConfigLogName) {
+		public Dynamic(Class<?> c, String ConfigLogName) {
 			this(new ObjectTrap(c), ConfigLogName);
 		}
 		
-		public ForDummies(Class<?> c, Package pkg, String ConfFileName) {
+		public Dynamic(Class<?> c, Package pkg, String ConfFileName) {
 			this(new ObjectTrap(c, pkg), ConfFileName);
 		}
 		
-		public ForDummies(Class<?> c, String pkgname, String ConfFileName) {
+		public Dynamic(Class<?> c, String pkgname, String ConfFileName) {
 			this(new ObjectTrap(c, pkgname), ConfFileName);
 		}
 		
-		public ForDummies(Class<?> c, String pkgname, ClassLoader loader, String ConfFileName) {
+		public Dynamic(Class<?> c, String pkgname, ClassLoader loader, String ConfFileName) {
 			this(new ObjectTrap(c, pkgname, loader), ConfFileName);
 		}
 		
-		protected ForDummies(ObjectTrap Trap, String ConfFileName) {
+		protected Dynamic(ObjectTrap Trap, String ConfFileName) {
 			this(Trap, ConfFileName, DEF_POLLINTERVAL);
 		}
 		
-		protected ForDummies(ObjectTrap Trap, String ConfFileName, int PollInterval) {
+		ITask.TaskRun Watcher = null;
+		
+		synchronized public void WatchConfig(String WatchFileName, int PollInterval) {
+			if (Watcher != null) {
+				if (WatchFileName != null) {
+					Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_DEFINED")); //$NON-NLS-1$
+				}
+				try {
+					Watcher.Stop(-1);
+				} catch (InterruptedException e) {
+					ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_STOP_ERROR")); //$NON-NLS-1$
+				}
+				Watcher = null;
+			} else {
+				if (WatchFileName == null) {
+					ILog.Warn(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_UNDEFINED")); //$NON-NLS-1$
+					return;
+				}
+				
+				Poller ConfigPoller = new Poller(ILog.GroupName()) {
+					
+					ITimeStamp ConfigTS = new ITimeStamp.Impl(0);
+					
+					@Override
+					protected boolean Poll() {
+						DataFile TapConfig = new DataFile(ILog.GroupName(), WatchFileName);
+						ITimeStamp TapTS = TapConfig.lastModified();
+						if (!TapTS.equals(ConfigTS)) {
+							ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
+									WatchFileName, TapTS);
+							try {
+								ConfigTS = TapTS;
+								DataMap TapDesc = new DataMap(TapConfig);
+								TapDesc.SetEnvSubstitution(false);
+								TheTrap.Update(TapDesc);
+								ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), //$NON-NLS-1$
+										TheTrap.Count());
+								Configured(TheTrap.Count());
+							} catch (Throwable e) {
+								ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
+							}
+						}
+						return true;
+					}
+					
+				};
+				
+				try {
+					ConfigPoller
+							.setConfiguration(String.format("%s=%d", Poller.ConfigData.Mutable.CONFIG_TIMERES, //$NON-NLS-1$
+									TimeUnit.SEC.Convert(PollInterval, TimeUnit.MSEC)), ""); //$NON-NLS-1$
+				} catch (Throwable e) {
+					Misc.CascadeThrow(e);
+				}
+				
+				Watcher = new DaemonRunner(ConfigPoller);
+				try {
+					Watcher.Start(-1);
+				} catch (InterruptedException e) {
+					ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
+					while (!Watcher.tellState().hasTerminated()) {
+						try {
+							Watcher.Stop(-1);
+						} catch (InterruptedException e1) {
+							ILog.logExcept(e,
+									Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
+						}
+					}
+					Watcher = null;
+					Misc.CascadeThrow(e);
+				}
+			}
+		}
+		
+		public void Configured(int ForkCount) {
+			if (ForkCount > 0) {
+				ILog.Info(Messages.Localize("Debugging.ObjectTrap.LOG_BANNER_NEW_TRAP"), //$NON-NLS-1$
+						ForkCount);
+			} else {
+				ILog.Info(Messages.Localize("Debugging.ObjectTrap.LOG_BANNER_NO_TRAP")); //$NON-NLS-1$
+			}
+		}
+		
+		protected Dynamic(ObjectTrap Trap, String ConfFileName, int PollInterval) {
+			ILog = new GroupLogger(LogGroup + '-' + ConfFileName);
+			
 			TheTrap = Trap;
-			Trap.WatchConfig(ConfFileName + ".config", PollInterval, this); //$NON-NLS-1$
+			WatchConfig(ConfFileName + ".config", PollInterval); //$NON-NLS-1$
+			
 		}
 		
 		@Override
 		public void close() {
-			TheTrap.WatchConfig(null, 0, null);
+			WatchConfig(null, 0);
 		}
 		
 		protected AtomicLong nanoRunInst = new AtomicLong(0);
@@ -2757,14 +2764,14 @@ public class ObjectTrap {
 			long runTime = nanoRunTime.addAndGet(System.nanoTime() - StartTime);
 			if ((runTime > 1000000000) && nanoRunTime.compareAndSet(runTime, 0)) {
 				long runInst = nanoRunInst.getAndSet(0);
-				TheTrap.ILog.Info(Messages.Localize("Debugging.ObjectTrap.PROCESSED_PER_INTERVAL"), runInst, //$NON-NLS-1$
+				ILog.Info(Messages.Localize("Debugging.ObjectTrap.PROCESSED_PER_INTERVAL"), runInst, //$NON-NLS-1$
 						runTime / 1000000);
 			}
 		}
 		
 	}
 	
-	public static class EasyLogger extends ForDummies {
+	public static class EasyLogger extends Dynamic {
 		
 		protected final String LogGroupName;
 		protected GroupLogger TrapLogger = null;

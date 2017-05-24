@@ -308,12 +308,12 @@ public class Canonicalizer {
 		
 		if (AClass.contains(C)) {
 			CanonicalCacheMap.Auto<T> ACMap =
-					new CanonicalCacheMap.Auto<>(LogGroup + ".I-" + C.getSimpleName()); //$NON-NLS-1$
+					new CanonicalCacheMap.Auto<>(LogGroup + '@' + C.getSimpleName());
 			return Params -> ACMap.Query((T) Params[0]);
 		} else {
 			Constructor<?> CX = CClass.get(C);
 			CanonicalCacheMap<TParamContainer, T> CMap =
-					new CanonicalCacheMap.Classic<>(LogGroup + ".I-" + C.getSimpleName()); //$NON-NLS-1$
+					new CanonicalCacheMap.Classic<>(LogGroup + '@' + C.getSimpleName());
 			return Params -> CMap._Query(TParamContainer.wrap(Params, CX.getParameterTypes().length),
 					Key -> {
 						try {

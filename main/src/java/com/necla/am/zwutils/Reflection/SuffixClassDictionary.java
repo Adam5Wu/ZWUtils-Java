@@ -68,7 +68,7 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	protected final ClassLoader Loader;
 	
 	public SuffixClassDictionary(String name, ClassLoader loader) {
-		ILog = new GroupLogger.PerInst(LogGroup + String.format(".%s", name)); //$NON-NLS-1$
+		ILog = new GroupLogger.PerInst(LogGroup + '.' + name);
 		RAWDict = new HashMap<>();
 		RevDict = new HashMap<>();
 		Loader = loader;

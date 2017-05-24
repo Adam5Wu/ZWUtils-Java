@@ -162,7 +162,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	
 	public CanonicalCacheMap(String Name, int initmapsize, int cleaningcycles, int staledelay,
 			int bgdecaydelay) {
-		ILog = new GroupLogger.PerInst(LogGroup + '[' + Name + ']');
+		ILog = new GroupLogger.PerInst(LogGroup + '-' + Name);
 		Cache = new ConcurrentHashMap<>(initmapsize);
 		CleanCycle = cleaningcycles;
 		ExpiredKeys = MakeKeyQueue();
