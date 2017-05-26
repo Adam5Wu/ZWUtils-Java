@@ -174,8 +174,7 @@ public class OutStream extends OutputStream {
 			Misc.FAIL("%s: Output stream already closed", Name);
 		}
 		
-		CharSequence Seq = new String(b);
-		StrBuffer.append(Seq, off, len);
+		StrBuffer.append(new String(b, off, len));
 		flushln(false);
 	}
 	
