@@ -2353,10 +2353,10 @@ public class ObjectTrap {
 	}
 	
 	public void RegisterScriptEngine(String Name, IForkScriptEngine ENG) {
-		ILog.Info("Registering ForkScript Engine '%s'...", Name);
+		ILog.Fine("Installing ForkScript Engine '%s'...", Name);
 		IForkScriptEngine Existing = ScriptEngines.putIfAbsent(Name, ENG);
 		if (Existing != null) {
-			Misc.ERROR("Extention '%s' already registered to script '%s'", Name, Existing);
+			Misc.ERROR("Extention '%s' already assigned to script '%s'", Name, Existing);
 		}
 	}
 	
@@ -2378,7 +2378,7 @@ public class ObjectTrap {
 					return false;
 				}
 			})) {
-				CLog.Config("Registering ForkScript addon class '%s'...", CName);
+				CLog.Info("Registering ForkScript addon class '%s'...", CName);
 				try {
 					@SuppressWarnings("unchecked")
 					Class<? extends IForkScriptEngineFactory> CLS =
