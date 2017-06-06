@@ -60,7 +60,7 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	
-	public static final String LogGroup = "ZWUtils.Debugging.SCD"; //$NON-NLS-1$
+	public static final String LogGroup = "ZWUtils.Debugging.SfxClsDict"; //$NON-NLS-1$
 	protected final IGroupLogger ILog;
 	
 	protected Map<String, Object> RAWDict;

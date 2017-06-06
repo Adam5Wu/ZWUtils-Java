@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -93,23 +94,39 @@ public class RemoteClassLoaders {
 			RPCConnection = new ConnectionId(RemoteAddr.getHostString(), RemoteAddr.getPort());
 		}
 		
-		protected Set<String> RemoteResolveNCache = new HashSet<>();
+		protected Set<String> SystemResolveNCache = new HashSet<>();
+		protected Map<String, Class<?>> RemoteResolveCache = new HashMap<>();
 		
 		public Class<?> loadRemoteClass(String name) throws ClassNotFoundException {
-			Class<?> Ret = super.loadClass(name);
-			if (!RemoteResolveNCache.contains(name)&& (Ret.getClassLoader() != this)
-					&& (Ret.getClassLoader() != java.lang.String.class.getClassLoader())) {
-				// Try lookup remote for this class
-				Class<?> NewRet = null;
-				try {
-					NewRet = findClass(name);
-				} catch (ClassNotFoundException e) {
-					// Remote could not resolve this class, use the local one
-					RemoteResolveNCache.add(name);
+			synchronized (getClassLoadingLock(name)) {
+				Class<?> Ret = findLoadedClass(name);
+				if (Ret == null) {
+					if (!SystemResolveNCache.contains(name)) {
+						try {
+							Ret = findSystemClass(name);
+						} catch (ClassNotFoundException e) {
+							// Not a system class
+							SystemResolveNCache.add(name);
+						}
+					}
+					if (Ret == null) {
+						if (!RemoteResolveCache.containsKey(name)) {
+							// Try lookup remote for this class
+							try {
+								RemoteResolveCache.put(name, findClass(name));
+							} catch (ClassNotFoundException e) {
+								// Remote could not resolve this class
+								RemoteResolveCache.put(name, null);
+							}
+						}
+						Ret = RemoteResolveCache.get(name);
+						if (Ret == null) {
+							Ret = super.getParent().loadClass(name);
+						}
+					}
 				}
-				if (NewRet != null) return NewRet;
+				return Ret;
 			}
-			return Ret;
 		}
 		
 		@Override
