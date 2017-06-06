@@ -753,7 +753,7 @@ public class TaskHost extends Poller {
 			RemoteClassLoaders.viaMobilityRPC RPCClassLoader =
 					RemoteClassLoaders.viaMobilityRPC.Create(NeedRPC(), RemoteAddress);
 			IClassSolver RemoteClassSolver =
-					new DirectClassSolver(RPCClassLoader.loadClass(RemoteClassName));
+					new DirectClassSolver(RPCClassLoader.loadRemoteClass(RemoteClassName));
 			
 			return CreateTaskRunnable(TaskName, RemoteClassSolver, TaskConfig);
 		} catch (ClassNotFoundException e) {
