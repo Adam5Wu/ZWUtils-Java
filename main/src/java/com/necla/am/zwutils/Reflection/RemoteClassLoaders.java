@@ -7,11 +7,8 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.googlecode.mobilityrpc.controller.MobilityController;
@@ -94,35 +91,30 @@ public class RemoteClassLoaders {
 			RPCConnection = new ConnectionId(RemoteAddr.getHostString(), RemoteAddr.getPort());
 		}
 		
-		protected Set<String> SystemResolveNCache = new HashSet<>();
-		protected Map<String, Class<?>> RemoteResolveCache = new HashMap<>();
+		protected Map<String, Class<?>> RemoteResolveCache = new ConcurrentHashMap<>();
 		
 		public Class<?> loadRemoteClass(String name) throws ClassNotFoundException {
+			return loadRemoteClass(name, false);
+		}
+		
+		public Class<?> loadRemoteClass(String name, boolean LocalFallback)
+				throws ClassNotFoundException {
 			synchronized (getClassLoadingLock(name)) {
 				Class<?> Ret = findLoadedClass(name);
 				if (Ret == null) {
-					if (!SystemResolveNCache.contains(name)) {
+					if (!RemoteResolveCache.containsKey(name)) {
+						// Try lookup remote for this class
 						try {
-							Ret = findSystemClass(name);
+							RemoteResolveCache.put(name, findClass(name));
 						} catch (ClassNotFoundException e) {
-							// Not a system class
-							SystemResolveNCache.add(name);
+							// Remote could not resolve this class
+							RemoteResolveCache.put(name, null);
 						}
 					}
+					Ret = RemoteResolveCache.get(name);
 					if (Ret == null) {
-						if (!RemoteResolveCache.containsKey(name)) {
-							// Try lookup remote for this class
-							try {
-								RemoteResolveCache.put(name, findClass(name));
-							} catch (ClassNotFoundException e) {
-								// Remote could not resolve this class
-								RemoteResolveCache.put(name, null);
-							}
-						}
-						Ret = RemoteResolveCache.get(name);
-						if (Ret == null) {
-							Ret = super.getParent().loadClass(name);
-						}
+						if (!LocalFallback) throw new ClassNotFoundException(name);
+						Ret = super.getParent().loadClass(name);
 					}
 				}
 				return Ret;
