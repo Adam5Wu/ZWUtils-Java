@@ -122,6 +122,19 @@ public class RemoteClassLoaders {
 		}
 		
 		@Override
+		protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+			Class<?> Ret = RemoteResolveCache.get(name);
+			if (Ret == null) {
+				Ret = super.loadClass(name, resolve);
+			} else {
+				if (resolve) {
+					resolveClass(Ret);
+				}
+			}
+			return Ret;
+		}
+		
+		@Override
 		public Class<?> findClass(String name) throws ClassNotFoundException {
 			// Convert class name to resource name...
 			String BinaryResource = name.replace('.', '/') + ".class";
