@@ -123,15 +123,18 @@ public class RemoteClassLoaders {
 		
 		@Override
 		protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-			Class<?> Ret = RemoteResolveCache.get(name);
-			if (Ret == null) {
-				Ret = super.loadClass(name, resolve);
-			} else {
+			String RemoteClassName = RemoteResolveCache.keySet().stream().filter(X -> {
+				return name.startsWith(X);
+			}).findAny().orElse(null);
+			
+			if ((RemoteClassName != null) && (RemoteResolveCache.get(RemoteClassName) != null)) {
+				Class<?> Ret = loadRemoteClass(name);
 				if (resolve) {
 					resolveClass(Ret);
 				}
-			}
-			return Ret;
+				return Ret;
+			} else
+				return super.loadClass(name, resolve);
 		}
 		
 		@Override

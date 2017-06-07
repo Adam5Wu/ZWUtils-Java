@@ -47,6 +47,8 @@ import java.util.jar.JarFile;
 import com.googlecode.mobilityrpc.network.ConnectionId;
 import com.googlecode.mobilityrpc.session.MobilitySession;
 import com.necla.am.zwutils.FileSystem.BFSDirFileIterable;
+import com.necla.am.zwutils.Logging.GroupLogger;
+import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Reflection.IClassSolver.Impl.LazyNamedClassSolver;
 
@@ -62,6 +64,9 @@ import com.necla.am.zwutils.Reflection.IClassSolver.Impl.LazyNamedClassSolver;
  * @version 0.3 - Jan. 20 2016: Initial public release
  */
 public class PackageClassIterable implements Iterable<String> {
+	
+	protected static final String LogGroup = "ZWUtils.Reflection.PackageClassIterable";
+	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
 	
 	protected static final List<String> EmptyList = new ArrayList<>(0);
 	protected final Iterable<String> DelegateIterable;
@@ -147,8 +152,11 @@ public class PackageClassIterable implements Iterable<String> {
 	
 	public static PackageClassIterable Create(String pkgname, ClassLoader loader, IClassFilter filter)
 			throws IOException {
+		CLog.Finer("Creating iterator for package '%s' using class loader '%s'...", pkgname,
+				loader != null? loader.getClass().getName() : "(None)");
+		
 		String PackagePath = pkgname.replace('.', '/') + '/';
-		URL PackageURL = loader.getResource(PackagePath);
+		URL PackageURL = loader != null? loader.getResource(PackagePath) : null;
 		if ((PackageURL != null) && PackageURL.getProtocol().equals("mobility-rpc")) {
 			// Special remote package iteration
 			RemoteClassLoaders.viaMobilityRPC RemoteLoader = (RemoteClassLoaders.viaMobilityRPC) loader;
