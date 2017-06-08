@@ -99,42 +99,61 @@ public class RemoteClassLoaders {
 		
 		public Class<?> loadRemoteClass(String name, boolean LocalFallback)
 				throws ClassNotFoundException {
+			return loadRemoteClass(name, LocalFallback, false);
+		}
+		
+		public Class<?> loadRemoteClass(String name, boolean LocalFallback, boolean resolve)
+				throws ClassNotFoundException {
 			synchronized (getClassLoadingLock(name)) {
 				Class<?> Ret = findLoadedClass(name);
 				if (Ret == null) {
-					if (!RemoteResolveCache.containsKey(name)) {
+					Ret = RemoteResolveCache.get(name);
+					if (Ret == null) {
 						// Try lookup remote for this class
 						try {
-							RemoteResolveCache.put(name, findClass(name));
+							Ret = findClass(name);
 						} catch (ClassNotFoundException e) {
 							// Remote could not resolve this class
-							RemoteResolveCache.put(name, null);
 						}
 					}
-					Ret = RemoteResolveCache.get(name);
 					if (Ret == null) {
 						if (!LocalFallback) throw new ClassNotFoundException(name);
 						Ret = super.getParent().loadClass(name);
 					}
 				}
-				return Ret;
-			}
-		}
-		
-		@Override
-		protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-			String RemoteClassName = RemoteResolveCache.keySet().stream().filter(X -> {
-				return name.startsWith(X);
-			}).findAny().orElse(null);
-			
-			if ((RemoteClassName != null) && (RemoteResolveCache.get(RemoteClassName) != null)) {
-				Class<?> Ret = loadRemoteClass(name);
 				if (resolve) {
 					resolveClass(Ret);
 				}
 				return Ret;
-			} else
-				return super.loadClass(name, resolve);
+			}
+		}
+		
+		protected Map<String, Class<?>> LocalResolveCache = new ConcurrentHashMap<>();
+		
+		@Override
+		protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+			Class<?> Ret = RemoteResolveCache.get(name);
+			if (Ret == null) {
+				Ret = LocalResolveCache.get(name);
+			}
+			
+			if (Ret == null) {
+				String RemoteClassContainer = RemoteResolveCache.keySet().stream().filter(X -> {
+					return name.startsWith(X);
+				}).findAny().orElse(null);
+				
+				if (RemoteClassContainer != null) {
+					Ret = loadRemoteClass(name);
+				} else {
+					LocalResolveCache.put(name, Ret = super.loadClass(name, false));
+				}
+			}
+			if (resolve) {
+				synchronized (getClassLoadingLock(name)) {
+					resolveClass(Ret);
+				}
+			}
+			return Ret;
 		}
 		
 		@Override
@@ -150,7 +169,10 @@ public class RemoteClassLoaders {
 				if (BinaryStream.read(BinaryData, 0, BinaryData.length) != BinaryData.length) {
 					Misc.FAIL("Failed to complete receive class bytecode");
 				}
-				return defineClass(name, BinaryData, 0, BinaryData.length);
+				
+				Class<?> Ret;
+				RemoteResolveCache.put(name, Ret = defineClass(name, BinaryData, 0, BinaryData.length));
+				return Ret;
 			} catch (IOException e) {
 				Misc.CascadeThrow(e, "Unable to load class '%s'", name);
 			}
