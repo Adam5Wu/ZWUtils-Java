@@ -718,7 +718,6 @@ public class ObjectTrap {
 		public static enum LatchOp {
 			Accept('Y'),
 			IsNull('X'),
-			AsClass('?'),
 			EqualTo('='),
 			GreaterThan('>'),
 			LessThan('<'),
@@ -842,7 +841,6 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -980,7 +978,6 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1117,7 +1114,6 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1253,7 +1249,6 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1389,7 +1384,6 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1525,7 +1519,6 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1656,7 +1649,6 @@ public class ObjectTrap {
 						CompSet = SetParser.parseOrFail(condval.trim());
 						break;
 					}
-					case AsClass:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1755,7 +1747,6 @@ public class ObjectTrap {
 					case EqualTo:
 						CompVal = Parser.parseOrFail(condval.trim());
 						break;
-					case AsClass:
 					case GreaterThan:
 					case LessThan:
 					case InRange:
@@ -1878,10 +1869,6 @@ public class ObjectTrap {
 					case RegMatch:
 						RegComp = Pattern.compile(Parser.parseOrFail(condval.trim()));
 						break;
-					case AsClass:
-						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
-								Op.OpSym, Op.name());
-						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1971,7 +1958,7 @@ public class ObjectTrap {
 				Collection<String> HelpStr = new ArrayList<String>();
 				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
 				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<class1>[,<class2>,...]", LatchOp.AsClass.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<class1>[,<class2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
@@ -1984,7 +1971,7 @@ public class ObjectTrap {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case AsClass: {
+					case OneOf: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CastSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -2002,7 +1989,6 @@ public class ObjectTrap {
 					case GreaterThan:
 					case LessThan:
 					case InRange:
-					case OneOf:
 					case RegMatch:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -2019,7 +2005,7 @@ public class ObjectTrap {
 						return true;
 					case IsNull:
 						return value == null;
-					case AsClass:
+					case OneOf:
 						if (value != null) {
 							for (Class<?> Cast : CastSet)
 								if (Cast.isAssignableFrom(value.getClass())) return true;
@@ -2046,7 +2032,7 @@ public class ObjectTrap {
 					case Accept:
 					case IsNull:
 						break;
-					case AsClass:
+					case OneOf:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Class<?> Cast : CastSet) {
 							StrBuf.append(Cast.getName()).append(',');
