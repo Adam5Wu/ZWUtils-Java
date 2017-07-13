@@ -555,14 +555,17 @@ public class GroupLogger implements IGroupLogger {
 		
 		public Zabbix(String LogGroup) {
 			super(LogGroup);
+			AddFrameDepth(1);
 		}
 		
 		public Zabbix(String LogGroup, String ParentGroup) {
 			super(LogGroup, ParentGroup);
+			AddFrameDepth(1);
 		}
 		
 		Zabbix(Logger Logger) {
 			super(Logger);
+			AddFrameDepth(1);
 		}
 		
 		public void ZFinest(Object... args) {
@@ -612,6 +615,7 @@ public class GroupLogger implements IGroupLogger {
 	}
 	
 	public static GroupLogger SetInstLogger(Object Inst, GroupLogger Logger) {
+		Logger.AddFrameDepth(1);
 		GroupLogger Ret = PerInstLoggers.putIfAbsent(Inst, Logger);
 		return Ret == null? Logger : Ret;
 	}
