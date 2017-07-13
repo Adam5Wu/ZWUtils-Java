@@ -314,73 +314,77 @@ public class ProcStats extends Companion {
 						ClassRoot = new File(ClassPath).toURI().toURL();
 					}
 					
-					for (String NSClass : new PackageClassIterable(ClassRoot, "", Entry -> {
-						return Entry.SimpleName().equals(Config.CompNS);
-					})) {
-						try {
-							if (ClassEnumeration.contains(NSClass)) {
-								ILog.Fine("Ignored duplicated namespace class '%s' in '%s'", NSClass, ClassPath);
-								continue;
-							}
-							ClassEnumeration.add(NSClass);
-							
-							// Component Version
-							Class<?> NS = Class.forName(NSClass);
-							
-							Field NS_NAME = NS.getDeclaredField(COMPNS_NAME);
-							if (!Modifier.isStatic(NS_NAME.getModifiers())) {
-								Misc.FAIL("Field '%s' is not static", COMPNS_NAME);
-							}
-							NS_NAME.setAccessible(true);
-							String NAME = (String) NS_NAME.get(null);
-							
-							Field NS_VER = NS.getDeclaredField(COMPNS_VER);
-							if (!Modifier.isStatic(NS_VER.getModifiers())) {
-								Misc.FAIL("Field '%s' is not static", COMPNS_VER);
-							}
-							NS_VER.setAccessible(true);
-							String VER = (String) NS_VER.get(null);
-							
-							Field NS_BUILD = NS.getDeclaredField(COMPNS_BLD);
-							if (!Modifier.isStatic(NS_BUILD.getModifiers())) {
-								Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
-							}
-							NS_BUILD.setAccessible(true);
-							String BUILD = (String) NS_BUILD.get(null);
-							
-							boolean MainComponent = false;
+					try {
+						for (String NSClass : new PackageClassIterable(ClassRoot, "", Entry -> {
+							return Entry.SimpleName().equals(Config.CompNS);
+						})) {
 							try {
-								Field NS_MAIN = NS.getDeclaredField(COMPNS_MAIN);
-								if (!Modifier.isStatic(NS_MAIN.getModifiers())) {
+								if (ClassEnumeration.contains(NSClass)) {
+									ILog.Fine("Ignored duplicated namespace class '%s' in '%s'", NSClass, ClassPath);
+									continue;
+								}
+								ClassEnumeration.add(NSClass);
+								
+								// Component Version
+								Class<?> NS = Class.forName(NSClass);
+								
+								Field NS_NAME = NS.getDeclaredField(COMPNS_NAME);
+								if (!Modifier.isStatic(NS_NAME.getModifiers())) {
+									Misc.FAIL("Field '%s' is not static", COMPNS_NAME);
+								}
+								NS_NAME.setAccessible(true);
+								String NAME = (String) NS_NAME.get(null);
+								
+								Field NS_VER = NS.getDeclaredField(COMPNS_VER);
+								if (!Modifier.isStatic(NS_VER.getModifiers())) {
+									Misc.FAIL("Field '%s' is not static", COMPNS_VER);
+								}
+								NS_VER.setAccessible(true);
+								String VER = (String) NS_VER.get(null);
+								
+								Field NS_BUILD = NS.getDeclaredField(COMPNS_BLD);
+								if (!Modifier.isStatic(NS_BUILD.getModifiers())) {
 									Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
 								}
-								NS_MAIN.setAccessible(true);
-								MainComponent = NS_MAIN.getBoolean(null);
-							} catch (NoSuchFieldException e) {
-								// Eat Exception
-							} catch (Throwable e) {
-								ILog.Warn("Error probing 'package-main' attribute - %s", e);
-							}
-							
-							ILog.Info("%s '%s': %s (%s)", MainComponent? "Application" : "Component", NAME, VER,
-									BUILD);
-							if (MainComponent) {
-								if (MainComponentClass == null) {
-									MainComponentClass = NSClass;
-									LogItems.add("Application,Name");
-									LogItems.add(NAME);
-									LogItems.add("Application,Version");
-									LogItems.add(String.format("%s|%s", VER, BUILD));
-								} else {
-									ILog.Warn("Ignored extra main component specification!");
+								NS_BUILD.setAccessible(true);
+								String BUILD = (String) NS_BUILD.get(null);
+								
+								boolean MainComponent = false;
+								try {
+									Field NS_MAIN = NS.getDeclaredField(COMPNS_MAIN);
+									if (!Modifier.isStatic(NS_MAIN.getModifiers())) {
+										Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
+									}
+									NS_MAIN.setAccessible(true);
+									MainComponent = NS_MAIN.getBoolean(null);
+								} catch (NoSuchFieldException e) {
+									// Eat Exception
+								} catch (Throwable e) {
+									ILog.Warn("Error probing 'package-main' attribute - %s", e);
 								}
-							} else {
-								LogItems.add(String.format("Component,%s", NAME));
-								LogItems.add(String.format("%s|%s", VER, BUILD));
+								
+								ILog.Info("%s '%s': %s (%s)", MainComponent? "Application" : "Component", NAME, VER,
+										BUILD);
+								if (MainComponent) {
+									if (MainComponentClass == null) {
+										MainComponentClass = NSClass;
+										LogItems.add("Application,Name");
+										LogItems.add(NAME);
+										LogItems.add("Application,Version");
+										LogItems.add(String.format("%s|%s", VER, BUILD));
+									} else {
+										ILog.Warn("Ignored extra main component specification!");
+									}
+								} else {
+									LogItems.add(String.format("Component,%s", NAME));
+									LogItems.add(String.format("%s|%s", VER, BUILD));
+								}
+							} catch (Throwable e) {
+								ILog.Warn("Unable to probe component information from '%s' - %s", NSClass, e);
 							}
-						} catch (Throwable e) {
-							ILog.Warn("Unable to probe component information from '%s' - %s", NSClass, e);
 						}
+					} catch (Throwable e) {
+						ILog.Warn("Unable to probe class path '%s' - %s", ClassRoot, e);
 					}
 				}
 				
