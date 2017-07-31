@@ -130,7 +130,6 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	}
 	
 	public void Put(X Payload) {
-		InCount.incrementAndGet();
 		if (BatchQueueLen > 0) {
 			while (!RepQueue.offer(Payload)) {
 				BatchDiscard(RepQueue);
@@ -142,6 +141,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				Misc.CascadeThrow(e);
 			}
 		}
+		InCount.incrementAndGet();
 	}
 	
 	public X Get(int Timeout) {
@@ -149,8 +149,12 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		try {
 			if (Timeout > 0) {
 				Ret = RepQueue.poll(Timeout, TimeUnit.SECONDS);
+				if (Ret != null) {
+					OutCount.incrementAndGet();
+				}
 			} else {
 				Ret = RepQueue.take();
+				OutCount.incrementAndGet();
 			}
 		} catch (InterruptedException e) {
 			ILog.Warn("Subscriber '%s' dequeue interrupted - %s", Name, e);
@@ -159,11 +163,11 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		return Ret;
 	}
 	
-	public void Restock(X Payload) {
-		OutCount.decrementAndGet();
+	public boolean Restock(X Payload) {
 		if (BatchQueueLen > 0) {
-			while (!RepQueue.offerLast(Payload)) {
-				BatchDiscard(RepQueue);
+			if (!RepQueue.offerLast(Payload)) {
+				DropCount.incrementAndGet();
+				return false;
 			}
 		} else {
 			try {
@@ -172,6 +176,8 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				Misc.CascadeThrow(e);
 			}
 		}
+		OutCount.decrementAndGet();
+		return true;
 	}
 	
 	public Collection<X> MultiGet(int Count) {
