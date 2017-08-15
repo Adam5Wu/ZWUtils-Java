@@ -174,7 +174,7 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 		StartTime = System.currentTimeMillis();
 		if (Config.TimeOut != null) {
 			DeltaTimeout = Config.TimeOut;
-			ILog.Config("Timeout set at %s", Misc.FormatDeltaTime(DeltaTimeout, false));
+			ILog.Config("Timeout set at %s", Misc.FormatDeltaTime(DeltaTimeout));
 		} else {
 			MessageDispatcher.RegisterSubscription(EVENT_TASK_TIMEOUT, SignalCascader = TaskTerm -> {
 				ITask SenderTask = TaskTerm.GetSender();
@@ -241,9 +241,11 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 	
 	@Override
 	public void AddDependency(ITask Task) {
-		if (!Notifiable.class.isInstance(Task)) Misc.FAIL(ClassCastException.class,
-				"Notification task is of class '%s' which does not implemented required %s interface",
-				Task.getClass(), Notifiable.class.getSimpleName());
+		if (!Notifiable.class.isInstance(Task)) {
+			Misc.FAIL(ClassCastException.class,
+					"Notification task is of class '%s' which does not implemented required %s interface",
+					Task.getClass(), Notifiable.class.getSimpleName());
+		}
 		
 		TimeoutTasks.AddTask(Task);
 	}

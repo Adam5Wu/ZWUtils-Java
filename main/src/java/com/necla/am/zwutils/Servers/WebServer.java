@@ -1130,7 +1130,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		super.doTask();
 		
 		ILog.Info("Stopping Web server (%s grace time)...",
-				Misc.FormatDeltaTime(TimeUnit.SEC.Convert(Config.ShutdownGrace, TimeUnit.MSEC), false));
+				Misc.FormatDeltaTime(TimeUnit.SEC.Convert(Config.ShutdownGrace, TimeUnit.MSEC)));
 		Server.stop(Config.ShutdownGrace);
 		ILog.Info("Web server stopped");
 	}
