@@ -147,7 +147,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	public X Get(int Timeout) {
 		X Ret = null;
 		try {
-			if (Timeout > 0) {
+			if (Timeout >= 0) {
 				Ret = RepQueue.poll(Timeout, TimeUnit.SECONDS);
 				if (Ret != null) {
 					OutCount.incrementAndGet();
