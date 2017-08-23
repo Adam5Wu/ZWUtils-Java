@@ -1045,7 +1045,7 @@ public class TaskHost extends Poller {
 	protected static TaskHost TaskHostTask = null;
 	private static final String ConfigKeyBase = TaskHost.class.getSimpleName();
 	
-	synchronized protected static TaskHost GlobalTaskHost(String[] Args) {
+	synchronized public static TaskHost GlobalTaskHost(String[] Args) {
 		return (TaskHostTask == null? TaskHostTask = CreateTaskHost("GlobalTaskHost", Args,
 				ConfigData.ConfigFile, ConfigKeyBase) : TaskHostTask);
 	}
@@ -1069,7 +1069,7 @@ public class TaskHost extends Poller {
 		RegisterTaskAlias(TaskClass.getSimpleName(), TaskClass);
 	}
 	
-	synchronized protected static String LookupTaskAlias(String Alias) {
+	public static String LookupTaskAlias(String Alias) {
 		return ClassMap != null? ClassMap.get(Alias) : null;
 	}
 	
