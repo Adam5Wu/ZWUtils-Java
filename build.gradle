@@ -99,19 +99,15 @@ repositories {
 }
 
 dependencies {
-	compile 'com.google.code.gson:gson:2.3.1'
 	compile 'javax.mail:mail:1.4.7'
+	compile 'com.google.code.gson:gson:2.3.1'
+	compile 'com.martiansoftware:jsap:2.1'
 	compile 'org.slf4j:jul-to-slf4j:1.7.13'
 	compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.5'
-	compile 'com.googlecode.mobilityrpc:mobility-rpc:1.2.1'
+	compile 'org.ow2.asm:asm:6.0'
+	compile 'org.ow2.asm:asm-commons:6.0'
 	compile 'com.esotericsoftware:reflectasm:1.11.3'
-	compile 'com.martiansoftware:jsap:2.1'
-
-//	compile 'org.python:jython:2.7.+'
-	
-//	compile 'org.scala-lang:scala-compiler:2.12.1'
-//	compile 'org.scala-lang:scala-reflect:2.12.1'
-//	compile 'org.scala-lang:scala-library:2.12.1'	
+	compile 'com.googlecode.mobilityrpc:mobility-rpc:1.2.1'
 }
 
 allprojects {

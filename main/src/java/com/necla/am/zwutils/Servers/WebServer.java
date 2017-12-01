@@ -33,13 +33,13 @@ package com.necla.am.zwutils.Servers;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -72,6 +72,14 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.commons.InstructionAdapter;
+
 import com.necla.am.zwutils.Config.Container;
 import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataMap;
@@ -86,6 +94,7 @@ import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.Reflection.IClassSolver;
 import com.necla.am.zwutils.Reflection.IClassSolver.Impl.DirectClassSolver;
+import com.necla.am.zwutils.Reflection.OverrideClassLoader;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
 import com.necla.am.zwutils.Reflection.PackageClassIterable.IClassFilter;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
@@ -96,7 +105,6 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
-import com.sun.net.httpserver.HttpsExchange;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 
@@ -347,7 +355,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			public static final int MAX_PORTNUM = 0xFFFF;
 			public static final long MIN_TIMEOUT = 5;
-			public static final long MAX_TIMEOUT = TimeUnit.MIN.Convert(3, TimeUnit.SEC);
+			public static final long MAX_TIMEOUT = TimeUnit.HR.Convert(1, TimeUnit.SEC);
 			public static final long MIN_WAITTIME = 3;
 			public static final long MAX_WAITTIME = TimeUnit.MIN.Convert(1, TimeUnit.SEC);
 			public static final int MAX_SSLSESSIONCNT = 8192;
@@ -493,108 +501,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			SERVER.PerfLog(CONTEXT, Metrics, Values);
 		}
 		
-		/*
-		 * This wrapper class works around a Sun JRE bug in which a broken SSL connection is not considered as
-		 * closed, causing infinite loop for functions which try to read a fixed amount of data from the socket
-		 */
-		protected static class DefensiveInputStream extends InputStream {
-			
-			protected final InputStream IN;
-			protected final InputStream SSLIN;
-			protected final String RemoteDispIdent;
-			
-			protected final Field SSLEOF;
-			
-			public DefensiveInputStream(InputStream WrappedStream, String ReportIdent) {
-				IN = WrappedStream;
-				RemoteDispIdent = ReportIdent;
-				
-				InputStream _SSLIN = null;
-				try {
-					Field _IN = FilterInputStream.class.getDeclaredField("in");
-					_IN.setAccessible(true);
-					_SSLIN = (InputStream) _IN.get(WrappedStream);
-				} catch (Throwable e) {
-					Misc.CascadeThrow(e, "Unable to unwrap input stream");
-				}
-				SSLIN = _SSLIN;
-				
-				Field _SSLEOF = null;
-				try {
-					Class<?> C = Class.forName("sun.net.httpserver.SSLStreams$InputStream");
-					if (!C.isAssignableFrom(SSLIN.getClass())) {
-						Misc.FAIL("Class '%s' is not a descendent", SSLIN.getClass());
-					}
-					_SSLEOF = C.getDeclaredField("eof");
-					_SSLEOF.setAccessible(true);
-				} catch (Throwable e) {
-					CLog.Warn("%s: Error detecting Sun HTTPServer SSLStream - %s", RemoteDispIdent,
-							e.getLocalizedMessage());
-				}
-				SSLEOF = _SSLEOF;
-			}
-			
-			@Override
-			public int read(byte[] b, int off, int len) throws IOException {
-				Misc.ASSERT((off + len) <= b.length, "Invalid read buffer size");
-				
-				int rem = len;
-				while (rem > 0) {
-					int count = IN.read(b, off, rem);
-					if (count < 0) {
-						if (rem == len) return -1;
-						break;
-					}
-					if (count > 0) {
-						off += count;
-						rem -= count;
-					} else {
-						if (SSLEOF != null) {
-							try {
-								if (SSLEOF.getBoolean(SSLIN)) {
-									CLog.Warn("%s: SSL stream EOF detected, defensive connection discard",
-											RemoteDispIdent);
-									close();
-									break;
-								}
-							} catch (Throwable e) {
-								CLog.Warn("%s: Error detecting SSL stream EOF, defensive connection discard - %s",
-										RemoteDispIdent, e.getLocalizedMessage());
-								close();
-								break;
-							}
-						}
-					}
-				}
-				return len - rem;
-			}
-			
-			// We need to use reflection trick to forcefully poke the "closed" flag of the
-			// underlying LeftOverInputStream instance, otherwise its own close() function will
-			// try to call drain() later, causing thread to hang.
-			public static void close(InputStream IN) {
-				try {
-					Class<?> C = Class.forName("sun.net.httpserver.LeftOverInputStream");
-					Field F = C.getDeclaredField("closed");
-					F.setAccessible(true);
-					F.set(IN, true);
-				} catch (Throwable e) {
-					CLog.logExcept(e);
-				}
-			}
-			
-			@Override
-			public void close() throws IOException {
-				close(IN);
-			}
-			
-			@Override
-			public int read() throws IOException {
-				return IN.read();
-			}
-			
-		}
-		
 		protected static class RequestProcessor {
 			
 			private HttpExchange HE;
@@ -602,6 +508,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			protected final InetSocketAddress RemoteAddr;
 			protected final String RemoteDispIdent;
+			protected boolean NeedContinue = false;
 			protected boolean DropRequest = false;
 			
 			public RequestProcessor(HttpExchange he) {
@@ -609,6 +516,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				RemoteAddr = he.getRemoteAddress();
 				RemoteDispIdent =
 						String.format("[%s:%d]", RemoteAddr.getHostString(), RemoteAddr.getPort());
+				
+				NeedContinue = "100-continue".equalsIgnoreCase(he.getRequestHeaders().getFirst("Expect"));
 			}
 			
 			protected final String METHOD() {
@@ -621,8 +530,19 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			protected final InputStream BODY() {
 				if (BODY == null) {
-					BODY = (HE instanceof HttpsExchange)? new DefensiveInputStream(HE.getRequestBody(),
-							RemoteDispIdent) : HE.getRequestBody();
+					if (NeedContinue) {
+						try {
+							Method GetRawOutstream = HE.getClass().getDeclaredMethod("getRawOutputStream");
+							GetRawOutstream.setAccessible(true);
+							OutputStream RawOutput = (OutputStream) GetRawOutstream.invoke(HE);
+							RawOutput.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
+							RawOutput.flush();
+						} catch (Throwable e) {
+							Misc.CascadeThrow(e);
+						}
+						NeedContinue = false;
+					}
+					BODY = HE.getRequestBody();
 				}
 				return BODY;
 			}
@@ -659,7 +579,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				int RCODE = RP.Serve(HE.getRequestURI());
 				
 				if (!RP.DropRequest) {
-					if (HE.getRequestBody().read() != -1) {
+					if (HE.getRequestBody().available() > 0) {
 						ILog.Warn("%s: Left-over payload data (connection will not be reused)",
 								RP.RemoteDispIdent);
 					}
@@ -686,10 +606,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				}
 				
 				if (RP.DropRequest) {
-					if (HE instanceof HttpsExchange) {
-						// Pro-actively apply the anti-hang trick before closing
-						DefensiveInputStream.close(HE.getRequestBody());
-					}
 					HE.close();
 				}
 			} catch (Throwable e) {
@@ -702,11 +618,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 							(e.getLocalizedMessage() != null? e.getLocalizedMessage() : e.getClass().getName()));
 				}
 				ExceptCount.incrementAndGet();
-				
-				// Pro-actively apply the anti-hang trick before closing
-				if (HE instanceof HttpsExchange) {
-					DefensiveInputStream.close(HE.getRequestBody());
-				}
 				HE.close();
 				
 				Class<? extends Throwable> ExceptClass = e.getClass();
@@ -1029,6 +940,224 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		});
 	}
 	
+	// Patch #1: Disable automated unconditional reply of 100 continue
+	public static class Patch1 {
+		public static class HTTPServer_Exchange extends ClassVisitor {
+			public HTTPServer_Exchange(ClassVisitor cv) {
+				super(Opcodes.ASM6, cv);
+			}
+			
+			@Override
+			public MethodVisitor visitMethod(int access, String name, String desc, String signature,
+					String[] exceptions) {
+				MethodVisitor MV = super.visitMethod(access, name, desc, signature, exceptions);
+				if (!name.equals("run")) return MV;
+				
+				return new InstructionAdapter(Opcodes.ASM6, MV) {
+					@Override
+					public void visitLdcInsn(Object cst) {
+						if (cst instanceof String) {
+							if (cst.equals("Expect")) {
+								CLog.Finest("Located: LDC '%s'", cst);
+								CLog.Finest("Patch: ACONST_NULL");
+								super.visitInsn(Opcodes.ACONST_NULL);
+								return;
+							}
+						}
+						super.visitLdcInsn(cst);
+					}
+					
+					@Override
+					public void visitCode() {
+						CLog.Finer("+Patching method '%s'...", name);
+						super.visitCode();
+					}
+					
+					@Override
+					public void visitEnd() {
+						CLog.Finer("*Done with method '%s'", name);
+						super.visitEnd();
+					}
+				};
+			}
+		}
+		
+		public static class HttpExchangeImpl extends ClassVisitor {
+			public HttpExchangeImpl(ClassVisitor cv) {
+				super(Opcodes.ASM6, cv);
+			}
+			
+			boolean Activated = false;
+			
+			@Override
+			public void visitEnd() {
+				Activated = true;
+				MethodVisitor MV = visitMethod(Opcodes.ACC_PUBLIC, "getRawOutputStream",
+						"()Ljava/io/OutputStream;", null, null);
+				MV.visitCode();
+				MV.visitVarInsn(Opcodes.ALOAD, 0);
+				MV.visitFieldInsn(Opcodes.GETFIELD, "sun/net/httpserver/HttpExchangeImpl", "impl",
+						"Lsun/net/httpserver/ExchangeImpl;");
+				MV.visitFieldInsn(Opcodes.GETFIELD, "sun/net/httpserver/ExchangeImpl", "ros",
+						"Ljava/io/OutputStream;");
+				MV.visitInsn(Opcodes.ARETURN);
+				MV.visitMaxs(1, 1);
+				MV.visitEnd();
+				
+				super.visitEnd();
+			}
+		}
+	}
+	
+	// Patch #2: Fix http://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8160355
+	public static class Patch2 {
+		public static class SSLStreams_InputStream extends ClassVisitor {
+			public SSLStreams_InputStream(ClassVisitor cv) {
+				super(Opcodes.ASM6, cv);
+			}
+			
+			@Override
+			public MethodVisitor visitMethod(int access, String name, String desc, String signature,
+					String[] exceptions) {
+				MethodVisitor MV = super.visitMethod(access, name, desc, signature, exceptions);
+				if (name.equals("read")) {
+					if (desc.equals("()I"))
+						return new InstructionAdapter(Opcodes.ASM6, MV) {
+							boolean Activated = false;
+							
+							@Override
+							public void visitMethodInsn(int opcode, String owner, String name, String desc,
+									boolean itf) {
+								if ((opcode == Opcodes.INVOKEVIRTUAL)
+										&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
+										&& name.equals("read")) {
+									Activated = true;
+								}
+								super.visitMethodInsn(opcode, owner, name, desc, itf);
+							}
+							
+							@Override
+							public void visitJumpInsn(int opcode, Label label) {
+								if (Activated) {
+									Activated = false;
+									if (opcode == Opcodes.IFNE) {
+										super.visitJumpInsn(Opcodes.IFLT, label);
+										return;
+									}
+								}
+								super.visitJumpInsn(opcode, label);
+							}
+							
+							@Override
+							public void visitCode() {
+								CLog.Finer("+Patching method '%s%s'...", name, desc);
+								super.visitCode();
+							}
+							
+							@Override
+							public void visitEnd() {
+								CLog.Finer("*Done with method '%s%s'", name, desc);
+								super.visitEnd();
+							}
+						};
+					else if (desc.equals("([BII)I")) return new InstructionAdapter(Opcodes.ASM6, MV) {
+						boolean Activated = false;
+						
+						@Override
+						public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+							if ((opcode == Opcodes.GETFIELD)
+									&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
+									&& name.equals("eof")) {
+								Activated = true;
+							}
+							super.visitFieldInsn(opcode, owner, name, desc);
+						}
+						
+						@Override
+						public void visitInsn(int opcode) {
+							if (Activated) {
+								if (opcode == Opcodes.IRETURN) {
+									Activated = false;
+								} else if (opcode == Opcodes.ICONST_0) {
+									super.visitLdcInsn(-1);
+									return;
+								}
+							}
+							super.visitInsn(opcode);
+						}
+						
+						@Override
+						public void visitCode() {
+							CLog.Finer("+Patching method '%s%s'...", name, desc);
+							super.visitCode();
+						}
+						
+						@Override
+						public void visitEnd() {
+							CLog.Finer("*Done with method '%s%s'", name, desc);
+							super.visitEnd();
+						}
+					};
+				}
+				return MV;
+			}
+		}
+	}
+	
+	protected static OverrideClassLoader _ClassLoader = new OverrideClassLoader();
+	
+	static {
+		// Patch broken JDK implementations
+		try {
+			_ClassLoader.AddOverridePackage("sun.net.httpserver");
+			
+			// Apply Patch 1
+			String PatchClass = "sun.net.httpserver.ServerImpl$Exchange";
+			CLog.Fine("+Patching class '%s'...", PatchClass);
+			InputStream ClassIn =
+					_ClassLoader.getResourceAsStream(String.format("%s.class", PatchClass.replace('.', '/')));
+			ClassReader CR = new ClassReader(ClassIn);
+			ClassWriter CW = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+			CR.accept(new Patch1.HTTPServer_Exchange(CW), 0);
+			CLog.Fine("*+Loading patched bytecode...");
+			_ClassLoader.DefineOverrideClass(PatchClass, ByteBuffer.wrap(CW.toByteArray()));
+			CLog.Fine("*Done with class '%s'", PatchClass);
+			
+			PatchClass = "sun.net.httpserver.HttpExchangeImpl";
+			CLog.Fine("+Patching class '%s'...", PatchClass);
+			ClassIn =
+					_ClassLoader.getResourceAsStream(String.format("%s.class", PatchClass.replace('.', '/')));
+			CR = new ClassReader(ClassIn);
+			CW = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+			CR.accept(new Patch1.HttpExchangeImpl(CW), 0);
+			CLog.Fine("*+Loading patched bytecode...");
+			_ClassLoader.DefineOverrideClass(PatchClass, ByteBuffer.wrap(CW.toByteArray()));
+			CLog.Fine("*Done with class '%s'", PatchClass);
+			
+			// Apply Patch 2
+			PatchClass = "sun.net.httpserver.SSLStreams$InputStream";
+			CLog.Fine("+Patching class '%s'...", PatchClass);
+			ClassIn =
+					_ClassLoader.getResourceAsStream(String.format("%s.class", PatchClass.replace('.', '/')));
+			CR = new ClassReader(ClassIn);
+			CW = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+			CR.accept(new Patch2.SSLStreams_InputStream(CW), 0);
+			CLog.Fine("*+Loading patched bytecode...");
+			_ClassLoader.DefineOverrideClass(PatchClass, ByteBuffer.wrap(CW.toByteArray()));
+			CLog.Fine("*Done with class '%s'", PatchClass);
+			
+			CLog.Fine("Registering special Web service provider...");
+			Class<?> WSProviderReg_Class = Class.forName("com.sun.net.httpserver.spi.HttpServerProvider");
+			Field WSProviderReg_Field = WSProviderReg_Class.getDeclaredField("provider");
+			WSProviderReg_Field.setAccessible(true);
+			Class<?> WSProvider =
+					_ClassLoader.loadClass("sun.net.httpserver.DefaultHttpServerProvider", true);
+			WSProviderReg_Field.set(null, WSProvider.newInstance());
+		} catch (Throwable e) {
+			Misc.CascadeThrow(e, "Failed to patch JDK HTTP Server implementation");
+		}
+	}
+	
 	@Override
 	protected void preTask() {
 		super.preTask();
@@ -1037,7 +1166,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		ILog.Fine("Applying correction to default JVM configurations...");
 		try {
 			// Poke on the No-Delay flag
-			Class<?> ServerConfig_Class = Class.forName("sun.net.httpserver.ServerConfig");
+			Class<?> ServerConfig_Class = _ClassLoader.loadClass("sun.net.httpserver.ServerConfig");
 			Field ServerConfig_NoDelay = ServerConfig_Class.getDeclaredField("noDelay");
 			ServerConfig_NoDelay.setAccessible(true);
 			ServerConfig_NoDelay.setBoolean(null, true);
@@ -1046,7 +1175,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			Field _Modifiers = Field.class.getDeclaredField("modifiers");
 			_Modifiers.setAccessible(true);
 			
-			Class<?> ServerImpl_Class = Class.forName("sun.net.httpserver.ServerImpl");
+			Class<?> ServerImpl_Class = _ClassLoader.loadClass("sun.net.httpserver.ServerImpl");
 			Field ServerImpl_maxReqTime = ServerImpl_Class.getDeclaredField("MAX_REQ_TIME");
 			ServerImpl_maxReqTime.setAccessible(true);
 			_Modifiers.setInt(ServerImpl_maxReqTime,
