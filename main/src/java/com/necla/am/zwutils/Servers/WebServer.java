@@ -959,7 +959,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						if (cst instanceof String) {
 							if (cst.equals("Expect")) {
 								CLog.Finest("Located: LDC '%s'", cst);
-								CLog.Finest("Patch: ACONST_NULL");
+								CLog.Finest("Patched: ACONST_NULL");
 								super.visitInsn(Opcodes.ACONST_NULL);
 								return;
 							}
@@ -992,6 +992,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			@Override
 			public void visitEnd() {
 				Activated = true;
+				CLog.Finest("Injecting new method '%s'...", "getRawOutputStream");
 				MethodVisitor MV = visitMethod(Opcodes.ACC_PUBLIC, "getRawOutputStream",
 						"()Ljava/io/OutputStream;", null, null);
 				MV.visitCode();
@@ -1031,6 +1032,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 								if ((opcode == Opcodes.INVOKEVIRTUAL)
 										&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
 										&& name.equals("read")) {
+									CLog.Finest("Located: invoke %s.%s", owner, name);
 									Activated = true;
 								}
 								super.visitMethodInsn(opcode, owner, name, desc, itf);
@@ -1041,6 +1043,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 								if (Activated) {
 									Activated = false;
 									if (opcode == Opcodes.IFNE) {
+										CLog.Finest("Patched: condition < 0");
 										super.visitJumpInsn(Opcodes.IFLT, label);
 										return;
 									}
@@ -1068,6 +1071,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 							if ((opcode == Opcodes.GETFIELD)
 									&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
 									&& name.equals("eof")) {
+								CLog.Finest("Located: get %s.%s", owner, name);
 								Activated = true;
 							}
 							super.visitFieldInsn(opcode, owner, name, desc);
@@ -1079,6 +1083,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 								if (opcode == Opcodes.IRETURN) {
 									Activated = false;
 								} else if (opcode == Opcodes.ICONST_0) {
+									CLog.Finest("Patched: return -1");
 									super.visitLdcInsn(-1);
 									return;
 								}
