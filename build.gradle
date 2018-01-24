@@ -27,6 +27,10 @@ apply plugin: "com.zoltu.git-versioning"
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
+plugins {
+	id "org.sonarqube" version "2.5"
+}
+
 compileJava {
 	sourceCompatibility = '1.8'
 	options.encoding = 'UTF-8'
