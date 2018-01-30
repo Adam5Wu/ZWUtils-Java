@@ -65,8 +65,8 @@ import com.necla.am.zwutils.Reflection.IClassSolver.Impl.LazyNamedClassSolver;
  */
 public class PackageClassIterable implements Iterable<String> {
 	
-	protected static final String LogGroup = "ZWUtils.Reflection.PackageClassIterable";
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	protected static final String LOGGROUP = "ZWUtils.Reflection.PackageClassIterable";
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	protected static final List<String> EmptyList = new ArrayList<>(0);
 	protected final Iterable<String> DelegateIterable;
@@ -172,6 +172,35 @@ public class PackageClassIterable implements Iterable<String> {
 		return DelegateIterable.iterator();
 	}
 	
+	protected static abstract class _ClassNameIterator implements Iterator<String> {
+		
+		protected String next = null;
+		
+		protected abstract String FindNext();
+		
+		@Override
+		public boolean hasNext() {
+			if (next == null) {
+				next = FindNext();
+			}
+			return next != null;
+		}
+		
+		@Override
+		public String next() {
+			if (!hasNext()) {
+				Misc.FAIL(NoSuchElementException.class, "Iteration terminal has been reached");
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				throw new NoSuchElementException("Should not reach");
+			}
+			
+			String Ret = next;
+			next = FindNext();
+			return Ret;
+		}
+		
+	}
+	
 	public static class JarClassIterable implements Iterable<String> {
 		
 		protected final String BasePath;
@@ -189,16 +218,15 @@ public class PackageClassIterable implements Iterable<String> {
 			Filter = filter;
 		}
 		
-		public class JarClassIterator implements Iterator<String> {
+		public class JarClassIterator extends _ClassNameIterator {
 			
 			protected final Enumeration<JarEntry> Entries;
-			protected String next;
 			
-			public JarClassIterator() throws IOException {
+			public JarClassIterator() {
 				Entries = Jar.entries();
-				next = FindNext();
 			}
 			
+			@Override
 			protected String FindNext() {
 				while (Entries.hasMoreElements()) {
 					try {
@@ -212,40 +240,18 @@ public class PackageClassIterable implements Iterable<String> {
 							}
 							return Ret;
 						}
-					} catch (Throwable e) {
+					} catch (Exception e) {
 						// Eat exception
-						continue;
 					}
 				}
 				return null;
-			}
-			
-			@Override
-			public boolean hasNext() {
-				return next != null;
-			}
-			
-			@Override
-			public String next() {
-				if (!hasNext()) {
-					Misc.FAIL(NoSuchElementException.class, "End of iteration");
-				}
-				
-				String Ret = next;
-				next = FindNext();
-				return Ret;
 			}
 			
 		}
 		
 		@Override
 		public Iterator<String> iterator() {
-			try {
-				return new JarClassIterator();
-			} catch (IOException e) {
-				Misc.CascadeThrow(e);
-				return null;
-			}
+			return new JarClassIterator();
 		}
 	}
 	
@@ -264,22 +270,20 @@ public class PackageClassIterable implements Iterable<String> {
 		public FileClassIterable(File resdir, String pkgname, IClassFilter filter) throws IOException {
 			BasePathLen = resdir.getCanonicalPath().length();
 			BaseName = pkgname;
-			FileIterable = new BFSDirFileIterable(resdir, pathname -> {
-				return pathname.getName().endsWith(".class");
-			});
+			FileIterable =
+					new BFSDirFileIterable(resdir, pathname -> pathname.getName().endsWith(".class"));
 			Filter = filter;
 		}
 		
-		public class FileClassIterator implements Iterator<String> {
+		public class FileClassIterator extends _ClassNameIterator {
 			
 			protected final Iterator<File> FileIterator;
-			protected String next;
 			
-			public FileClassIterator() throws IOException {
+			public FileClassIterator() {
 				FileIterator = FileIterable.iterator();
-				next = FindNext();
 			}
 			
+			@Override
 			protected String FindNext() {
 				while (FileIterator.hasNext()) {
 					try {
@@ -291,40 +295,18 @@ public class PackageClassIterable implements Iterable<String> {
 							continue;
 						}
 						return Ret;
-					} catch (Throwable e) {
+					} catch (Exception e) {
 						// Eat exception
-						continue;
 					}
 				}
 				return null;
-			}
-			
-			@Override
-			public boolean hasNext() {
-				return next != null;
-			}
-			
-			@Override
-			public String next() {
-				if (!hasNext()) {
-					Misc.FAIL(NoSuchElementException.class, "End of iteration");
-				}
-				
-				String Ret = next;
-				next = FindNext();
-				return Ret;
 			}
 			
 		}
 		
 		@Override
 		public Iterator<String> iterator() {
-			try {
-				return new FileClassIterator();
-			} catch (IOException e) {
-				Misc.CascadeThrow(e);
-				return null;
-			}
+			return new FileClassIterator();
 		}
 		
 	}

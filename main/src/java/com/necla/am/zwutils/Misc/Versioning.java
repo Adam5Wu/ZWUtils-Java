@@ -12,13 +12,17 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 
 public class Versioning {
 	
+	protected Versioning() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
 	protected static Field _Modifiers;
 	
 	static {
 		try {
 			_Modifiers = Field.class.getDeclaredField("modifiers");
 			_Modifiers.setAccessible(true);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 	}
@@ -52,7 +56,7 @@ public class Versioning {
 				_BUILD_ = _BUILD_.replaceAll(Pattern.quote(StubTime), Now.toString(TimeConv));
 				_BUILD.set(null, _BUILD_);
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 	}

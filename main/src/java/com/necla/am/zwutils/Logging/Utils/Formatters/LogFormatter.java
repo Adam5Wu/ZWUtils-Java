@@ -32,10 +32,11 @@
 package com.necla.am.zwutils.Logging.Utils.Formatters;
 
 import java.io.File;
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Stack;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -66,15 +67,15 @@ import com.necla.am.zwutils.Subscriptions.ISubscription;
  */
 public abstract class LogFormatter extends Formatter {
 	
-	public static final String LogGroup = "ZWUtils.Logging.Formatter";
-	public static final String LogGroupPFX = "Formatter";
+	public static final String LOGGROUP = "ZWUtils.Logging.Formatter";
+	public static final String LOGGROUP_PFX = "Formatter";
 	
 	protected final IGroupLogger ILog;
 	
 	public LogFormatter(Handler LogHandler, String LogTargetName) {
 		super();
 		
-		ILog = new GroupLogger(LogTargetName + '.' + LogGroupPFX);
+		ILog = new GroupLogger(LogTargetName + '.' + LOGGROUP_PFX);
 		ILog.setHandler(LogHandler, false);
 	}
 	
@@ -98,16 +99,16 @@ public abstract class LogFormatter extends Formatter {
 		if (record.getLevel() == Level.OFF) {
 			String Message = record.getMessage();
 			if (Message.startsWith(CONFIGMSG_PREFIX)) {
-				String Config = Message.substring(CONFIGMSG_PREFIX.length());
-				String[] Pair = Config.split(REG_CONFIGMSG_DELIM, 2);
+				String _Config = Message.substring(CONFIGMSG_PREFIX.length());
+				String[] Pair = _Config.split(REG_CONFIGMSG_DELIM, 2);
 				if (Pair.length == 2) {
 					try {
 						ConfigLogMessage(Pair[0], Pair[1]);
-					} catch (Throwable e) {
-						ILog.logExcept(e, "Error setting configuration '%s'", Config);
+					} catch (Exception e) {
+						ILog.logExcept(e, "Error setting configuration '%s'", _Config);
 					}
 				} else {
-					ILog.Warn("Invalid configuration string '%s'", Config);
+					ILog.Warn("Invalid configuration string '%s'", _Config);
 				}
 				
 				return "";
@@ -128,7 +129,7 @@ public abstract class LogFormatter extends Formatter {
 	}
 	
 	public static class Delegator extends LogFormatter {
-		protected final Stack<LogFormatter> SubFormatters = new Stack<>();
+		protected final Deque<LogFormatter> SubFormatters = new ArrayDeque<>();
 		
 		public Delegator(Handler LogHandler, String LogTargetName) {
 			super(LogHandler, LogTargetName);
@@ -136,11 +137,11 @@ public abstract class LogFormatter extends Formatter {
 			AppendSub(new SlimFormatter(LogHandler, LogTargetName));
 		}
 		
-		synchronized public void AppendSub(LogFormatter SubFormatter) {
+		public synchronized void AppendSub(LogFormatter SubFormatter) {
 			SubFormatters.add(SubFormatter);
 		}
 		
-		synchronized public void AppendSub(Collection<LogFormatter> SubFormatters) {
+		public synchronized void AppendSub(Collection<LogFormatter> SubFormatters) {
 			SubFormatters.addAll(SubFormatters);
 		}
 		
@@ -160,11 +161,15 @@ public abstract class LogFormatter extends Formatter {
 		
 	}
 	
-	abstract protected String FormatLogMessage(LogRecord record);
+	protected abstract String FormatLogMessage(LogRecord record);
 	
 	// ------------ Configuration Operations ------------
 	
 	public static class ConfigData {
+		
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Data.Mutable {
 			
@@ -214,11 +219,11 @@ public abstract class LogFormatter extends Formatter {
 		}
 		
 		public static final File ConfigFile = DataFile.DeriveConfigFile("ZWUtils.");
-		protected static final String ConfigKeyBase = LogFormatter.class.getSimpleName() + ".";
+		protected static final String CONFIG_KEYBASE = LogFormatter.class.getSimpleName() + ".";
 		
-		protected static Container<Mutable, ReadOnly> Create() throws Throwable {
-			return Container.Create(Mutable.class, ReadOnly.class, LogGroupPFX + ".Config", ConfigFile,
-					ConfigKeyBase);
+		protected static Container<Mutable, ReadOnly> Create() throws Exception {
+			return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP_PFX + ".Config", ConfigFile,
+					CONFIG_KEYBASE);
 		}
 	}
 	
@@ -241,7 +246,7 @@ public abstract class LogFormatter extends Formatter {
 		/**
 		 * Send a configuration message to the logger which it will recognizes
 		 */
-		static public void SendConfigurationMsg(IGroupLogger Logger, String key, String value) {
+		public static void SendConfigurationMsg(IGroupLogger Logger, String key, String value) {
 			Logger.PushLog(Level.OFF, "%s%s%s%s", CONFIGMSG_PREFIX, key, CONFIGMSG_DELIM, value);
 		}
 		
@@ -270,7 +275,7 @@ public abstract class LogFormatter extends Formatter {
 		Subscriptions.put(Name, Handler);
 	}
 	
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	static {
 		CLog.Entry("+Initializing...");
@@ -279,7 +284,7 @@ public abstract class LogFormatter extends Formatter {
 			Container<ConfigData.Mutable, ConfigData.ReadOnly> _Config = null;
 			try {
 				_Config = ConfigData.Create();
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				DebugLog.DirectErrOut().println(
 						String.format("Failed to load configurations for %s: %s, program will terminate.",
 								LogFormatter.class.getSimpleName(), e.getLocalizedMessage()));

@@ -20,6 +20,10 @@ public interface IClassSolver {
 	
 	public static class Impl {
 		
+		protected Impl() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
+		
 		public static class DirectClassSolver implements IClassSolver {
 			
 			protected final Class<?> C;

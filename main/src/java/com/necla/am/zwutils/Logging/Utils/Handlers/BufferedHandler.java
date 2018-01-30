@@ -66,16 +66,16 @@ public class BufferedHandler extends Handler {
 		Enabled = Enable;
 	}
 	
-	synchronized public Handler getHandler() {
+	public synchronized Handler getHandler() {
 		return Handler;
 	}
 	
-	synchronized public void setHandler(Handler TargetHandler) {
+	public synchronized void setHandler(Handler TargetHandler) {
 		Handler = TargetHandler;
 	}
 	
 	@Override
-	synchronized public void close() {
+	public synchronized void close() {
 		Buffer = null;
 		if (Handler != null) {
 			Handler.close();
@@ -83,9 +83,11 @@ public class BufferedHandler extends Handler {
 	}
 	
 	@Override
-	synchronized public void flush() {
+	public synchronized void flush() {
 		if (Buffer != null) {
-			if (Handler != null) Buffer.forEach(Handler::publish);
+			if (Handler != null) {
+				Buffer.forEach(Handler::publish);
+			}
 			Buffer.clear();
 		} else {
 			Misc.ASSERT(false, "Already closed");
@@ -93,7 +95,7 @@ public class BufferedHandler extends Handler {
 	}
 	
 	@Override
-	synchronized public void publish(LogRecord record) {
+	public synchronized void publish(LogRecord record) {
 		if (Enabled) {
 			if (Buffer != null) {
 				Buffer.add(record);

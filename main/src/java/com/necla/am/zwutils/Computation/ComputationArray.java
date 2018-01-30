@@ -46,7 +46,8 @@ public abstract class ComputationArray {
 	
 	protected double Cache;
 	protected double[] Data;
-	protected int Ptr, Cnt;
+	protected int Ptr;
+	protected int Cnt;
 	
 	protected ComputationArray(int BlockCap) {
 		Data = new double[BlockCap];
@@ -57,7 +58,7 @@ public abstract class ComputationArray {
 	
 	protected abstract double computeBlock();
 	
-	synchronized public void add(double Num) {
+	public synchronized void add(double Num) {
 		Data[Ptr++] = Num;
 		
 		if (Ptr >= Data.length) {
@@ -71,7 +72,7 @@ public abstract class ComputationArray {
 		return Cnt;
 	}
 	
-	synchronized public void reset() {
+	public synchronized void reset() {
 		Ptr = 0;
 		Cnt = 0;
 		Cache = initCache();

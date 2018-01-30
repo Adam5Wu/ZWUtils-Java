@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Servers;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,7 +55,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.spi.FileTypeDetector;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -121,11 +127,15 @@ import com.sun.net.httpserver.HttpsServer;
 @SuppressWarnings("restriction")
 public class WebServer extends Poller implements ITask.TaskDependency {
 	
-	public static final String LogGroup = "ZWUtils.Servers.Web";
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	public static final String LOGGROUP = "ZWUtils.Servers.Web";
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	public final GroupLogger.Zabbix ZBXLog;
 	
 	public static class ConfigData extends Poller.ConfigData {
+		
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		protected static final String HANDLER_PREFIX = "Handler/";
 		protected static final String CLSSEARCHPKG_PFX = "Handler.Search.";
@@ -158,6 +168,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				public HandlerConfig parseOrFail(String From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					String[] Tokens = HANDLERCONFIG_DELIM.split(From.trim(), 2);
@@ -179,24 +191,28 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 									WebHandler.class.getSimpleName());
 						}
 						
-						Constructor<?> WHC = null;
-						try {
-							if (ConfigInfo == null) {
-								WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class);
-							} else {
-								WHC =
-										HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
-							}
-							WHC.setAccessible(true);
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e, "No appropriate constructor found in class '%s'",
-									HandlerCls.getName());
-						}
+						Constructor<?> WHC = InferHandlerConstructor(ConfigInfo, HandlerCls);
 						return new HandlerConfig(WHC, ConfigInfo);
-					} catch (Throwable e) {
+					} catch (Exception e) {
 						Misc.CascadeThrow(e);
 					}
 					return null;
+				}
+				
+				private Constructor<?> InferHandlerConstructor(String ConfigInfo, Class<?> HandlerCls) {
+					Constructor<?> WHC = null;
+					try {
+						if (ConfigInfo == null) {
+							WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class);
+						} else {
+							WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
+						}
+						WHC.setAccessible(true);
+					} catch (Exception e) {
+						Misc.CascadeThrow(e, "No appropriate constructor found in class '%s'",
+								HandlerCls.getName());
+					}
+					return WHC;
 				}
 			}
 			
@@ -209,6 +225,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				public String parseOrFail(HandlerConfig From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
@@ -272,7 +290,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			
 			public static class WebHandlerFilter implements IClassFilter {
 				
-				protected static final int UnacceptableModifiers =
+				protected static final int UNACCEPTABLE_MODIFIERS =
 						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
 				
 				@Override
@@ -280,9 +298,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					try {
 						Class<?> Class = Entry.toClass();
 						int ClassModifiers = Class.getModifiers();
-						if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
-						if (!WebHandler.class.isAssignableFrom(Class)) return false;
-						return true;
+						if ((ClassModifiers & UNACCEPTABLE_MODIFIERS) != 0) return false;
+						return WebHandler.class.isAssignableFrom(Class);
 					} catch (ClassNotFoundException e) {
 						Misc.CascadeThrow(e);
 						return false;
@@ -308,14 +325,14 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				SSLNeedClientAuth = confMap.getBoolDef("SSL.NeedClientAuth", SSLNeedClientAuth);
 				
 				SuffixClassDictionary HandlerDict =
-						new SuffixClassDictionary(LogGroup + ".HandlerDict", this.getClass().getClassLoader());
+						new SuffixClassDictionary(LOGGROUP + ".HandlerDict", this.getClass().getClassLoader());
 				try {
 					// Add all built-in handlers
 					for (String cname : PackageClassIterable.Create(WebServer.class.getPackage(),
 							new WebHandlerFilter())) {
 						HandlerDict.Add(cname);
 					}
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for built-in handlers");
 				}
 				
@@ -330,7 +347,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 							ClassCount++;
 						}
 						ILog.Fine("Loaded %d handler classes from %s:'%s'", ClassCount, SearchKey, pkgname);
-					} catch (Throwable e) {
+					} catch (Exception e) {
 						Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for package %s:'%s'",
 								SearchKey, pkgname);
 					}
@@ -346,8 +363,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					try {
 						Handlers.put(Context,
 								HandlerDescs.getObject(Context, StringToHandlerConfig, StringFromHandlerConfig));
-					} catch (Throwable e) {
-						ILog.logExcept(e, "Failed to load handler '%s'", Context);
+					} catch (Exception e) {
+						ILog.logExcept(e, "Failed to load handler '%s'", Context.isEmpty()? "(root)" : Context);
 					}
 				}
 				ILog.Config("Loaded %d / %d handlers", Handlers.size(), HandlerDescs.getDataMap().size());
@@ -365,7 +382,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			protected class Validation extends Poller.ConfigData.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					super.validateFields();
 					
 					if ((AddrStr != null) && !AddrStr.isEmpty()) {
@@ -395,33 +412,39 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					}
 					
 					if (CertStoreFile != null) {
-						ILog.Fine("Checking Certificate Storage...");
-						try {
-							CertStore = KeyStore.getInstance("JKS");
-							CertStore.load(new FileInputStream(CertStoreFile), CertPass.toCharArray());
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e, "Failed to load certificate storage");
+						CheckCertStorage();
+					}
+				}
+				
+				private void CheckCertStorage() {
+					ILog.Fine("Checking Certificate Storage...");
+					try {
+						CertStore = KeyStore.getInstance("JKS");
+						try (FileInputStream CertFileStream = new FileInputStream(CertStoreFile)) {
+							CertStore.load(CertFileStream, CertPass.toCharArray());
 						}
-						
-						ILog.Fine("Checking SSL Session Cache Size...");
-						if ((SSLSessionCacheSize < 0) || (SSLSessionCacheSize > MAX_SSLSESSIONCNT)) {
-							Misc.ERROR("Invalid SSL session cache size (%d)", SSLSessionCacheSize);
-						}
-						
-						ILog.Fine("Checking SSL Session Lifespan...");
-						if ((SSLSessionTimeout < MIN_SSLSESSIONLIFE)
-								|| (SSLSessionTimeout > MAX_SSLSESSIONLIFE)) {
-							Misc.ERROR("Invalid SSL session lifespan (%s)",
-									Misc.FormatDeltaTime(TimeUnit.SEC.Convert(SSLSessionTimeout, TimeUnit.MSEC)));
-						}
-						
-						ILog.Fine("Checking Client Authentication Setting...");
-						if (SSLNeedClientAuth) {
-							ILog.Config("Client authentication is mandatory");
-							SSLWantClientAuth = true;
-						} else if (SSLWantClientAuth) {
-							ILog.Config("Client authentication is suggested");
-						}
+					} catch (Exception e) {
+						Misc.CascadeThrow(e, "Failed to load certificate storage");
+					}
+					
+					ILog.Fine("Checking SSL Session Cache Size...");
+					if ((SSLSessionCacheSize < 0) || (SSLSessionCacheSize > MAX_SSLSESSIONCNT)) {
+						Misc.ERROR("Invalid SSL session cache size (%d)", SSLSessionCacheSize);
+					}
+					
+					ILog.Fine("Checking SSL Session Lifespan...");
+					if ((SSLSessionTimeout < MIN_SSLSESSIONLIFE)
+							|| (SSLSessionTimeout > MAX_SSLSESSIONLIFE)) {
+						Misc.ERROR("Invalid SSL session lifespan (%s)",
+								Misc.FormatDeltaTime(TimeUnit.SEC.Convert(SSLSessionTimeout, TimeUnit.MSEC)));
+					}
+					
+					ILog.Fine("Checking Client Authentication Setting...");
+					if (SSLNeedClientAuth) {
+						ILog.Config("Client authentication is mandatory");
+						SSLWantClientAuth = true;
+					} else if (SSLWantClientAuth) {
+						ILog.Config("Client authentication is suggested");
 					}
 				}
 			}
@@ -448,7 +471,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			public final boolean SSLWantClientAuth;
 			public final boolean SSLNeedClientAuth;
 			
-			public Map<String, HandlerConfig> Handlers;
+			public final Map<String, HandlerConfig> Handlers;
 			
 			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
@@ -484,6 +507,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		protected AtomicLong ExceptCount;
 		protected final Map<Integer, Long> ReplyStats;
 		protected final Map<Class<? extends Throwable>, Long> ExceptStats;
+		
+		public static final String HEADER_CONTENTTYPE = "Content-Type";
+		public static final String HEADER_LOCATION = "Location";
+		public static final String HEADER_LASTMODIFIED = "Last-Modified";
+		public static final String HEADER_IFMODIFIEDSINCE = "If-Modified-Since";
 		
 		public WebHandler(WebServer server, String context) {
 			ILog = new GroupLogger.PerInst(server.getName() + ".Handler/" + context);
@@ -531,20 +559,24 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			protected final InputStream BODY() {
 				if (BODY == null) {
 					if (NeedContinue) {
-						try {
-							Method GetRawOutstream = HE.getClass().getDeclaredMethod("getRawOutputStream");
-							GetRawOutstream.setAccessible(true);
-							OutputStream RawOutput = (OutputStream) GetRawOutstream.invoke(HE);
-							RawOutput.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
-							RawOutput.flush();
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e);
-						}
-						NeedContinue = false;
+						HandleExpectContinue();
 					}
 					BODY = HE.getRequestBody();
 				}
 				return BODY;
+			}
+			
+			private void HandleExpectContinue() {
+				try {
+					Method GetRawOutstream = HE.getClass().getDeclaredMethod("getRawOutputStream");
+					GetRawOutstream.setAccessible(true);
+					OutputStream RawOutput = (OutputStream) GetRawOutstream.invoke(HE);
+					RawOutput.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
+					RawOutput.flush();
+				} catch (Exception e) {
+					Misc.CascadeThrow(e);
+				}
+				NeedContinue = false;
 			}
 			
 			protected Map<String, List<String>> RHEADERS = new HashMap<>();
@@ -554,17 +586,13 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					"No implementation provided for this request handler";
 			
 			public final void AddHeader(String Key, String Value) {
-				List<String> Values = RHEADERS.get(Key);
-				if (Values == null) {
-					Values = new ArrayList<>();
-					RHEADERS.put(Key, Values);
-				}
+				List<String> Values = RHEADERS.computeIfAbsent(Key, K -> new ArrayList<>());
 				Values.add(Value);
 			}
 			
-			public int Serve(URI uri) throws Throwable {
-				RBODY = ByteBuffer.wrap(TEXT_UNIMPLEMENTED.getBytes(StandardCharsets.UTF_8)); //.asReadOnlyBuffer();
-				AddHeader("Content-Type", "text/plain; charset=utf-8");
+			public int Serve(URI uri) throws Exception {
+				RBODY = ByteBuffer.wrap(TEXT_UNIMPLEMENTED.getBytes(StandardCharsets.UTF_8));
+				AddHeader(HEADER_CONTENTTYPE, "text/plain; charset=utf-8");
 				return HttpURLConnection.HTTP_NOT_FOUND;
 			}
 		}
@@ -590,25 +618,16 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					ReplyStats.put(RCODE, Count + 1);
 				}
 				
-				HE.getResponseHeaders().putAll(RP.RHEADERS);
-				int RBODYLEN = RP.RBODY != null? RP.RBODY.capacity() : -1;
-				ILog.Finer("%s: %d (%dH, %s)", RP.RemoteDispIdent, RCODE, RP.RHEADERS.size(),
-						Misc.FormatSize(RBODYLEN));
+				int RBODYLEN = SendRespHeaders(HE, RP, RCODE);
 				
-				HE.sendResponseHeaders(RCODE, RBODYLEN);
 				if (RBODYLEN > 0) {
-					try (OutputStream RBODY = HE.getResponseBody()) {
-						WritableByteChannel WChannel = Channels.newChannel(RBODY);
-						while (RP.RBODY.remaining() > 0) {
-							WChannel.write(RP.RBODY);
-						}
-					}
+					SendRespBody(HE, RP);
 				}
 				
 				if (RP.DropRequest) {
 					HE.close();
 				}
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (ILog.isLoggable(Level.FINE)) {
 					ILog.logExcept(e, "Error serving request");
 				} else {
@@ -626,6 +645,27 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					ExceptStats.put(ExceptClass, Count + 1);
 				}
 			}
+		}
+		
+		private void SendRespBody(HttpExchange HE, RequestProcessor RP) throws IOException {
+			try (OutputStream RBODY = HE.getResponseBody()) {
+				@SuppressWarnings("squid:S2095")
+				// We CANNOT use try-with-resource here because it is not our place to close the channel!
+				WritableByteChannel WChannel = Channels.newChannel(RBODY);
+				while (RP.RBODY.remaining() > 0) {
+					WChannel.write(RP.RBODY);
+				}
+			}
+		}
+		
+		private int SendRespHeaders(HttpExchange HE, RequestProcessor RP, int RCODE)
+				throws IOException {
+			HE.getResponseHeaders().putAll(RP.RHEADERS);
+			int RBODYLEN = RP.RBODY != null? RP.RBODY.capacity() : -1;
+			ILog.Finer("%s: %d (%dH, %s)", RP.RemoteDispIdent, RCODE, RP.RHEADERS.size(),
+					Misc.FormatSize(RBODYLEN));
+			HE.sendResponseHeaders(RCODE, RBODYLEN);
+			return RBODYLEN;
 		}
 		
 		public RequestProcessor getProcessor(HttpExchange HE) {
@@ -673,15 +713,20 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				switch (FileExt) {
 					case "js":
 						return "text/javascript";
+					
+					default:
+						return null;
 				}
-				return null;
 			}
 			
 		}
 		
-		public static final String LogGroup = "ZWUtils.Servers.Web.ResHandler";
+		public static final String LOGGROUP = "ZWUtils.Servers.Web.ResHandler";
 		
 		public static class ConfigData {
+			protected ConfigData() {
+				Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			}
 			
 			protected static final String KEY_PREFIX = "WebHandler.Resources.";
 			protected static final String TOKEN_DELIM = ";";
@@ -753,8 +798,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 			}
 			
-			public static Container<Mutable, ReadOnly> Create(String ConfFilePath) throws Throwable {
-				return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config",
+			public static Container<Mutable, ReadOnly> Create(String ConfFilePath) throws Exception {
+				return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP + ".Config",
 						new File(ConfFilePath), KEY_PREFIX);
 			}
 			
@@ -762,7 +807,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		
 		protected ConfigData.ReadOnly Config;
 		
-		public ResHandler(WebServer server, String context, String ConfFilePath) throws Throwable {
+		public ResHandler(WebServer server, String context, String ConfFilePath) throws Exception {
 			super(server, context);
 			
 			Config = ConfigData.Create(ConfFilePath).reflect();
@@ -772,11 +817,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		public RequestProcessor getProcessor(HttpExchange he) {
 			return new Processor(he);
 		}
-		
-		public static final String HEADER_CONTENTTYPE = "Content-Type";
-		public static final String HEADER_LOCATION = "Location";
-		public static final String HEADER_LASTMODIFIED = "Last-Modified";
-		public static final String HEADER_IFMODIFIEDSINCE = "If-Modified-Since";
 		
 		protected class Processor extends WebHandler.RequestProcessor {
 			
@@ -788,7 +828,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			}
 			
 			@Override
-			public int Serve(URI uri) throws Throwable {
+			public int Serve(URI uri) throws Exception {
 				// Only accept GET request
 				if (!METHOD().equals("GET")) {
 					ILog.Warn("Method not allowed");
@@ -824,25 +864,14 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						return HttpURLConnection.HTTP_MOVED_PERM;
 					}
 					
-					StringBuilder StrBuf = new StringBuilder();
-					StrBuf.append(String.format("<p>Directory content of '%s':", uri.getPath()));
-					StrBuf.append("<ul>");
-					if (!RelPath.isEmpty()) {
-						StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ".."))
-								.append("..").append("</a>");
-					}
-					for (File Item : new SingleDirFileIterable(GetFile)) {
-						String ItemName = Item.isDirectory()? Item.getName() + '/' : Item.getName();
-						StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ItemName))
-								.append(ItemName).append("</a>");
-					}
-					StrBuf.append("</ul>");
-					
-					AddHeader(HEADER_CONTENTTYPE, "text/html; charset=utf-8");
-					RBODY = ByteBuffer.wrap(StrBuf.toString().getBytes(StandardCharsets.UTF_8));
-					return HttpURLConnection.HTTP_OK;
+					return GenDirPage(uri, RelPath, GetFile);
 				}
 				
+				return SendDataFile(RelPath, GetFile);
+			}
+			
+			private int SendDataFile(String RelPath, File GetFile)
+					throws IOException, ParseException, FileNotFoundException {
 				if (!GetFile.canRead()) {
 					ILog.Warn("Resource '%s' unreadable", RelPath);
 					return HttpURLConnection.HTTP_FORBIDDEN;
@@ -853,6 +882,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					ILog.Warn("Resource '%s' type unknown", RelPath);
 					return HttpURLConnection.HTTP_INTERNAL_ERROR;
 				}
+				AddHeader(HEADER_CONTENTTYPE, type);
 				
 				long LastModified = TimeUnit.MSEC.Convert(GetFile.lastModified(), TimeUnit.SEC);
 				List<String> ModificationCheck = HEADERS().get(HEADER_IFMODIFIEDSINCE);
@@ -865,8 +895,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 							TimeUnit.MSEC.Convert(DataFormatter.parse(ModificationTS).getTime(), TimeUnit.SEC);
 					if (LastModified == CheckLastModified) return HttpURLConnection.HTTP_NOT_MODIFIED;
 				}
-				
-				AddHeader(HEADER_CONTENTTYPE, type);
 				AddHeader(HEADER_LASTMODIFIED,
 						Misc.FormatTS(LastModified, TimeSystem.UNIX, TimeUnit.MSEC, DataFormatter));
 				
@@ -889,6 +917,26 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					}
 				}
 				
+				return HttpURLConnection.HTTP_OK;
+			}
+			
+			private int GenDirPage(URI uri, String RelPath, File GetFile) {
+				StringBuilder StrBuf = new StringBuilder();
+				StrBuf.append(String.format("<p>Directory content of '%s':", uri.getPath()));
+				StrBuf.append("<ul>");
+				if (!RelPath.isEmpty()) {
+					StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ".."))
+							.append("..").append("</a>");
+				}
+				for (File Item : new SingleDirFileIterable(GetFile)) {
+					String ItemName = Item.isDirectory()? Item.getName() + '/' : Item.getName();
+					StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ItemName))
+							.append(ItemName).append("</a>");
+				}
+				StrBuf.append("</ul>");
+				
+				AddHeader(HEADER_CONTENTTYPE, "text/html; charset=utf-8");
+				RBODY = ByteBuffer.wrap(StrBuf.toString().getBytes(StandardCharsets.UTF_8));
 				return HttpURLConnection.HTTP_OK;
 			}
 			
@@ -934,7 +982,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo);
 				}
 				Handlers.put(Context, (WebHandler) Handler);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e, "Failed to initialize handler '%s'", Context);
 			}
 		});
@@ -942,6 +990,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	// Patch #1: Disable automated unconditional reply of 100 continue
 	public static class Patch1 {
+		
+		protected Patch1() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
+		
 		public static class HTTPServer_Exchange extends ClassVisitor {
 			public HTTPServer_Exchange(ClassVisitor cv) {
 				super(Opcodes.ASM6, cv);
@@ -956,13 +1009,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				return new InstructionAdapter(Opcodes.ASM6, MV) {
 					@Override
 					public void visitLdcInsn(Object cst) {
-						if (cst instanceof String) {
-							if (cst.equals("Expect")) {
-								CLog.Finest("Located: LDC '%s'", cst);
-								CLog.Finest("Patched: ACONST_NULL");
-								super.visitInsn(Opcodes.ACONST_NULL);
-								return;
-							}
+						if ((cst instanceof String) && cst.equals("Expect")) {
+							CLog.Finest("Located: LDC '%s'", cst);
+							CLog.Finest("Patched: ACONST_NULL");
+							super.visitInsn(Opcodes.ACONST_NULL);
+							return;
 						}
 						super.visitLdcInsn(cst);
 					}
@@ -1012,6 +1063,11 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	// Patch #2: Fix http://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8160355
 	public static class Patch2 {
+		
+		protected Patch2() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
+		
 		public static class SSLStreams_InputStream extends ClassVisitor {
 			public SSLStreams_InputStream(ClassVisitor cv) {
 				super(Opcodes.ASM6, cv);
@@ -1023,88 +1079,96 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				MethodVisitor MV = super.visitMethod(access, name, desc, signature, exceptions);
 				if (name.equals("read")) {
 					if (desc.equals("()I"))
-						return new InstructionAdapter(Opcodes.ASM6, MV) {
-							boolean Activated = false;
-							
-							@Override
-							public void visitMethodInsn(int opcode, String owner, String name, String desc,
-									boolean itf) {
-								if ((opcode == Opcodes.INVOKEVIRTUAL)
-										&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
-										&& name.equals("read")) {
-									CLog.Finest("Located: invoke %s.%s", owner, name);
-									Activated = true;
-								}
-								super.visitMethodInsn(opcode, owner, name, desc, itf);
-							}
-							
-							@Override
-							public void visitJumpInsn(int opcode, Label label) {
-								if (Activated) {
-									Activated = false;
-									if (opcode == Opcodes.IFNE) {
-										CLog.Finest("Patched: condition < 0");
-										super.visitJumpInsn(Opcodes.IFLT, label);
-										return;
-									}
-								}
-								super.visitJumpInsn(opcode, label);
-							}
-							
-							@Override
-							public void visitCode() {
-								CLog.Finer("+Patching method '%s%s'...", name, desc);
-								super.visitCode();
-							}
-							
-							@Override
-							public void visitEnd() {
-								CLog.Finer("*Done with method '%s%s'", name, desc);
-								super.visitEnd();
-							}
-						};
-					else if (desc.equals("([BII)I")) return new InstructionAdapter(Opcodes.ASM6, MV) {
-						boolean Activated = false;
-						
-						@Override
-						public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-							if ((opcode == Opcodes.GETFIELD)
-									&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
-									&& name.equals("eof")) {
-								CLog.Finest("Located: get %s.%s", owner, name);
-								Activated = true;
-							}
-							super.visitFieldInsn(opcode, owner, name, desc);
-						}
-						
-						@Override
-						public void visitInsn(int opcode) {
-							if (Activated) {
-								if (opcode == Opcodes.IRETURN) {
-									Activated = false;
-								} else if (opcode == Opcodes.ICONST_0) {
-									CLog.Finest("Patched: return -1");
-									super.visitLdcInsn(-1);
-									return;
-								}
-							}
-							super.visitInsn(opcode);
-						}
-						
-						@Override
-						public void visitCode() {
-							CLog.Finer("+Patching method '%s%s'...", name, desc);
-							super.visitCode();
-						}
-						
-						@Override
-						public void visitEnd() {
-							CLog.Finer("*Done with method '%s%s'", name, desc);
-							super.visitEnd();
-						}
-					};
+						return Patch_InputStream_read(name, desc, MV);
+					else if (desc.equals("([BII)I")) return Patch_InputStream_eof(name, desc, MV);
 				}
 				return MV;
+			}
+			
+			private MethodVisitor Patch_InputStream_eof(String name, String desc, MethodVisitor MV) {
+				return new InstructionAdapter(Opcodes.ASM6, MV) {
+					boolean Activated = false;
+					
+					@Override
+					public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+						if ((opcode == Opcodes.GETFIELD)
+								&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
+								&& name.equals("eof")) {
+							CLog.Finest("Located: get %s.%s", owner, name);
+							Activated = true;
+						}
+						super.visitFieldInsn(opcode, owner, name, desc);
+					}
+					
+					@Override
+					public void visitInsn(int opcode) {
+						if (Activated) {
+							if (opcode == Opcodes.IRETURN) {
+								Activated = false;
+							} else if (opcode == Opcodes.ICONST_0) {
+								CLog.Finest("Patched: return -1");
+								super.visitLdcInsn(-1);
+								return;
+							}
+						}
+						super.visitInsn(opcode);
+					}
+					
+					@Override
+					public void visitCode() {
+						CLog.Finer("+Patching method '%s%s'...", name, desc);
+						super.visitCode();
+					}
+					
+					@Override
+					public void visitEnd() {
+						CLog.Finer("*Done with method '%s%s'", name, desc);
+						super.visitEnd();
+					}
+				};
+			}
+			
+			private MethodVisitor Patch_InputStream_read(String name, String desc, MethodVisitor MV) {
+				return new InstructionAdapter(Opcodes.ASM6, MV) {
+					boolean Activated = false;
+					
+					@Override
+					public void visitMethodInsn(int opcode, String owner, String name, String desc,
+							boolean itf) {
+						if ((opcode == Opcodes.INVOKEVIRTUAL)
+								&& owner.equals("sun/net/httpserver/SSLStreams$InputStream")
+								&& name.equals("read")) {
+							CLog.Finest("Located: invoke %s.%s", owner, name);
+							Activated = true;
+						}
+						super.visitMethodInsn(opcode, owner, name, desc, itf);
+					}
+					
+					@Override
+					public void visitJumpInsn(int opcode, Label label) {
+						if (Activated) {
+							Activated = false;
+							if (opcode == Opcodes.IFNE) {
+								CLog.Finest("Patched: condition < 0");
+								super.visitJumpInsn(Opcodes.IFLT, label);
+								return;
+							}
+						}
+						super.visitJumpInsn(opcode, label);
+					}
+					
+					@Override
+					public void visitCode() {
+						CLog.Finer("+Patching method '%s%s'...", name, desc);
+						super.visitCode();
+					}
+					
+					@Override
+					public void visitEnd() {
+						CLog.Finer("*Done with method '%s%s'", name, desc);
+						super.visitEnd();
+					}
+				};
 			}
 		}
 	}
@@ -1158,7 +1222,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			Class<?> WSProvider =
 					_ClassLoader.loadClass("sun.net.httpserver.DefaultHttpServerProvider", true);
 			WSProviderReg_Field.set(null, WSProvider.newInstance());
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Failed to patch JDK HTTP Server implementation");
 		}
 	}
@@ -1167,6 +1231,67 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	protected void preTask() {
 		super.preTask();
 		
+		PatchBadConfigurations();
+		
+		ILog.Fine("Creating HTTP%s Service...", Config.CertStore != null? "S" : "");
+		try {
+			if (Config.CertStore != null) {
+				if (Config.Address != null) {
+					Server = HttpsServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
+				} else {
+					Server = HttpsServer.create(new InetSocketAddress(Config.Port), 0);
+				}
+				
+				SetupSSL();
+			} else {
+				if (Config.Address != null) {
+					Server = HttpServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
+				} else {
+					Server = HttpServer.create(new InetSocketAddress(Config.Port), 0);
+				}
+			}
+			
+			// Setup Handlers
+			Handlers.forEach((Context, Handler) -> {
+				ILog.Config("Registered handler '%s'", Context);
+				Server.createContext('/' + Context, Handler);
+			});
+			
+			// Setup executor
+			ThreadPool = java.util.concurrent.Executors.newCachedThreadPool();
+			Server.setExecutor(ThreadPool);
+		} catch (Exception e) {
+			Misc.CascadeThrow(e, "Failed to create HTTP Server instance");
+		}
+	}
+	
+	private void SetupSSL() throws NoSuchAlgorithmException, KeyStoreException,
+			UnrecoverableKeyException, KeyManagementException {
+		SSLContext SSLCtx = SSLContext.getInstance("TLS");
+		SSLSessionContext SessionCtx = SSLCtx.getServerSessionContext();
+		SessionCtx.setSessionCacheSize(Config.SSLSessionCacheSize);
+		SessionCtx.setSessionTimeout(Config.SSLSessionTimeout);
+		KeyManagerFactory KMF = KeyManagerFactory.getInstance("SunX509");
+		KMF.init(Config.CertStore, Config.CertPass.toCharArray());
+		TrustManagerFactory TMF = TrustManagerFactory.getInstance("SunX509");
+		TMF.init(Config.CertStore);
+		SSLCtx.init(KMF.getKeyManagers(), TMF.getTrustManagers(), null);
+		((HttpsServer) Server).setHttpsConfigurator(new HttpsConfigurator(SSLCtx) {
+			
+			@Override
+			public void configure(HttpsParameters params) {
+				if (Config.SSLWantClientAuth) {
+					params.setWantClientAuth(Config.SSLWantClientAuth);
+				}
+				if (Config.SSLNeedClientAuth) {
+					params.setNeedClientAuth(Config.SSLNeedClientAuth);
+				}
+			}
+			
+		});
+	}
+	
+	private void PatchBadConfigurations() {
 		// Reflection workaround for HttpServer bad default configurations
 		ILog.Fine("Applying correction to default JVM configurations...");
 		try {
@@ -1196,61 +1321,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			_Modifiers.setInt(ServerImpl_timerEnable,
 					ServerImpl_maxReqTime.getModifiers() & ~Modifier.FINAL);
 			ServerImpl_timerEnable.setBoolean(null, true);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Failed to initialize configurations");
-		}
-		
-		ILog.Fine("Creating HTTP%s Service...", Config.CertStore != null? "S" : "");
-		try {
-			if (Config.CertStore != null) {
-				if (Config.Address != null) {
-					Server = HttpsServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
-				} else {
-					Server = HttpsServer.create(new InetSocketAddress(Config.Port), 0);
-				}
-				
-				// Setup SSL
-				SSLContext SSLCtx = SSLContext.getInstance("TLS");
-				SSLSessionContext SessionCtx = SSLCtx.getServerSessionContext();
-				SessionCtx.setSessionCacheSize(Config.SSLSessionCacheSize);
-				SessionCtx.setSessionTimeout(Config.SSLSessionTimeout);
-				KeyManagerFactory KMF = KeyManagerFactory.getInstance("SunX509");
-				KMF.init(Config.CertStore, Config.CertPass.toCharArray());
-				TrustManagerFactory TMF = TrustManagerFactory.getInstance("SunX509");
-				TMF.init(Config.CertStore);
-				SSLCtx.init(KMF.getKeyManagers(), TMF.getTrustManagers(), null);
-				((HttpsServer) Server).setHttpsConfigurator(new HttpsConfigurator(SSLCtx) {
-					
-					@Override
-					public void configure(HttpsParameters params) {
-						if (Config.SSLWantClientAuth) {
-							params.setWantClientAuth(Config.SSLWantClientAuth);
-						}
-						if (Config.SSLNeedClientAuth) {
-							params.setNeedClientAuth(Config.SSLNeedClientAuth);
-						}
-					}
-					
-				});
-			} else {
-				if (Config.Address != null) {
-					Server = HttpServer.create(new InetSocketAddress(Config.Address, Config.Port), 0);
-				} else {
-					Server = HttpServer.create(new InetSocketAddress(Config.Port), 0);
-				}
-			}
-			
-			// Setup Handlers
-			Handlers.forEach((Context, Handler) -> {
-				ILog.Config("Registered handler '%s'", Context);
-				Server.createContext('/' + Context, Handler);
-			});
-			
-			// Setup executor
-			ThreadPool = java.util.concurrent.Executors.newCachedThreadPool();
-			Server.setExecutor(ThreadPool);
-		} catch (Throwable e) {
-			Misc.CascadeThrow(e, "Failed to create HTTP Server instance");
 		}
 	}
 	
@@ -1284,7 +1356,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			}
 			OnStatCollect(TotalInvoke, TotalExcept);
 			return true;
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			ILog.logExcept(e);
 			return false;
 		}
@@ -1330,7 +1402,8 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	@Override
 	public Collection<ITask> GetDependencies() {
 		Misc.ERROR("Feature not avaliable");
-		return null;
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		return Collections.emptyList();
 	}
 	
 }

@@ -65,7 +65,7 @@ public class SMTPEmail {
 		try {
 			FromEmail = new InternetAddress(fromEmail, fromName);
 			ToEmail = new InternetAddress(toEmail, toName);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		

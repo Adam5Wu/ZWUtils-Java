@@ -59,8 +59,6 @@ public interface ITask {
 		TERMINATING,
 		TERMINATED;
 		
-		public static final State[] _ALL_ = State.values();
-		
 		/**
 		 * Check if the state means task has started
 		 */
@@ -257,7 +255,7 @@ public interface ITask {
 		 * @param ConfigFile
 		 *          - Configuration file
 		 */
-		void setConfiguration(File ConfigFile, String Prefix) throws Throwable;
+		void setConfiguration(File ConfigFile, String Prefix) throws Exception;
 		
 		/**
 		 * Set the configuration string to the task
@@ -265,7 +263,7 @@ public interface ITask {
 		 * @param ConfigStr
 		 *          - Configuration string
 		 */
-		void setConfiguration(String ConfigStr, String Prefix) throws Throwable;
+		void setConfiguration(String ConfigStr, String Prefix) throws Exception;
 		
 		/**
 		 * Set the configuration arguments to the task
@@ -273,7 +271,7 @@ public interface ITask {
 		 * @param ConfigArgs
 		 *          - Configuration arguments
 		 */
-		void setConfiguration(String[] ConfigArgs, String Prefix) throws Throwable;
+		void setConfiguration(String[] ConfigArgs, String Prefix) throws Exception;
 		
 		/**
 		 * Set the configuration map to the task
@@ -281,7 +279,7 @@ public interface ITask {
 		 * @param ConfigMap
 		 *          - Configuration map
 		 */
-		void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Throwable;
+		void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Exception;
 		
 		/**
 		 * Set the configuration string to the task
@@ -289,7 +287,7 @@ public interface ITask {
 		 * @param ConfigData
 		 *          - Configuration data map
 		 */
-		void setConfiguration(DataMap ConfigData) throws Throwable;
+		void setConfiguration(DataMap ConfigData) throws Exception;
 		
 	}
 	

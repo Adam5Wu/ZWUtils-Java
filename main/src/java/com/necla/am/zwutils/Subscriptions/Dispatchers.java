@@ -61,6 +61,18 @@ import com.necla.am.zwutils.Subscriptions.ISubscription.Categorized;
  */
 public class Dispatchers {
 	
+	protected Dispatchers() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
+	protected static String GetSubscriberDispName(ISubscription<?> Subscriber) {
+		if (ISubscription.Named.class.isInstance(Subscriber)) {
+			ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
+			return String.format("Subscription '%s'", NamedSubscription.GetName());
+		} else
+			return String.format("Anonymous subscription (%s)", Subscriber.getClass().getName());
+	}
+	
 	/**
 	 * Single-thread multi-subscription dispatcher
 	 */
@@ -73,15 +85,18 @@ public class Dispatchers {
 			X LastPayload = null;
 			
 			public X UpdatePayload(X NewPayload) {
-				if (NewPayload == null)
+				if (NewPayload == null) {
 					Misc.FAIL(IllegalArgumentException.class, "Null is not a valid payload");
+				}
 				X PrevPayload = LastPayload;
 				LastPayload = NewPayload;
 				return PrevPayload;
 			}
 			
 			public List<WeakReference<ISubscription<X>>> GetSubscribers() {
-				if (Subscribers == null) Subscribers = new ArrayList<>();
+				if (Subscribers == null) {
+					Subscribers = new ArrayList<>();
+				}
 				return Subscribers;
 			}
 			
@@ -121,14 +136,11 @@ public class Dispatchers {
 			
 			// Non-functional logging code
 			if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
-				if (ISubscription.Named.class.isInstance(Subscriber)) {
-					ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-					ILog.Fine("Subscription '%s' attached", NamedSubscription.GetName());
-				} else {
-					ILog.Fine("Anonymous subscription (%s) attached", Subscriber.getClass().getName());
-				}
+				ILog.Fine("%s attached", GetSubscriberDispName(Subscriber));
 			}
-			if (Payload != null) Subscriber.onSubscription(Payload);
+			if (Payload != null) {
+				Subscriber.onSubscription(Payload);
+			}
 		}
 		
 		@Override
@@ -139,6 +151,8 @@ public class Dispatchers {
 		/**
 		 * Remove a subscription from a given dispatch record (internal use ONLY)
 		 */
+		// Yes it is complex code, so is the problem, so suck it!
+		@SuppressWarnings("squid:S3776")
 		protected final void _UnregisterSubscription(SubscriptionDispatchRec<X> Subscriptions,
 				ISubscription<X> Subscriber) {
 			Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
@@ -154,13 +168,7 @@ public class Dispatchers {
 							
 							// Non-functional logging code
 							if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
-								if (ISubscription.Named.class.isInstance(Subscriber)) {
-									ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-									ILog.Fine("Subscription '%s' detached", NamedSubscription.GetName());
-								} else {
-									ILog.Fine("Anonymous subscription (%s) detached",
-											Subscriber.getClass().getName());
-								}
+								ILog.Fine("%s detached", GetSubscriberDispName(Subscriber));
 							}
 							// Signal subscriber removed
 							Subscriber = null;
@@ -171,19 +179,15 @@ public class Dispatchers {
 						ExpRef++;
 					}
 					// Clean up expired subscribers
-					if (ExpRef > 0) ILog.Fine("Removed %d expired subscriptions", ExpRef);
+					if (ExpRef > 0) {
+						ILog.Fine("Removed %d expired subscriptions", ExpRef);
+					}
 				}
 			}
 			
 			if (Subscriber != null) {
-				if (ISubscription.Named.class.isInstance(Subscriber)) {
-					ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-					Misc.FAIL(NoSuchElementException.class, "Subscription '%s' is not registered",
-							NamedSubscription.GetName());
-				} else {
-					Misc.FAIL(NoSuchElementException.class, "Anonymous subscription (%s) is not registered",
-							Subscriber.getClass().getName());
-				}
+				Misc.FAIL(NoSuchElementException.class, "%s is not registered",
+						GetSubscriberDispName(Subscriber));
 			}
 		}
 		
@@ -200,27 +204,17 @@ public class Dispatchers {
 			List<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
 			if (Subscribers == null) return;
 			
-			// Non-functional logging code
-			// if (ILog.isLoggable(Level.FINER))ILog.Fine("+Dispatching payload...");
-			
 			Collection<WeakReference<ISubscription<X>>> ExpSubscribers = null;
 			for (int idx = 0; idx < Subscribers.size(); idx++) {
 				WeakReference<ISubscription<X>> SubscriptionRef = Subscribers.get(idx);
 				
 				ISubscription<X> LSubscriber = SubscriptionRef.get();
 				if (LSubscriber != null) {
-					// Non-functional logging code
-					// if (GlobalConfig.DEBUG_CHECK &&ILog.isLoggable(Level.FINER)) {
-					// if (ISubscription.Named.class.isInstance(LSubscriber)) {
-					// ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) LSubscriber;
-					//ILog.Finer("*+Subscription '%s'...", NamedSubscription.GetName());
-					// } else {
-					//ILog.Finer("*+Anonymous Subscription (%s)...", LSubscriber.getClass().getName());
-					// }
-					// }
 					LSubscriber.onSubscription(NewPayload);
 				} else {
-					if (ExpSubscribers == null) ExpSubscribers = new ArrayList<>();
+					if (ExpSubscribers == null) {
+						ExpSubscribers = new ArrayList<>();
+					}
 					ExpSubscribers.add(SubscriptionRef);
 				}
 			}
@@ -230,12 +224,6 @@ public class Dispatchers {
 				ILog.Fine("Removing %d expired subscriptions", ExpSubscribers.size());
 				Subscribers.removeAll(ExpSubscribers);
 			}
-			
-			// Non-functional logging code
-			// if (ILog.isLoggable(Level.FINER))
-			//ILog.Fine("*Dispatch done");
-			// else
-			//ILog.Fine("Payload dispatched");
 		}
 		
 	}
@@ -263,16 +251,12 @@ public class Dispatchers {
 		}
 		
 		protected final SubscriptionDispatchRec<X> GetCategorySubscriptions(C Category) {
-			if (CategorizedSubscriptions == null) CategorizedSubscriptions = new HashMap<>();
-			
-			SubscriptionDispatchRec<X> CategorySubscriptions;
-			CategorySubscriptions = CategorizedSubscriptions.get(Category);
-			if (CategorySubscriptions == null) {
-				CategorySubscriptions = new SubscriptionDispatchRec<>();
-				CategorizedSubscriptions.put(Category, CategorySubscriptions);
+			if (CategorizedSubscriptions == null) {
+				CategorizedSubscriptions = new HashMap<>();
 			}
 			
-			return CategorySubscriptions;
+			return CategorizedSubscriptions.computeIfAbsent(Category,
+					C -> new SubscriptionDispatchRec<>());
 		}
 		
 		@Override
@@ -291,10 +275,11 @@ public class Dispatchers {
 		
 		@Override
 		public final void UnregisterSubscription(C Category, ISubscription<X> Subscriber) {
-			if (Category != null)
+			if (Category != null) {
 				_UnregisterSubscription(GetCategorySubscriptions(Category), Subscriber);
-			else
+			} else {
 				RegisterSubscription(Subscriber);
+			}
 		}
 		
 		@Override
@@ -310,24 +295,15 @@ public class Dispatchers {
 		}
 		
 		protected final void Dispatch(C Category, X NewPayload) {
-			while (Category != null)
-				try {
-					if (CategorizedSubscriptions == null) break;
-					
-					SubscriptionDispatchRec<X> CategorySubscriptions;
-					CategorySubscriptions = CategorizedSubscriptions.get(Category);
-					if (CategorySubscriptions == null) break;
-					
-					//ILog.Finer("*+Categorized payload dispatch on '%s'", Category);
+			if ((Category != null) && (CategorizedSubscriptions != null)) {
+				SubscriptionDispatchRec<X> CategorySubscriptions;
+				CategorySubscriptions = CategorizedSubscriptions.get(Category);
+				if (CategorySubscriptions != null) {
 					CategorySubscriptions.UpdatePayload(NewPayload);
-					
 					Dispatch(CategorySubscriptions, NewPayload);
-					break;
-				} finally {
-					//ILog.Finer("*@<");
 				}
+			}
 			
-			//ILog.Finer("+Uncategorized payload dispatch");
 			Dispatch(CommonSubscriptions, NewPayload);
 		}
 		
@@ -345,8 +321,10 @@ public class Dispatchers {
 			private Lock PayloadLock = null;
 			private volatile X LastPayload = null;
 			
-			synchronized private Lock GetPayloadLock() {
-				if (PayloadLock == null) PayloadLock = new ReentrantLock();
+			private synchronized Lock GetPayloadLock() {
+				if (PayloadLock == null) {
+					PayloadLock = new ReentrantLock();
+				}
 				return PayloadLock;
 			}
 			
@@ -356,8 +334,9 @@ public class Dispatchers {
 			}
 			
 			public X LockUpdatePayload(X NewPayload) {
-				if (NewPayload == null)
+				if (NewPayload == null) {
 					Misc.FAIL(IllegalArgumentException.class, "Null is not a valid payload");
+				}
 				X PrevPayload = LockGetPayload();
 				LastPayload = NewPayload;
 				return PrevPayload;
@@ -371,12 +350,14 @@ public class Dispatchers {
 				return LastPayload;
 			}
 			
-			synchronized public Collection<WeakReference<ISubscription<X>>> GetSubscribers() {
-				if (Subscribers == null) Subscribers = new ConcurrentLinkedQueue<>();
+			public synchronized Collection<WeakReference<ISubscription<X>>> GetSubscribers() {
+				if (Subscribers == null) {
+					Subscribers = new ConcurrentLinkedQueue<>();
+				}
 				return Subscribers;
 			}
 			
-			synchronized public Collection<WeakReference<ISubscription<X>>> TellSubscribers() {
+			public synchronized Collection<WeakReference<ISubscription<X>>> TellSubscribers() {
 				return Subscribers;
 			}
 			
@@ -424,15 +405,12 @@ public class Dispatchers {
 					// Non-functional logging code, but have to be inside the synchronized section for
 					// correct ordering
 					if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
-						if (ISubscription.Named.class.isInstance(Subscriber)) {
-							ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-							ILog.Fine("Subscription '%s' attached", NamedSubscription.GetName());
-						} else {
-							ILog.Fine("Anonymous subscription (%s) attached", Subscriber.getClass().getName());
-						}
+						ILog.Fine("%s attached", GetSubscriberDispName(Subscriber));
 					}
 				}
-				if (Payload != null) Subscriber.onSubscription(Payload);
+				if (Payload != null) {
+					Subscriber.onSubscription(Payload);
+				}
 			}
 		}
 		
@@ -444,6 +422,8 @@ public class Dispatchers {
 		/**
 		 * Remove a subscription from a given dispatch record (internal use ONLY)
 		 */
+		// Yes it is complex code, so is the problem, so suck it!
+		@SuppressWarnings("squid:S3776")
 		protected final void _UnregisterSubscription(SubscriptionDispatchRec<X> Subscriptions,
 				ISubscription<X> Subscriber) {
 			Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
@@ -459,13 +439,7 @@ public class Dispatchers {
 							// Non-functional logging code, but have to be inside the synchronized section for
 							// correct ordering
 							if (GlobalConfig.DEBUG_CHECK && ILog.isLoggable(Level.FINE)) {
-								if (ISubscription.Named.class.isInstance(Subscriber)) {
-									ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-									ILog.Fine("Subscription '%s' detached", NamedSubscription.GetName());
-								} else {
-									ILog.Fine("Anonymous subscription (%s) detached",
-											Subscriber.getClass().getName());
-								}
+								ILog.Fine("%s detached", GetSubscriberDispName(Subscriber));
 							}
 							// Signal subscriber removed
 							Subscriber = null;
@@ -476,19 +450,15 @@ public class Dispatchers {
 						ExpRef++;
 					}
 					// Clean up expired subscribers
-					if (ExpRef > 0) ILog.Fine("Removed %d expired subscriptions", ExpRef);
+					if (ExpRef > 0) {
+						ILog.Fine("Removed %d expired subscriptions", ExpRef);
+					}
 				}
 			}
 			
 			if (Subscriber != null) {
-				if (ISubscription.Named.class.isInstance(Subscriber)) {
-					ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) Subscriber;
-					Misc.FAIL(NoSuchElementException.class, "Subscription '%s' is not registered",
-							NamedSubscription.GetName());
-				} else {
-					Misc.FAIL(NoSuchElementException.class, "Anonymous subscription (%s) is not registered",
-							Subscriber.getClass().getName());
-				}
+				Misc.FAIL(NoSuchElementException.class, "%s is not registered",
+						GetSubscriberDispName(Subscriber));
 			}
 		}
 		
@@ -505,7 +475,9 @@ public class Dispatchers {
 		 */
 		public void SetPayload(X NewPayload, boolean QuickUnlock) {
 			CommonSubscriptions.LockUpdatePayload(NewPayload);
-			if (QuickUnlock) CommonSubscriptions.UnlockPayload();
+			if (QuickUnlock) {
+				CommonSubscriptions.UnlockPayload();
+			}
 			
 			Dispatch(CommonSubscriptions, NewPayload, !QuickUnlock);
 		}
@@ -517,16 +489,17 @@ public class Dispatchers {
 				boolean Unlock) {
 			Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
 			if (Subscribers == null) {
-				if (Unlock) Subscriptions.UnlockPayload();
+				if (Unlock) {
+					Subscriptions.UnlockPayload();
+				}
 				return;
 			}
 			
 			// Synchronize on Subscriptions for concurrent HashMap operations
 			synchronized (Subscribers) {
-				if (Unlock) Subscriptions.UnlockPayload();
-				
-				// Non-functional logging code, but have to be synchronized for correct ordering
-				// if (ILog.isLoggable(Level.FINER))ILog.Fine("+Dispatching payload...");
+				if (Unlock) {
+					Subscriptions.UnlockPayload();
+				}
 				
 				int ExpRef = 0;
 				for (Iterator<WeakReference<ISubscription<X>>> Iter = Subscribers.iterator(); Iter
@@ -540,15 +513,6 @@ public class Dispatchers {
 					synchronized (SubscriptionRef) {
 						ISubscription<X> LSubscriber = SubscriptionRef.get();
 						if (LSubscriber != null) {
-							// Non-functional logging code, but have to be synchronized for correct ordering
-							// if (GlobalConfig.DEBUG_CHECK &&ILog.isLoggable(Level.FINER)) {
-							// if (ISubscription.Named.class.isInstance(LSubscriber)) {
-							// ISubscription.Named<?> NamedSubscription = (ISubscription.Named<?>) LSubscriber;
-							//ILog.Finer("*+Subscription '%s'...", NamedSubscription.GetName());
-							// } else {
-							//ILog.Finer("*+Anonymous Subscription (%s)...", LSubscriber.getClass().getName());
-							// }
-							// }
 							LSubscriber.onSubscription(NewPayload);
 						} else {
 							Iter.remove();
@@ -557,13 +521,9 @@ public class Dispatchers {
 					}
 				}
 				// Clean up expired subscribers
-				if (ExpRef > 0) ILog.Fine("Removed %d expired subscriptions", ExpRef);
-				
-				// Non-functional logging code, but have to be synchronized for correct ordering
-				// if (ILog.isLoggable(Level.FINER))
-				//ILog.Fine("*Dispatch done");
-				// else
-				//ILog.Fine("Payload dispatched");
+				if (ExpRef > 0) {
+					ILog.Fine("Removed %d expired subscriptions", ExpRef);
+				}
 			}
 		}
 		
@@ -588,7 +548,9 @@ public class Dispatchers {
 			X Payload = Subscriptions.LockGetPayload();
 			
 			if (WaitDispatch) {
-				if (ILog.isLoggable(Level.FINER)) ILog.Finer("+Waiting for pending dispatching...");
+				if (ILog.isLoggable(Level.FINER)) {
+					ILog.Finer("+Waiting for pending dispatching...");
+				}
 				
 				Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
 				if (Subscribers != null) {
@@ -643,16 +605,15 @@ public class Dispatchers {
 		
 		protected final SubscriptionDispatchRec<X> GetCategorySubscriptions(C Category) {
 			synchronized (this) {
-				if (CategorizedSubscriptions == null) CategorizedSubscriptions = new HashMap<>();
+				if (CategorizedSubscriptions == null) {
+					CategorizedSubscriptions = new HashMap<>();
+				}
 			}
 			
 			SubscriptionDispatchRec<X> CategorySubscriptions;
 			synchronized (CategorizedSubscriptions) {
-				CategorySubscriptions = CategorizedSubscriptions.get(Category);
-				if (CategorySubscriptions == null) {
-					CategorySubscriptions = new SubscriptionDispatchRec<>();
-					CategorizedSubscriptions.put(Category, CategorySubscriptions);
-				}
+				CategorySubscriptions = CategorizedSubscriptions.computeIfAbsent(Category,
+						C -> new SubscriptionDispatchRec<>());
 			}
 			
 			return CategorySubscriptions;
@@ -674,10 +635,11 @@ public class Dispatchers {
 		
 		@Override
 		public final void UnregisterSubscription(C Category, ISubscription<X> Subscriber) {
-			if (Category != null)
+			if (Category != null) {
 				_UnregisterSubscription(GetCategorySubscriptions(Category), Subscriber);
-			else
+			} else {
 				RegisterSubscription(Subscriber);
+			}
 		}
 		
 		@Override
@@ -692,35 +654,42 @@ public class Dispatchers {
 		
 		public void SetPayload(C Category, X NewPayload, boolean QuickUnlock) {
 			CommonSubscriptions.LockUpdatePayload(NewPayload);
-			if (QuickUnlock) CommonSubscriptions.UnlockPayload();
+			if (QuickUnlock) {
+				CommonSubscriptions.UnlockPayload();
+			}
 			
 			Dispatch(Category, NewPayload, !QuickUnlock);
 		}
 		
 		protected final void Dispatch(C Category, X NewPayload, boolean Unlock) {
-			while (Category != null)
+			while (Category != null) {
 				try {
 					synchronized (this) {
-						if (CategorizedSubscriptions == null) break;
+						if (CategorizedSubscriptions == null) {
+							break;
+						}
 					}
 					
 					SubscriptionDispatchRec<X> CategorySubscriptions;
 					synchronized (CategorizedSubscriptions) {
 						CategorySubscriptions = CategorizedSubscriptions.get(Category);
-						if (CategorySubscriptions == null) break;
+						if (CategorySubscriptions == null) {
+							break;
+						}
 					}
 					
-					//ILog.Finer("*+Categorized payload dispatch on '%s'", Category);
 					CategorySubscriptions.LockUpdatePayload(NewPayload);
-					if (!Unlock) CategorySubscriptions.UnlockPayload();
+					if (!Unlock) {
+						CategorySubscriptions.UnlockPayload();
+					}
 					
 					Dispatch(CategorySubscriptions, NewPayload, Unlock);
 					break;
 				} finally {
 					ILog.Finer("*@<");
 				}
+			}
 			
-			//ILog.Finer("+Uncategorized payload dispatch");
 			Dispatch(CommonSubscriptions, NewPayload, Unlock);
 		}
 		

@@ -52,28 +52,20 @@ public interface IAnnotation<X> {
 	
 	public static class Impl<X> implements IAnnotation<X> {
 		
-		public X NOTE;
+		public X _NOTE;
 		
 		public Impl(X note) {
-			NOTE = note;
-		}
-		
-		public X getNOTE() {
-			return NOTE;
-		}
-		
-		public void setNOTE(X note) {
-			NOTE = note;
+			_NOTE = note;
 		}
 		
 		@Override
 		public String toString() {
-			return new StringBuffer().append('(').append(NOTE).append(')').toString();
+			return new StringBuffer().append('(').append(_NOTE).append(')').toString();
 		}
 		
 		@Override
 		public X Note() {
-			return NOTE;
+			return _NOTE;
 		}
 		
 	}

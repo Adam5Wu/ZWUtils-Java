@@ -46,6 +46,10 @@ import com.necla.am.zwutils.Misc.Misc;
  */
 public final class MessageCategories {
 	
+	protected MessageCategories() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
 	private static final Map<String, String> Categories = new HashMap<>();
 	
 	/**

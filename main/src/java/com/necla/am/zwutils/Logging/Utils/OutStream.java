@@ -52,8 +52,8 @@ import com.necla.am.zwutils.Misc.Misc;
  */
 public class OutStream extends OutputStream {
 	
-	public static final String LogGroup = "ZWUtils.Logging.OutStream";
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	public static final String LOGGROUP = "ZWUtils.Logging.OutStream";
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	private final IGroupLogger LogSink;
 	
@@ -120,7 +120,7 @@ public class OutStream extends OutputStream {
 	 * @see java.io.OutputStream#close()
 	 */
 	@Override
-	synchronized public void close() {
+	public synchronized void close() {
 		CLog.Fine("%s: Output stream detached", Name);
 		StrBuffer = null;
 	}
@@ -131,6 +131,8 @@ public class OutStream extends OutputStream {
 	protected void flushln(boolean clean) {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return;
 		}
 		
 		int NewLine = StrBuffer.indexOf(LINESEP, CheckPtr);
@@ -156,7 +158,7 @@ public class OutStream extends OutputStream {
 	 * @see java.io.OutputStream#flush()
 	 */
 	@Override
-	synchronized public void flush() {
+	public synchronized void flush() {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
 		}
@@ -169,9 +171,11 @@ public class OutStream extends OutputStream {
 	 * @see java.io.OutputStream#write(byte[], int, int)
 	 */
 	@Override
-	synchronized public void write(byte[] b, int off, int len) throws IOException {
+	public synchronized void write(byte[] b, int off, int len) throws IOException {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return;
 		}
 		
 		StrBuffer.append(new String(b, off, len));
@@ -184,9 +188,11 @@ public class OutStream extends OutputStream {
 	 * @see java.io.OutputStream#write(int)
 	 */
 	@Override
-	synchronized public void write(int b) {
+	public synchronized void write(int b) {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return;
 		}
 		
 		StrBuffer.append((char) b);

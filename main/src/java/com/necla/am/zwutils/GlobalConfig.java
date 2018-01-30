@@ -57,8 +57,12 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public class GlobalConfig {
 	
-	static private final String LogGroup = "ZWUtils.GlobalConfig"; //$NON-NLS-1$
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	protected GlobalConfig() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
+	private static final String LOGGROUP = "ZWUtils.GlobalConfig"; //$NON-NLS-1$
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	public static class Mutable extends Data.Mutable {
 		
@@ -125,10 +129,10 @@ public class GlobalConfig {
 	}
 	
 	public static final File ConfigFile = DataFile.DeriveConfigFile("ZWUtils."); //$NON-NLS-1$
-	protected static final String ConfigKeyBase = GlobalConfig.class.getSimpleName() + '.'; // $NON-NLS-1$
+	protected static final String CONFIG_KEYBASE = GlobalConfig.class.getSimpleName() + '.'; // $NON-NLS-1$
 	
-	protected static Container<Mutable, ReadOnly> Create() throws Throwable {
-		return Container.Create(Mutable.class, ReadOnly.class, LogGroup, ConfigFile, ConfigKeyBase);
+	protected static Container<Mutable, ReadOnly> Create() throws Exception {
+		return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP, ConfigFile, CONFIG_KEYBASE);
 	}
 	
 	public static final boolean NO_ASSERT;
@@ -143,37 +147,35 @@ public class GlobalConfig {
 	static {
 		CLog.Entry(Messages.Localize("GlobalConfig.INIT_START")); //$NON-NLS-1$
 		
-		{
-			ReadOnly _Config = null;
-			try {
-				_Config = Create().reflect();
-			} catch (Throwable e) {
-				DebugLog.DirectErrOut()
-						.println(String.format(Messages.Localize("GlobalConfig.LOAD_CONFIG_FAIL"), //$NON-NLS-1$
-								GlobalConfig.class.getSimpleName(), e.getLocalizedMessage()));
-				e.printStackTrace(DebugLog.DirectErrOut());
-				Misc.CascadeThrow(e);
-			}
-			NO_ASSERT = _Config.NO_ASSERT;
-			DEBUG_CHECK = _Config.DEBUG_CHECK;
-			DISABLE_LOG = _Config.DISABLE_LOG;
+		ReadOnly _Config = null;
+		try {
+			_Config = Create().reflect();
+		} catch (Exception e) {
+			DebugLog.DirectErrOut()
+					.println(String.format(Messages.Localize("GlobalConfig.LOAD_CONFIG_FAIL"), //$NON-NLS-1$
+							GlobalConfig.class.getSimpleName(), e.getLocalizedMessage()));
+			e.printStackTrace(DebugLog.DirectErrOut());
+			Misc.CascadeThrow(e);
+		}
+		NO_ASSERT = _Config.NO_ASSERT;
+		DEBUG_CHECK = _Config.DEBUG_CHECK;
+		DISABLE_LOG = _Config.DISABLE_LOG;
+		
+		try {
+			Field _Modifiers = Field.class.getDeclaredField("modifiers");
+			_Modifiers.setAccessible(true);
 			
-			try {
-				Field _Modifiers = Field.class.getDeclaredField("modifiers");
-				_Modifiers.setAccessible(true);
-				
-				Field _CONFFILE_FSDIR = GlobalConfig.class.getDeclaredField("CONFFILE_FSDIR");
-				_CONFFILE_FSDIR.setAccessible(true);
-				_Modifiers.setInt(_CONFFILE_FSDIR, _CONFFILE_FSDIR.getModifiers() & ~Modifier.FINAL);
-				_CONFFILE_FSDIR.set(null, _Config.CONFFILE_FSDIR);
-				
-				Field _CONFFILE_JARDIR = GlobalConfig.class.getDeclaredField("CONFFILE_JARDIR");
-				_CONFFILE_JARDIR.setAccessible(true);
-				_Modifiers.setInt(_CONFFILE_JARDIR, _CONFFILE_JARDIR.getModifiers() & ~Modifier.FINAL);
-				_CONFFILE_JARDIR.set(null, _Config.CONFFILE_JARDIR);
-			} catch (Throwable e) {
-				Misc.CascadeThrow(e);
-			}
+			Field _CONFFILE_FSDIR = GlobalConfig.class.getDeclaredField("CONFFILE_FSDIR");
+			_CONFFILE_FSDIR.setAccessible(true);
+			_Modifiers.setInt(_CONFFILE_FSDIR, _CONFFILE_FSDIR.getModifiers() & ~Modifier.FINAL);
+			_CONFFILE_FSDIR.set(null, _Config.CONFFILE_FSDIR);
+			
+			Field _CONFFILE_JARDIR = GlobalConfig.class.getDeclaredField("CONFFILE_JARDIR");
+			_CONFFILE_JARDIR.setAccessible(true);
+			_Modifiers.setInt(_CONFFILE_JARDIR, _CONFFILE_JARDIR.getModifiers() & ~Modifier.FINAL);
+			_CONFFILE_JARDIR.set(null, _Config.CONFFILE_JARDIR);
+		} catch (Exception e) {
+			Misc.CascadeThrow(e);
 		}
 		
 		CLog.Exit(Messages.Localize("GlobalConfig.INIT_FINISH")); //$NON-NLS-1$

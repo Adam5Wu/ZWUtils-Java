@@ -77,7 +77,6 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary.DirectSuffixClassSolver;
-import com.necla.am.zwutils.Reflection.SuffixClassDictionary.ISuffixClassSolver;
 import com.necla.am.zwutils.Tasks.ITask;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
 import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
@@ -96,8 +95,8 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public class ObjectTrap {
 	
-	public static final String LogGroup = "ZWUtils.Debugging.OTap"; //$NON-NLS-1$
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	public static final String LOGGROUP = "ZWUtils.Debugging.OTap"; //$NON-NLS-1$
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	protected final IGroupLogger ILog;
 	
@@ -141,11 +140,11 @@ public class ObjectTrap {
 		
 	}
 	
-	public static abstract class BaseScope implements IScope {
+	public abstract static class BaseScope implements IScope {
 		
 		protected ThreadLocal<Throwable> LastError = new ThreadLocal<>();
 		
-		public static class PeekRecord {
+		protected static class PeekRecord {
 			
 			public Object Source = null;
 			public Object Result = null;
@@ -158,16 +157,18 @@ public class ObjectTrap {
 		public Object Peek(Object obj) {
 			PeekRecord PRec = PeekCache.get();
 			if (PRec == null) {
-				PeekCache.set(PRec = new PeekRecord());
+				PRec = new PeekRecord();
+				PeekCache.set(PRec);
 			}
 			
 			if (PRec.Source == obj) return PRec.Result;
 			
 			PRec.Source = obj;
-			return PRec.Result = doPeek(obj);
+			PRec.Result = doPeek(obj);
+			return PRec.Result;
 		}
 		
-		abstract protected Object doPeek(Object obj);
+		protected abstract Object doPeek(Object obj);
 		
 		@Override
 		public Throwable LastError() {
@@ -187,15 +188,15 @@ public class ObjectTrap {
 	public static final char SYM_TYPE_STRING = '$';
 	
 	public static enum CastableTypes {
-		Boolean(SYM_TYPE_BOOLEAN, java.lang.Boolean.class),
-		Byte(SYM_TYPE_BYTE, java.lang.Byte.class),
-		Short(SYM_TYPE_SHORT, java.lang.Short.class),
-		Integer(SYM_TYPE_INTEGER, java.lang.Integer.class),
-		Long(SYM_TYPE_LONG, java.lang.Long.class),
-		Float(SYM_TYPE_FLOAT, java.lang.Float.class),
-		Double(SYM_TYPE_DOUBLE, java.lang.Double.class),
-		Char(SYM_TYPE_CHAR, java.lang.Character.class),
-		String(SYM_TYPE_STRING, java.lang.String.class);
+		BOOLEAN(SYM_TYPE_BOOLEAN, java.lang.Boolean.class),
+		BYTE(SYM_TYPE_BYTE, java.lang.Byte.class),
+		SHORT(SYM_TYPE_SHORT, java.lang.Short.class),
+		INTERGER(SYM_TYPE_INTEGER, java.lang.Integer.class),
+		LONG(SYM_TYPE_LONG, java.lang.Long.class),
+		FLOAT(SYM_TYPE_FLOAT, java.lang.Float.class),
+		DOUBLE(SYM_TYPE_DOUBLE, java.lang.Double.class),
+		CHAR(SYM_TYPE_CHAR, java.lang.Character.class),
+		STRING(SYM_TYPE_STRING, java.lang.String.class);
 		
 		public final char SYMBOL;
 		public final Class<?> CLASS;
@@ -216,31 +217,31 @@ public class ObjectTrap {
 		public TypeCastScope(char type) throws SecurityException {
 			switch (type) {
 				case SYM_TYPE_BOOLEAN:
-					T = CastableTypes.Boolean;
+					T = CastableTypes.BOOLEAN;
 					break;
 				case SYM_TYPE_BYTE:
-					T = CastableTypes.Byte;
+					T = CastableTypes.BYTE;
 					break;
 				case SYM_TYPE_SHORT:
-					T = CastableTypes.Short;
+					T = CastableTypes.SHORT;
 					break;
 				case SYM_TYPE_INTEGER:
-					T = CastableTypes.Integer;
+					T = CastableTypes.INTERGER;
 					break;
 				case SYM_TYPE_LONG:
-					T = CastableTypes.Long;
+					T = CastableTypes.LONG;
 					break;
 				case SYM_TYPE_FLOAT:
-					T = CastableTypes.Float;
+					T = CastableTypes.FLOAT;
 					break;
 				case SYM_TYPE_DOUBLE:
-					T = CastableTypes.Double;
+					T = CastableTypes.DOUBLE;
 					break;
 				case SYM_TYPE_CHAR:
-					T = CastableTypes.Char;
+					T = CastableTypes.CHAR;
 					break;
 				case SYM_TYPE_STRING:
-					T = CastableTypes.String;
+					T = CastableTypes.STRING;
 					break;
 				default:
 					Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_TYPE_TOKEN"), type); //$NON-NLS-1$
@@ -265,7 +266,7 @@ public class ObjectTrap {
 			
 			try {
 				return Type().cast(obj);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Info(Messages.Localize("Debugging.ObjectTrap.CAST_VALUE_FAILED"), //$NON-NLS-1$
 							T.CLASS.getSimpleName());
@@ -365,7 +366,7 @@ public class ObjectTrap {
 			
 			try {
 				return F.get(obj);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Info(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), F.getName()); //$NON-NLS-1$
 				}
@@ -427,7 +428,7 @@ public class ObjectTrap {
 			
 			try {
 				return FA.get(obj, FI);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Info(Messages.Localize("Debugging.ObjectTrap.NO_FIELD_VALUE"), //$NON-NLS-1$
 							FA.getFieldNames()[FI]);
@@ -447,6 +448,8 @@ public class ObjectTrap {
 		
 	}
 	
+	// Yes it is complex code, so is the problem, so suck it!
+	@SuppressWarnings("squid:S3776")
 	public static Method AccessibleGetter(Class<?> c, String name) throws SecurityException {
 		while (c != null) {
 			try {
@@ -495,10 +498,11 @@ public class ObjectTrap {
 			
 			try {
 				return M.invoke(obj);
-			} catch (Throwable e) {
-				if (e instanceof InvocationTargetException) {
-					e = ((InvocationTargetException) e).getTargetException();
-				}
+			} catch (InvocationTargetException e) {
+				Misc.CascadeThrow(e);
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				return null;
+			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), M.getName()); //$NON-NLS-1$
 				}
@@ -524,6 +528,8 @@ public class ObjectTrap {
 		public final MethodAccess MA;
 		public final int MI;
 		
+		// Yes it is complex code, so is the problem, so suck it!
+		@SuppressWarnings("squid:S3776")
 		public ASMGetterScope(Class<?> c, String cname, String method)
 				throws SecurityException, ClassNotFoundException {
 			super(c, cname);
@@ -570,7 +576,7 @@ public class ObjectTrap {
 			
 			try {
 				return MA.invoke(obj, MI);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), //$NON-NLS-1$
 							MA.getMethodNames()[MI]);
@@ -653,8 +659,8 @@ public class ObjectTrap {
 	
 	public static class HookFactory {
 		
-		public static final String LogGroup = ObjectTrap.LogGroup + ".HookFactory"; //$NON-NLS-1$
-		protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+		public static final String LOGGROUP = ObjectTrap.LOGGROUP + ".HookFactory"; //$NON-NLS-1$
+		protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 		
 		protected Map<Type, Class<? extends Hook>> HookReg = new HashMap<>();
 		
@@ -682,11 +688,9 @@ public class ObjectTrap {
 			try {
 				return hookclass.getConstructor(String.class, SuffixClassDictionary.class)
 						.newInstance(condition, dict);
-			} catch (Throwable e) {
-				if (e instanceof InvocationTargetException) {
-					e = ((InvocationTargetException) e).getTargetException();
-				}
+			} catch (Exception e) {
 				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.HOOK_CREATE_FAILED")); //$NON-NLS-1$
+				// PERF: code analysis tool doesn't recognize custom throw functions
 				return null;
 			}
 		}
@@ -704,26 +708,30 @@ public class ObjectTrap {
 			}
 			
 			public static Collection<String> InputHelp() {
-				return null;
+				return Collections.emptyList();
 			}
 			
 		}
 		
 	}
 	
-	public static HookFactory HookMaker = new HookFactory();
+	public static final HookFactory HookMaker = new HookFactory();
 	
 	public static class BasicHooks {
 		
+		protected BasicHooks() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
+		
 		public static enum LatchOp {
-			Accept('Y'),
-			IsNull('X'),
-			EqualTo('='),
-			GreaterThan('>'),
-			LessThan('<'),
-			InRange('~'),
-			OneOf('@'),
-			RegMatch('*');
+			ACCEPT('Y'),
+			ISNULL('X'),
+			EQUALTO('='),
+			GREATERTHAN('>'),
+			LESSTHAN('<'),
+			INRANGE('~'),
+			ONEOF('@'),
+			REGMATCH('*');
 			
 			public final char OpSym;
 			
@@ -739,7 +747,7 @@ public class ObjectTrap {
 			
 		}
 		
-		public static abstract class BaseHook extends HookFactory.Hook {
+		public abstract static class BaseHook extends HookFactory.Hook {
 			
 			public static final char SYM_NEGATION = '!';
 			
@@ -750,10 +758,11 @@ public class ObjectTrap {
 			
 			public BaseHook(String cond, SuffixClassDictionary dict) {
 				int CondStart = 0;
-				char iChar = CondStart >= cond.length()? LatchOp.Accept.OpSym : cond.charAt(CondStart);
-				if (Negate = iChar == SYM_NEGATION) {
+				char iChar = CondStart >= cond.length()? LatchOp.ACCEPT.OpSym : cond.charAt(CondStart);
+				Negate = iChar == SYM_NEGATION;
+				if (Negate) {
 					CondStart++;
-					iChar = CondStart >= cond.length()? LatchOp.Accept.OpSym : cond.charAt(CondStart);
+					iChar = CondStart >= cond.length()? LatchOp.ACCEPT.OpSym : cond.charAt(CondStart);
 				}
 				
 				Dict = dict;
@@ -766,7 +775,7 @@ public class ObjectTrap {
 				}
 			}
 			
-			abstract protected void ParseValue(String condval);
+			protected abstract void ParseValue(String condval);
 			
 			protected boolean StateFilter(boolean opRet, Object value) {
 				return opRet ^ Negate? true : false;
@@ -793,32 +802,32 @@ public class ObjectTrap {
 			protected Set<Integer> CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int1>,<int2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int1>[,<int2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int1>,<int2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<int1>[,<int2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -831,7 +840,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -841,7 +850,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -853,19 +862,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Integer value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case OneOf:
+					case ONEOF:
 						return (value != null) && CompSet.contains(value);
-					case InRange:
+					case INRANGE:
 						return (value != null) && (value >= CompValA) && (value <= CompValB);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"),  //$NON-NLS-1$
@@ -885,18 +894,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Integer I : CompSet) {
 							StrBuf.append(I).append(',');
@@ -928,32 +937,32 @@ public class ObjectTrap {
 			protected Set<Long> CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long1>,<long2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long1>[,<long2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long1>,<long2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<long1>[,<long2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval);//$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -967,7 +976,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -978,7 +987,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -990,19 +999,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Long value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case InRange:
+					case INRANGE:
 						return (value != null) && (value >= CompValA) && (value <= CompValB);
-					case OneOf:
+					case ONEOF:
 						return CompSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1022,18 +1031,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Long I : CompSet) {
 							StrBuf.append(I).append(',');
@@ -1065,32 +1074,32 @@ public class ObjectTrap {
 			protected Set<Byte> CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte1>,<byte2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte1>[,<byte2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte1>,<byte2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<byte1>[,<byte2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim());//$NON-NLS-1$
@@ -1104,7 +1113,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -1114,7 +1123,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -1126,19 +1135,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Byte value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case InRange:
+					case INRANGE:
 						return (value != null) && (value >= CompValA) && (value <= CompValB);
-					case OneOf:
+					case ONEOF:
 						return CompSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1158,18 +1167,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Byte I : CompSet) {
 							StrBuf.append(I).append(',');
@@ -1201,32 +1210,32 @@ public class ObjectTrap {
 			protected Set<Short> CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short1>,<short2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short1>[,<short2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short1>,<short2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<short1>[,<short2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -1239,7 +1248,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -1249,7 +1258,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -1261,19 +1270,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Short value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case InRange:
+					case INRANGE:
 						return (value != null) && (value >= CompValA) && (value <= CompValB);
-					case OneOf:
+					case ONEOF:
 						return CompSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1293,18 +1302,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Short I : CompSet) {
 							StrBuf.append(I).append(',');
@@ -1336,32 +1345,32 @@ public class ObjectTrap {
 			protected Set<Float> CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float1>,<float2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float1>[,<float2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float1>,<float2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<float1>[,<float2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -1374,7 +1383,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -1384,7 +1393,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -1396,19 +1405,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Float value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case InRange:
+					case INRANGE:
 						return (value >= CompValA) && (value <= CompValB);
-					case OneOf:
+					case ONEOF:
 						return CompSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1428,18 +1437,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Float I : CompSet) {
 							StrBuf.append(I).append(',');
@@ -1471,32 +1480,32 @@ public class ObjectTrap {
 			protected Set<Double> CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double1>,<double2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double1>[,<double2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double1>,<double2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<double1>[,<double2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -1509,7 +1518,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -1519,7 +1528,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -1531,19 +1540,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Double value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case InRange:
+					case INRANGE:
 						return (value != null) && (value >= CompValA) && (value <= CompValB);
-					case OneOf:
+					case ONEOF:
 						return CompSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1563,18 +1572,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Double I : CompSet) {
 							StrBuf.append(I).append(',');
@@ -1607,32 +1616,32 @@ public class ObjectTrap {
 			protected String CompSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char>", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char>", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char1>,<char2>", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char1>[,<char2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<char>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<char>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<char>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<char1>,<char2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<char1>[,<char2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -1645,11 +1654,11 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						CompSet = SetParser.parseOrFail(condval.trim());
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -1661,19 +1670,19 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Character value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && value.equals(CompValA);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value > CompValA);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value < CompValA);
-					case InRange:
+					case INRANGE:
 						return (value != null) && (value >= CompValA) && (value <= CompValB);
-					case OneOf:
+					case ONEOF:
 						return CompSet.indexOf(value) >= 0;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1693,18 +1702,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(' ').append(CompValA);
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" \"").append(CompSet).append('"'); //$NON-NLS-1$
 						break;
 					default:
@@ -1728,30 +1737,30 @@ public class ObjectTrap {
 			
 			public static Collection<String> InputHelp() {
 				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<bool>", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<bool>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						
 						break;
-					case EqualTo:
+					case EQUALTO:
 						CompVal = Parser.parseOrFail(condval.trim());
 						break;
-					case GreaterThan:
-					case LessThan:
-					case InRange:
-					case OneOf:
-					case RegMatch:
+					case GREATERTHAN:
+					case LESSTHAN:
+					case INRANGE:
+					case ONEOF:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -1763,11 +1772,11 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Boolean value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && (value == CompVal);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1787,10 +1796,10 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
+					case EQUALTO:
 						StrBuf.append(' ').append(CompVal);
 						break;
 					default:
@@ -1818,32 +1827,32 @@ public class ObjectTrap {
 			
 			public static Collection<String> InputHelp() {
 				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c\"string\"", LatchOp.EqualTo.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c\"string\"", LatchOp.GreaterThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c\"string\"", LatchOp.LessThan.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c\"string1\",\"string2\"", LatchOp.InRange.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c\"string1\"[,\"string2\",...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c\"regexp\"", LatchOp.RegMatch.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string\"", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string\"", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string\"", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string1\",\"string2\"", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"string1\"[,\"string2\",...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"regexp\"", LatchOp.REGMATCH.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						CompValA = Parser.parseOrFail(condval.trim());
 						break;
-					case InRange: {
+					case INRANGE: {
 						String[] CondVals = ListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
@@ -1856,7 +1865,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CompSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -1866,7 +1875,7 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case RegMatch:
+					case REGMATCH:
 						RegComp = Pattern.compile(Parser.parseOrFail(condval.trim()));
 						break;
 					default:
@@ -1877,22 +1886,22 @@ public class ObjectTrap {
 			
 			protected boolean Oper(String value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case EqualTo:
+					case EQUALTO:
 						return (value != null) && (value.compareTo(CompValA) == 0);
-					case GreaterThan:
+					case GREATERTHAN:
 						return (value != null) && (value.compareTo(CompValA) > 0);
-					case LessThan:
+					case LESSTHAN:
 						return (value != null) && (value.compareTo(CompValA) < 0);
-					case InRange:
+					case INRANGE:
 						return (value != null)&& (value.compareTo(CompValA) >= 0)
 										&& (value.compareTo(CompValB) <= 0);
-					case OneOf:
+					case ONEOF:
 						return (value != null) && CompSet.contains(value);
-					case RegMatch:
+					case REGMATCH:
 						return (value != null) && RegComp.matcher(value).find();
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), Op.OpSym, //$NON-NLS-1$
@@ -1912,18 +1921,18 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
 						StrBuf.append(" \"").append(CompValA).append('"'); //$NON-NLS-1$
 						break;
-					case InRange:
+					case INRANGE:
 						StrBuf.append(" [\"").append(CompValA).append("\",\"").append(CompValB).append("\"]"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (String I : CompSet) {
 							StrBuf.append('"').append(I).append("\","); //$NON-NLS-1$
@@ -1932,7 +1941,7 @@ public class ObjectTrap {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
-					case RegMatch:
+					case REGMATCH:
 						StrBuf.append(" /").append(RegComp).append('/'); //$NON-NLS-1$
 						break;
 					default:
@@ -1955,23 +1964,23 @@ public class ObjectTrap {
 			protected Set<Class<?>> CastSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<String>();
-				HelpStr.add(String.format("%c", LatchOp.Accept.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.IsNull.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<class1>[,<class2>,...]", LatchOp.OneOf.OpSym)); //$NON-NLS-1$
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<class1>[,<class2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
 			@Override
 			protected void ParseValue(String condval) {
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						if (!condval.trim().isEmpty()) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
 						}
 						break;
-					case OneOf: {
+					case ONEOF: {
 						String[] CondVals = ListSep.split(condval.trim());
 						CastSet = new HashSet<>();
 						for (String Val : CondVals) {
@@ -1985,11 +1994,11 @@ public class ObjectTrap {
 						}
 						break;
 					}
-					case EqualTo:
-					case GreaterThan:
-					case LessThan:
-					case InRange:
-					case RegMatch:
+					case EQUALTO:
+					case GREATERTHAN:
+					case LESSTHAN:
+					case INRANGE:
+					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
 						break;
@@ -2001,11 +2010,11 @@ public class ObjectTrap {
 			
 			protected boolean Oper(Object value) {
 				switch (Op) {
-					case Accept:
+					case ACCEPT:
 						return true;
-					case IsNull:
+					case ISNULL:
 						return value == null;
-					case OneOf:
+					case ONEOF:
 						if (value != null) {
 							for (Class<?> Cast : CastSet)
 								if (Cast.isAssignableFrom(value.getClass())) return true;
@@ -2029,10 +2038,10 @@ public class ObjectTrap {
 				StrBuf.append(super.toString());
 				
 				switch (Op) {
-					case Accept:
-					case IsNull:
+					case ACCEPT:
+					case ISNULL:
 						break;
-					case OneOf:
+					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
 						for (Class<?> Cast : CastSet) {
 							StrBuf.append(Cast.getName()).append(',');
@@ -2078,13 +2087,13 @@ public class ObjectTrap {
 	
 	public interface IFork {
 		
-		public static enum Result {
-			Match,
-			Unmatch,
-			Error
+		static enum Result {
+			MATCH,
+			UNMATCH,
+			ERROR
 		}
 		
-		public static class ExecRec {
+		static class ExecRec {
 			public Result State;
 			public int FIPDelta;
 		}
@@ -2122,7 +2131,7 @@ public class ObjectTrap {
 	protected Set<IForkScriptEngine> ActiveScriptEngines = new HashSet<>();
 	
 	IForkScript Script_AssignScope = (N, R, O, S, L) -> {
-		if ((Scripts != null) && (R == IFork.Result.Match)) {
+		if ((Scripts != null) && (R == IFork.Result.MATCH)) {
 			ActiveScriptEngines.forEach(ENG -> {
 				ENG.ExecEnvPrep(Collections.singletonMap(N, S));
 			});
@@ -2134,7 +2143,7 @@ public class ObjectTrap {
 		
 		protected final IGroupLogger ILog;
 		
-		public final String Name;
+		public final String N;
 		public final IScope S;
 		public final IHook H;
 		public final IForkScript FS;
@@ -2145,7 +2154,7 @@ public class ObjectTrap {
 		
 		public Fork(String name, IScope scope, IHook hook, IForkScript fs) {
 			ILog = new GroupLogger.PerInst(ObjectTrap.this.ILog.GroupName() + '.' + name);
-			Name = name.intern();
+			N = name.intern();
 			S = scope;
 			H = hook;
 			FS = fs;
@@ -2161,50 +2170,54 @@ public class ObjectTrap {
 				
 				if (Error == null) {
 					if ((H != null) && !H.Latch(Scoped)) {
-						Context.State = Result.Unmatch;
+						Context.State = Result.UNMATCH;
 					} else {
-						Context.State = Result.Match;
+						Context.State = Result.MATCH;
 					}
 				} else {
-					Context.State = Result.Error;
+					Context.State = Result.ERROR;
 				}
 				
 				Context.FIPDelta = Next(Context.State);
 				if (FS != null) {
-					Object ScriptRet = FS.Exec(Name, Context.State, obj, Scoped, ILog);
-					if (ScriptRet != null) {
-						if (ScriptRet instanceof Integer) {
-							Context.FIPDelta = (int) ScriptRet;
-						} else if (ScriptRet instanceof String) {
-							Integer NextIP = TrapMap.get(ScriptRet);
-							if (NextIP == null) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_BADADDR"), //$NON-NLS-1$
-										ScriptRet);
-							}
-							Context.FIPDelta = NextIP - ThisIP;
-						} else {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_UNKNOWN"), //$NON-NLS-1$
-									ScriptRet);
-						}
-					}
+					ExecuteForkScript(obj, Context, Scoped);
 				}
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (ILog.isLoggable(Level.FINER)) {
 					ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION")); //$NON-NLS-1$
 				} else if (ILog.isLoggable(Level.FINE)) {
 					ILog.Warn(Messages.Localize("Debugging.ObjectTrap.HOOK_EXCEPTION_LT"), e); //$NON-NLS-1$
 				}
-				Context.State = Result.Error;
+				Context.State = Result.ERROR;
 				Context.FIPDelta = -100;
+			}
+		}
+		
+		private void ExecuteForkScript(Object obj, ExecRec Context, Object Scoped) {
+			Object ScriptRet = FS.Exec(N, Context.State, obj, Scoped, ILog);
+			if (ScriptRet != null) {
+				if (ScriptRet instanceof Integer) {
+					Context.FIPDelta = (int) ScriptRet;
+				} else if (ScriptRet instanceof String) {
+					Integer NextIP = TrapMap.get(ScriptRet);
+					if (NextIP == null) {
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_BADADDR"), //$NON-NLS-1$
+								ScriptRet);
+					}
+					Context.FIPDelta = NextIP - ThisIP;
+				} else {
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.SCRIPT_RETURN_UNKNOWN"), //$NON-NLS-1$
+							ScriptRet);
+				}
 			}
 		}
 		
 		public int Next(Result R) {
 			switch (R) {
-				case Match:
+				case MATCH:
 					return MatchNext;
-				case Unmatch:
-				case Error:
+				case UNMATCH:
+				case ERROR:
 					return UnmatchNext;
 				default:
 					Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_FORK_RET"), R.name()); //$NON-NLS-1$
@@ -2219,16 +2232,16 @@ public class ObjectTrap {
 		
 		@Override
 		public String Name() {
-			return Name;
+			return N;
 		}
 		
 		@Override
 		public String toString() {
 			StringBuilder StrBuf = new StringBuilder();
 			StrBuf.append(Messages.Localize("Debugging.ObjectTrap.FORK_ACTION_ITEM")) //$NON-NLS-1$
-					.append(Name).append(": ");  //$NON-NLS-1$
+					.append(N).append(": ");  //$NON-NLS-1$
 			String ScopeStr = S.toString();
-			boolean MultilineScope = ScopeStr.indexOf(System.lineSeparator()) > 0;
+			boolean MultilineScope = ScopeStr.indexOf(System.lineSeparator()) >= 0;
 			if (MultilineScope) {
 				StrBuf.append(System.lineSeparator());
 			}
@@ -2322,13 +2335,11 @@ public class ObjectTrap {
 	}
 	
 	public ObjectTrap(Class<?> c, String pkgname, ClassLoader loader) {
-		ILog = new GroupLogger.PerInst(LogGroup + '@' + c.getSimpleName());
+		ILog = new GroupLogger.PerInst(LOGGROUP + '@' + c.getSimpleName());
 		ObjClass = c;
 		
 		ClassDict = new SuffixClassDictionary(pkgname, loader);
-		for (ISuffixClassSolver csolver : DirectSuffixClassSolver.BaseClasses) {
-			ClassDict.Add(csolver);
-		}
+		DirectSuffixClassSolver.EnumBaseClassSolvers(ClassDict::Add);
 		try {
 			PackageClassIterable.Create(pkgname, loader).forEach(ClassDict::Add);
 		} catch (IOException e) {
@@ -2353,34 +2364,38 @@ public class ObjectTrap {
 	
 	protected static Collection<IForkScriptEngineFactory> ForkScriptEngineLoader = new ArrayList<>();
 	
-	protected static final String AddonPackage = "com.necla.am.zwutils.addon.ObjectTrap";
+	protected static final String ADDON_PACKAGE = "com.necla.am.zwutils.addon.ObjectTrap";
 	static {
 		try {
-			for (String CName : PackageClassIterable.Create(AddonPackage, ClassSolver -> {
+			for (String CName : PackageClassIterable.Create(ADDON_PACKAGE, ClassSolver -> {
 				try {
 					return IForkScriptEngineFactory.class.isAssignableFrom(ClassSolver.toClass());
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					// Eat exception
 					return false;
 				}
 			})) {
 				CLog.Info("Found ForkScript addon class '%s'...", CName);
-				try {
-					@SuppressWarnings("unchecked")
-					Class<? extends IForkScriptEngineFactory> CLS =
-							(Class<? extends IForkScriptEngineFactory>) Class.forName(CName);
-					ForkScriptEngineLoader.add(CLS.newInstance());
-				} catch (Throwable e) {
-					CLog.Warn("Unable to instantiate ForkScript addon class '%s' - %s", CName, e);
-					if (GlobalConfig.DEBUG_CHECK) {
-						CLog.logExcept(e);
-					}
-				}
+				LoadAddon(CName);
 			}
 		} catch (ProviderNotFoundException e) {
 			CLog.Info("No ForkScript addon present");
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.Warn("Unable to scan ForkScript addon class - %s", e);
+			if (GlobalConfig.DEBUG_CHECK) {
+				CLog.logExcept(e);
+			}
+		}
+	}
+	
+	private static void LoadAddon(String CName) {
+		try {
+			@SuppressWarnings("unchecked")
+			Class<? extends IForkScriptEngineFactory> CLS =
+					(Class<? extends IForkScriptEngineFactory>) Class.forName(CName);
+			ForkScriptEngineLoader.add(CLS.newInstance());
+		} catch (Exception e) {
+			CLog.Warn("Unable to instantiate ForkScript addon class '%s' - %s", CName, e);
 			if (GlobalConfig.DEBUG_CHECK) {
 				CLog.logExcept(e);
 			}
@@ -2445,7 +2460,7 @@ public class ObjectTrap {
 			CascadeScope CScope = new CascadeScope();
 			
 			Pattern ScopeSplitter =
-					scopepath.indexOf(SYM_SCOPES) > 0? PATTERN_SYNTAX_V1 : PATTERN_SYNTAX_V2;
+					scopepath.indexOf(SYM_SCOPES) >= 0? PATTERN_SYNTAX_V1 : PATTERN_SYNTAX_V2;
 			
 			Matcher DescMatcher = ScopeSplitter.matcher(scopepath);
 			while (DescMatcher.find()) {
@@ -2479,6 +2494,10 @@ public class ObjectTrap {
 		@Override
 		public boolean equals(Object obj) {
 			if (this == obj) return true;
+			// PERF: The usage context determines obj is always a valid ScopeContext instance
+			//if (obj == null) return false;
+			//if (ScopeContext.class.isAssignableFrom(obj.getClass())) return false;
+			
 			ScopeContext sobj = (ScopeContext) obj;
 			return BaseClass.equals(sobj.BaseClass) && ScopeDesc.equals(sobj.ScopeDesc);
 		}
@@ -2514,19 +2533,9 @@ public class ObjectTrap {
 			try {
 				switch (Desc.charAt(0)) {
 					case SYM_FIELD:
-						try {
-							// Try create a faster scope, but cannot access private fields
-							return new ASMFieldScope(Key.BaseClass, cname, Desc.substring(1));
-						} catch (Throwable e) {
-							return new FieldScope(Key.BaseClass, cname, Desc.substring(1));
-						}
+						return CreateFieldScope(Key, cname, Desc);
 					case SYM_GETTER:
-						try {
-							// Try create a faster scope, but cannot access private method
-							return new ASMGetterScope(Key.BaseClass, cname, Desc.substring(1));
-						} catch (Throwable e) {
-							return new GetterScope(Key.BaseClass, cname, Desc.substring(1));
-						}
+						return CreateGetterScope(Key, cname, Desc);
 					default:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_SCOPE_MEMBER"), Desc); //$NON-NLS-1$
 				}
@@ -2537,6 +2546,26 @@ public class ObjectTrap {
 		});
 	}
 	
+	private IScope CreateGetterScope(ScopeContext Key, String cname, String Desc)
+			throws ClassNotFoundException {
+		try {
+			// Try create a faster scope, but cannot access private method
+			return new ASMGetterScope(Key.BaseClass, cname, Desc.substring(1));
+		} catch (Exception e) {
+			return new GetterScope(Key.BaseClass, cname, Desc.substring(1));
+		}
+	}
+	
+	private IScope CreateFieldScope(ScopeContext Key, String cname, String Desc)
+			throws ClassNotFoundException {
+		try {
+			// Try create a faster scope, but cannot access private fields
+			return new ASMFieldScope(Key.BaseClass, cname, Desc.substring(1));
+		} catch (Exception e) {
+			return new FieldScope(Key.BaseClass, cname, Desc.substring(1));
+		}
+	}
+	
 	protected IForkScript ParseProcDesc(String Name, String Desc, Map<String, IForkScript> _Scripts,
 			Set<IForkScriptEngine> _Engines) {
 		if (Desc.isEmpty()) return Script_AssignScope;
@@ -2544,11 +2573,13 @@ public class ObjectTrap {
 		IForkScript Ret = _Scripts.get(Name);
 		if (Ret == null) {
 			IForkScriptEngine Engine = ScriptEngines.get(Misc.stripPackageName(Desc).toUpperCase());
-			if (Engine == null) {
+			if (Engine != null) {
+				Ret = Engine.Compile(Desc, new File(Desc));
+				_Scripts.put(Name, Ret);
+				_Engines.add(Engine);
+			} else {
 				Misc.ERROR("Unrecognized extension for script file '%s'", Desc);
 			}
-			_Scripts.put(Name, Ret = Engine.Compile(Desc, new File(Desc)));
-			_Engines.add(Engine);
 		}
 		return Ret;
 	}
@@ -2561,33 +2592,7 @@ public class ObjectTrap {
 		Map<String, Collection<IFork>> ForkGroups = new HashMap<>();
 		ILog.Config(Messages.Localize("Debugging.ObjectTrap.TRAP_LOAD_START")); //$NON-NLS-1$
 		for (String name : new TreeSet<>(config.keySet())) {
-			String[] keytoks = DEM_CGROUP.split(name, 2);
-			String Group = keytoks.length > 1? keytoks[0] : null;
-			String[] payload = DEM_SCOPEOP.split(config.getText(name).trim(), 3);
-			
-			try {
-				IScope Scope = CreateScopePath(payload[0].trim());
-				IHook Hook =
-						payload.length > 1? HookMaker.Create(Scope.Type(), payload[1].trim(), ClassDict) : null;
-				IForkScript Script = payload.length > 2? ParseProcDesc(name, payload[2].trim(), InstScripts,
-						InstEngines) : null;
-				Fork F = new Fork(name, Scope, Hook, Script);
-				if (Group != null) {
-					if (!ForkGroups.containsKey(Group)) {
-						ForkGroups.put(Group, new Stack<>());
-					}
-					Collection<IFork> FG = ForkGroups.get(Group);
-					FG.add(F);
-				} else {
-					InstTrap.add(F);
-					F.ThisIP = InstTrap.size();
-					InstTrapMap.put(name, InstTrap.size());
-				}
-				ILog.Config(":%s", F); //$NON-NLS-1$
-			} catch (Throwable e) {
-				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.FORK_GENERAL_CREATE_FAILURE"), //$NON-NLS-1$
-						name);
-			}
+			LoadFork(config, InstTrap, InstTrapMap, InstEngines, InstScripts, ForkGroups, name);
 		}
 		for (Collection<IFork> FG : ForkGroups.values()) {
 			int GIdx = FG.size();
@@ -2598,7 +2603,7 @@ public class ObjectTrap {
 				ILog.Config(Messages.Localize("Debugging.ObjectTrap.FORK_GROUP_LABEL"), GF); //$NON-NLS-1$
 				InstTrap.add(GF);
 				GF.ThisIP = InstTrap.size();
-				InstTrapMap.put(GF.Name, InstTrap.size());
+				InstTrapMap.put(GF.N, InstTrap.size());
 				GIdx--;
 			}
 		}
@@ -2610,6 +2615,38 @@ public class ObjectTrap {
 		ActiveScriptEngines = InstEngines.isEmpty()? null : InstEngines;
 	}
 	
+	private void LoadFork(DataMap config, List<IFork> InstTrap, Map<String, Integer> InstTrapMap,
+			Set<IForkScriptEngine> InstEngines, Map<String, IForkScript> InstScripts,
+			Map<String, Collection<IFork>> ForkGroups, String name) {
+		String[] keytoks = DEM_CGROUP.split(name, 2);
+		String Group = keytoks.length > 1? keytoks[0] : null;
+		String[] payload = DEM_SCOPEOP.split(config.getText(name).trim(), 3);
+		
+		try {
+			IScope Scope = CreateScopePath(payload[0].trim());
+			IHook Hook =
+					payload.length > 1? HookMaker.Create(Scope.Type(), payload[1].trim(), ClassDict) : null;
+			IForkScript Script = payload.length > 2? ParseProcDesc(name, payload[2].trim(), InstScripts,
+					InstEngines) : null;
+			Fork F = new Fork(name, Scope, Hook, Script);
+			if (Group != null) {
+				if (!ForkGroups.containsKey(Group)) {
+					ForkGroups.put(Group, new Stack<>());
+				}
+				Collection<IFork> FG = ForkGroups.get(Group);
+				FG.add(F);
+			} else {
+				InstTrap.add(F);
+				F.ThisIP = InstTrap.size();
+				InstTrapMap.put(name, InstTrap.size());
+			}
+			ILog.Config(":%s", F); //$NON-NLS-1$
+		} catch (Exception e) {
+			Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.FORK_GENERAL_CREATE_FAILURE"), //$NON-NLS-1$
+					name);
+		}
+	}
+	
 	public int Count() {
 		List<IFork> InstTrap = Trap;
 		if (InstTrap == null) return 0;
@@ -2617,7 +2654,7 @@ public class ObjectTrap {
 		return InstTrap.size();
 	}
 	
-	public static abstract class Dynamic implements AutoCloseable, ITrapNotifiable {
+	public abstract static class Dynamic implements AutoCloseable, ITrapNotifiable {
 		
 		protected final IGroupLogger ILog;
 		public static final int DEF_POLLINTERVAL = 5;
@@ -2646,7 +2683,7 @@ public class ObjectTrap {
 		
 		ITask.TaskRun Watcher = null;
 		
-		synchronized public void WatchConfig(String WatchFileName, int PollInterval) {
+		public synchronized void WatchConfig(String WatchFileName, int PollInterval) {
 			if (Watcher != null) {
 				if (WatchFileName != null) {
 					Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_DEFINED")); //$NON-NLS-1$
@@ -2655,6 +2692,7 @@ public class ObjectTrap {
 					Watcher.Stop(-1);
 				} catch (InterruptedException e) {
 					ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_STOP_ERROR")); //$NON-NLS-1$
+					Thread.currentThread().interrupt();
 				}
 				Watcher = null;
 			} else {
@@ -2663,59 +2701,69 @@ public class ObjectTrap {
 					return;
 				}
 				
-				Poller ConfigPoller = new Poller(ILog.GroupName()) {
-					
-					ITimeStamp ConfigTS = new ITimeStamp.Impl(0);
-					
-					@Override
-					protected boolean Poll() {
-						DataFile TapConfig = new DataFile(ILog.GroupName(), WatchFileName);
-						ITimeStamp TapTS = TapConfig.lastModified();
-						if (!TapTS.equals(ConfigTS)) {
-							ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
-									WatchFileName, TapTS);
-							try {
-								ConfigTS = TapTS;
-								DataMap TapDesc = new DataMap(TapConfig);
-								TapDesc.SetEnvSubstitution(false);
-								TheTrap.Update(TapDesc);
-								ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), //$NON-NLS-1$
-										TheTrap.Count());
-								Configured(TheTrap.Count());
-							} catch (Throwable e) {
-								ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
-							}
-						}
-						return true;
-					}
-					
-				};
-				
-				try {
-					ConfigPoller
-							.setConfiguration(String.format("%s=%d", Poller.ConfigData.Mutable.CONFIG_TIMERES, //$NON-NLS-1$
-									TimeUnit.SEC.Convert(PollInterval, TimeUnit.MSEC)), ""); //$NON-NLS-1$
-				} catch (Throwable e) {
-					Misc.CascadeThrow(e);
-				}
-				
-				Watcher = new DaemonRunner(ConfigPoller);
-				try {
-					Watcher.Start(-1);
-				} catch (InterruptedException e) {
-					ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
-					while (!Watcher.tellState().hasTerminated()) {
-						try {
-							Watcher.Stop(-1);
-						} catch (InterruptedException e1) {
-							ILog.logExcept(e,
-									Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
-						}
-					}
-					Watcher = null;
-					Misc.CascadeThrow(e);
-				}
+				StartConfigWatcher(WatchFileName, PollInterval);
 			}
+		}
+		
+		private void StartConfigWatcher(String WatchFileName, int PollInterval) {
+			Poller ConfigPoller = CreatePollerTask(WatchFileName);
+			
+			try {
+				ConfigPoller
+						.setConfiguration(String.format("%s=%d", Poller.ConfigData.Mutable.CONFIG_TIMERES, //$NON-NLS-1$
+								TimeUnit.SEC.Convert(PollInterval, TimeUnit.MSEC)), ""); //$NON-NLS-1$
+			} catch (Exception e) {
+				Misc.CascadeThrow(e);
+			}
+			
+			Watcher = new DaemonRunner(ConfigPoller);
+			try {
+				Watcher.Start(-1);
+			} catch (InterruptedException e) {
+				ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_WATCH_START_FAILED")); //$NON-NLS-1$
+				while (!Watcher.tellState().hasTerminated()) {
+					if (Thread.interrupted()) {
+						ILog.Warn(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_STOP_PROGRESS")); //$NON-NLS-1$
+					}
+					try {
+						Watcher.Stop(-1);
+					} catch (InterruptedException e1) {
+						Thread.currentThread().interrupt();
+					}
+				}
+				Thread.currentThread().interrupt();
+				Watcher = null;
+			}
+		}
+		
+		private Poller CreatePollerTask(String WatchFileName) {
+			return new Poller(ILog.GroupName()) {
+				
+				ITimeStamp ConfigTS = new ITimeStamp.Impl(0);
+				
+				@Override
+				protected boolean Poll() {
+					DataFile TapConfig = new DataFile(ILog.GroupName(), WatchFileName);
+					ITimeStamp TapTS = TapConfig.lastModified();
+					if (!TapTS.equals(ConfigTS)) {
+						ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_START"),  //$NON-NLS-1$
+								WatchFileName, TapTS);
+						try {
+							ConfigTS = TapTS;
+							DataMap TapDesc = new DataMap(TapConfig);
+							TapDesc.SetEnvSubstitution(false);
+							TheTrap.Update(TapDesc);
+							ILog.Info(Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FINISH"), //$NON-NLS-1$
+									TheTrap.Count());
+							Configured(TheTrap.Count());
+						} catch (Exception e) {
+							ILog.logExcept(e, Messages.Localize("Debugging.ObjectTrap.CONFIG_LOAD_FAILED")); //$NON-NLS-1$
+						}
+					}
+					return true;
+				}
+				
+			};
 		}
 		
 		public void Configured(int ForkCount) {
@@ -2728,7 +2776,7 @@ public class ObjectTrap {
 		}
 		
 		protected Dynamic(ObjectTrap Trap, String ConfFileName, int PollInterval) {
-			ILog = new GroupLogger(LogGroup + '-' + ConfFileName);
+			ILog = new GroupLogger(LOGGROUP + '-' + ConfFileName);
 			
 			TheTrap = Trap;
 			WatchConfig(ConfFileName + ".config", PollInterval); //$NON-NLS-1$
@@ -2794,7 +2842,7 @@ public class ObjectTrap {
 			StopLogging();
 		}
 		
-		synchronized public void StopLogging() {
+		public synchronized void StopLogging() {
 			if (TrapLogger != null) {
 				TrapLogger.setHandler(null, false);
 				LogHandler.close();
@@ -2810,7 +2858,7 @@ public class ObjectTrap {
 					TrapLogger = new GroupLogger(LogGroupName);
 					TrapLogger.setLevel(Level.INFO);
 					Support.GroupLogFile LogGroupFile = new Support.GroupLogFile(LogGroupName + ".log", //$NON-NLS-1$
-							EnumSet.of(Support.GroupLogFile.Feature.Append));
+							EnumSet.of(Support.GroupLogFile.Feature.APPEND));
 					LogHandler = DebugLog.createFileHandler(LogGroupFile, TrapLogger.GroupName());
 					TrapLogger.setHandler(LogHandler, false);
 					LogFormatter.ConfigHandler.SendConfigurationMsg(TrapLogger, //

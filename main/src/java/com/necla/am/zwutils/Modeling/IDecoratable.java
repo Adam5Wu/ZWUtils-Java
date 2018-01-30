@@ -80,41 +80,41 @@ public interface IDecoratable {
 	
 	public static class CValue<T> extends IAnnotation.Impl<String> implements Type<T> {
 		
-		public T Data;
+		public T _DATA;
 		
 		protected CValue(T data, String decor_str) {
 			super(decor_str);
 			
-			Data = data;
+			_DATA = data;
 		}
 		
 		@Override
 		public T Data() {
 			if (isDecorated()) {
-				Misc.FAILN(IllegalStateException.class, 1, "Decorated data (%s)", NOTE);
+				Misc.FAILN(IllegalStateException.class, 1, "Decorated data (%s)", _NOTE);
 			}
-			return Data;
+			return _DATA;
 		}
 		
 		@Override
 		public boolean isDecorated() {
-			return NOTE != null;
+			return _NOTE != null;
 		}
 		
 		@Override
 		public T RawData() {
-			return Data;
+			return _DATA;
 		}
 		
 		protected String PrintData() {
-			return String.valueOf(Data);
+			return String.valueOf(_DATA);
 		}
 		
 		@Override
 		public String toString() {
 			if (!isDecorated()) return PrintData();
 			
-			StringBuffer StrBuf = new StringBuffer();
+			StringBuilder StrBuf = new StringBuilder();
 			if (isDecorated()) {
 				StrBuf.append(super.toString()).append(':');
 			}
@@ -139,20 +139,20 @@ public interface IDecoratable {
 		}
 		
 		protected boolean CompareData(java.lang.Object data) {
-			if (Data != null) return Data.equals(data);
-			if (data != null) return data.equals(Data);
+			if (_DATA != null) return _DATA.equals(data);
+			if (data != null) return data.equals(_DATA);
 			return true;
 		}
 		
-		public boolean equals(Value<?> obj) {
+		public boolean _equals(Value<?> obj) {
 			// If both are decorated, behavior depends on modifier
-			if (isDecorated() && obj.isDecorated()) {
-				if (!NOTE.equals(obj.NOTE)) return false;
+			if (super.isDecorated() && obj.isDecorated()) {
+				if (!_NOTE.equals(obj._NOTE)) return false;
 			} else {
 				// If only one has decoration, they cannot be equal
-				if (isDecorated() || obj.isDecorated()) return false;
+				if (super.isDecorated() || obj.isDecorated()) return false;
 			}
-			return CompareData(obj.Data);
+			return CompareData(obj._DATA);
 		}
 		
 		@Override
@@ -161,23 +161,21 @@ public interface IDecoratable {
 			if (super.equals(obj)) return true;
 			// Fast rejection
 			if ((obj == null) || (hashCode() != obj.hashCode())) return false;
-			// if (obj instanceof Value<?>) return equals((Value<?>) obj);
-			// return false;
-			return equals((Value<?>) obj);
+			return _equals((Value<?>) obj);
 		}
 		
 		protected int HashData() {
-			return Data != null? Data.hashCode() : 0;
+			return _DATA != null? _DATA.hashCode() : 0;
 		}
 		
-		protected int HashCode() {
-			return HashData() ^ (isDecorated()? NOTE.hashCode() : 0);
+		protected int _hashCode() {
+			return HashData() ^ (super.isDecorated()? _NOTE.hashCode() : 0);
 		}
 		
 		@Override
 		public final int hashCode() {
 			if (_HashCache == null) {
-				_HashCache = HashCode();
+				_HashCache = _hashCode();
 			}
 			return _HashCache;
 		}

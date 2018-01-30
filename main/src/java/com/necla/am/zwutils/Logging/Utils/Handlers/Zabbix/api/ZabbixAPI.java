@@ -44,6 +44,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import com.google.gson.JsonArray;
@@ -80,11 +81,14 @@ public interface ZabbixAPI {
 	
 	public class Impl implements ZabbixAPI {
 		
-		public static final String LogGroup = "ZWUtils.Logging.Zabbix.API";
+		public static final String LOGGROUP = "ZWUtils.Logging.Zabbix.API";
 		
-		protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+		protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 		
 		public static class ConfigData {
+			protected ConfigData() {
+				Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			}
 			
 			protected static final String KEY_PREFIX = "ZabbixAPI.";
 			
@@ -108,13 +112,15 @@ public interface ZabbixAPI {
 				protected InetSocketAddress ReportAddr;
 				
 				@Override
+				// No, it is not a hard-coded password
+				@SuppressWarnings("squid:S2068")
 				public void loadDefaults() {
 					SecureHTTP = false;
 					ServerAddr = "LocalHost";
 					APIPort = DEFPORT_HTTP;
 					ReportPort = DEFPORT_REPORT;
 					UserName = "ZWUtils";
-					Password = "ZWUtilsLogger";
+					Password = "<need password>";
 					RPCPath = "/api_jsonrpc.php";
 					NetTimeout = (int) TimeUnit.SEC.Convert(10, TimeUnit.MSEC);
 				}
@@ -149,15 +155,18 @@ public interface ZabbixAPI {
 						}
 						
 						ILog.Fine("Checking Ports...");
-						if ((APIPort <= 0) || (APIPort > MAX_PORTNUM))
+						if ((APIPort <= 0) || (APIPort > MAX_PORTNUM)) {
 							Misc.ERROR("Invalid API port number (%d)", APIPort);
-						if ((ReportPort <= 0) || (ReportPort > MAX_PORTNUM))
+						}
+						if ((ReportPort <= 0) || (ReportPort > MAX_PORTNUM)) {
 							Misc.ERROR("Invalid report port number (%d)", ReportPort);
+						}
 						
 						ILog.Fine("Checking timeout Period...");
-						if ((NetTimeout < MIN_TIMEOUT) || (NetTimeout > MAX_TIMEOUT))
+						if ((NetTimeout < MIN_TIMEOUT) || (NetTimeout > MAX_TIMEOUT)) {
 							Misc.ERROR("Invalid timeout period (%d)",
 									TimeUnit.MSEC.Convert(NetTimeout, TimeUnit.SEC));
+						}
 					}
 					
 				}
@@ -176,15 +185,19 @@ public interface ZabbixAPI {
 						StrBuf.append(SecureHTTP? "https" : "http").append("://");
 						StrBuf.append(ServerAddr);
 						if (SecureHTTP) {
-							if (APIPort != DEFPORT_HTTPS) StrBuf.append(':').append(APIPort);
+							if (APIPort != DEFPORT_HTTPS) {
+								StrBuf.append(':').append(APIPort);
+							}
 						} else {
-							if (APIPort != DEFPORT_HTTP) StrBuf.append(':').append(APIPort);
+							if (APIPort != DEFPORT_HTTP) {
+								StrBuf.append(':').append(APIPort);
+							}
 						}
 						StrBuf.append(RPCPath);
 						
 						try {
 							URL = new URL(StrBuf.toString());
-						} catch (Throwable e) {
+						} catch (Exception e) {
 							Misc.CascadeThrow(e, "Unable to fomulate reporting URI");
 						}
 						
@@ -224,8 +237,8 @@ public interface ZabbixAPI {
 			
 			public static final File ConfigFile = DataFile.DeriveConfigFile("ZWUtils.");
 			
-			public static Container<Mutable, ReadOnly> Create(File xConfigFile) throws Throwable {
-				return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config", xConfigFile,
+			public static Container<Mutable, ReadOnly> Create(File xConfigFile) throws Exception {
+				return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP + ".Config", xConfigFile,
 						KEY_PREFIX);
 			}
 			
@@ -242,7 +255,7 @@ public interface ZabbixAPI {
 			try {
 				Config =
 						ConfigData.Create(ConfigFile != null? ConfigFile : ConfigData.ConfigFile).reflect();
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e);
 			}
 			
@@ -253,11 +266,15 @@ public interface ZabbixAPI {
 		protected String login(String user, String password) {
 			ZabbixRequest request = ZabbixRequest.Factory.Logon(user, password);
 			JsonObject response = call(request);
-			if (!response.has("result")) Misc.FAIL("Unable to logon to Zabbix server - %s", response);
-			String auth = response.get("result").getAsString();
-			if (auth == null || auth.isEmpty()) Misc.FAIL("Unable to obtain authorization");
+			if (!response.has("result")) {
+				Misc.FAIL("Unable to logon to Zabbix server - %s", response);
+			}
+			String _auth = response.get("result").getAsString();
+			if ((_auth == null) || _auth.isEmpty()) {
+				Misc.FAIL("Unable to obtain authorization");
+			}
 			CLog.Config("Logged in as '%s'", Config.UserName);
-			return auth;
+			return _auth;
 		}
 		
 		protected void sanity_check() {
@@ -265,7 +282,9 @@ public interface ZabbixAPI {
 			ZabbixRequest UserQuery = ZabbixRequest.Factory.UserInfo(Config.UserName);
 			UserQuery.putParam("output", Misc.wrap("userid", "autologout"));
 			JsonArray Users = call(UserQuery).get("result").getAsJsonArray();
-			if (Users.size() != 1) Misc.FAIL("Expect return of 1 entry, received %d", Users.size());
+			if (Users.size() != 1) {
+				Misc.FAIL("Expect return of 1 entry, received %d", Users.size());
+			}
 			JsonObject UserData = Users.get(0).getAsJsonObject();
 			UserID = UserData.get("userid").getAsString();
 			String AutoLogout = UserData.get("autologout").getAsString();
@@ -278,11 +297,13 @@ public interface ZabbixAPI {
 			UserUpdateQuery.putParam("autologout", "0");
 			JsonObject UserUpdateRet = call(UserUpdateQuery).get("result").getAsJsonObject();
 			JsonArray UpdateUsers = UserUpdateRet.get("userids").getAsJsonArray();
-			if (UpdateUsers.size() != 1)
+			if (UpdateUsers.size() != 1) {
 				Misc.FAIL("Expect return of 1 entry, received %d", UpdateUsers.size());
+			}
 			String UpdateUserID = UpdateUsers.get(0).getAsString();
-			if (!UpdateUserID.equals(UserID))
+			if (!UpdateUserID.equals(UserID)) {
 				Misc.FAIL("Expect update of user #%s, received #%s", UserID, UpdateUserID);
+			}
 			CLog.Warn("Disabled auto-logout of %s sec for user '%s'", AutoLogout, Config.UserName);
 		}
 		
@@ -305,7 +326,9 @@ public interface ZabbixAPI {
 		
 		@Override
 		public JsonObject call(ZabbixRequest request) {
-			if (request.auth == null) request.auth = auth;
+			if (request.auth == null) {
+				request.auth = auth;
+			}
 			
 			HttpURLConnection Request = null;
 			try {
@@ -315,8 +338,10 @@ public interface ZabbixAPI {
 				Request.setConnectTimeout(Config.NetTimeout);
 				Request.setReadTimeout(Config.NetTimeout);
 				Request.setDoOutput(true);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e, "Request preparation failed");
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				return null;
 			}
 			
 			try (DataOutputStream PostOut = new DataOutputStream(Request.getOutputStream())) {
@@ -331,27 +356,7 @@ public interface ZabbixAPI {
 				int RespCode = Request.getResponseCode();
 				CLog.Fine("Received response code %d", RespCode);
 				
-				// Check for content-length header
-				String StrRespLen = Request.getHeaderField(HEADER_CONTENTLEN);
-				if (StrRespLen == null) Misc.FAIL("Unable to handle reply without content-length");
-				int RespLen = 0;
-				try {
-					RespLen = Integer.valueOf(StrRespLen);
-				} catch (Throwable e) {
-					Misc.FAIL("Malformed content-length header");
-				}
-				if ((RespLen < 0) || (RespLen > RESP_HIGHPAYLOAD))
-					Misc.FAIL("Invalid payload size (%s)", Misc.FormatSize(RespLen));
-				
-				// Receive response data
-				byte[] Payload = null;
-				try {
-					DataInputStream Reader = new DataInputStream(Data);
-					Payload = new byte[RespLen];
-					Reader.readFully(Payload);
-				} catch (IOException e) {
-					Misc.CascadeThrow(e, "Error receiving payload");
-				}
+				byte[] Payload = ReceiveResponse(Request, Data);
 				
 				// Try parse response data
 				return new JsonParser().parse(new String(Payload, StandardCharsets.UTF_8))
@@ -361,6 +366,39 @@ public interface ZabbixAPI {
 				Misc.CascadeThrow(e, "Response data processing failed");
 			}
 			return null;
+		}
+		
+		private byte[] ReceiveResponse(HttpURLConnection Request, InputStream Data) {
+			int RespLen = ParseRespLen(Request);
+			
+			// Receive response data
+			byte[] Payload = null;
+			try {
+				DataInputStream Reader = new DataInputStream(Data);
+				Payload = new byte[RespLen];
+				Reader.readFully(Payload);
+			} catch (IOException e) {
+				Misc.CascadeThrow(e, "Error receiving payload");
+			}
+			return Payload;
+		}
+		
+		private int ParseRespLen(HttpURLConnection Request) {
+			// Check for content-length header
+			String StrRespLen = Request.getHeaderField(HEADER_CONTENTLEN);
+			if (StrRespLen == null) {
+				Misc.FAIL("Unable to handle reply without content-length");
+			}
+			int RespLen = 0;
+			try {
+				RespLen = Integer.valueOf(StrRespLen);
+			} catch (Exception e) {
+				Misc.FAIL("Malformed content-length header");
+			}
+			if ((RespLen < 0) || (RespLen > RESP_HIGHPAYLOAD)) {
+				Misc.FAIL("Invalid payload size (%s)", Misc.FormatSize(RespLen));
+			}
+			return RespLen;
 		}
 		
 		@Override
@@ -375,47 +413,53 @@ public interface ZabbixAPI {
 				outputStream.write(report.toString().getBytes(StandardCharsets.UTF_8));
 				outputStream.flush();
 				
-				InputStream inputStream = socket.getInputStream();
-				// Normally response length < 100
-				int respLen = 0;
-				byte[] respData = new byte[512];
-				ByteArrayOutputStream RespStream = null;
-				
-				while (true) {
-					if (RespStream == null) {
-						if (respLen < respData.length) {
-							int readCount = inputStream.read(respData, respLen, respData.length - respLen);
-							if (readCount <= 0) break;
-							respLen += readCount;
-						} else {
-							RespStream = new ByteArrayOutputStream();
-							RespStream.write(respData);
-							// continue;
-						}
-					} else {
-						int readCount = inputStream.read(respData, 0, respData.length);
-						if (readCount <= 0) break;
-						RespStream.write(respData, 0, readCount);
-						respLen += readCount;
-						if (respLen >= RESP_HIGHPAYLOAD) Misc.FAIL("Excessive server response");
-					}
-				}
-				if (RespStream != null) respData = RespStream.toByteArray();
-				if (respLen < 5) Misc.FAIL("Unexpected server response of %d bytes", respLen);
-				
-				String RespJson;
-				if (new String(respData, 0, 5).equals("ZBXD\1")) {
-					// Legacy style 'ZBXD\1' + (long)len
-					// Header 5 + 8 = 13 bytes
-					RespJson = new String(respData, 13, respLen - 13, StandardCharsets.UTF_8);
-				} else {
-					// New style, no header
-					RespJson = new String(respData, StandardCharsets.UTF_8);
-				}
-				Ret = new JsonParser().parse(RespJson).getAsJsonObject();
-			} catch (Throwable e) {
+				Ret = ParseJsonResponse(PullResponse(socket.getInputStream()));
+			} catch (Exception e) {
 				Misc.CascadeThrow(e);
 			}
+			return Ret;
+		}
+		
+		private ByteBuffer PullResponse(InputStream inputStream) throws IOException {
+			int respLen = 0;
+			// Normally response length < 100
+			byte[] respData = new byte[512];
+			ByteArrayOutputStream RespStream = new ByteArrayOutputStream();
+			
+			while (true) {
+				int readCount = inputStream.read(respData, 0, respData.length);
+				if (readCount < 0) {
+					break;
+				}
+				respLen += readCount;
+				if (respLen >= RESP_HIGHPAYLOAD) {
+					Misc.FAIL("Excessive server response");
+				}
+				RespStream.write(respData, 0, readCount);
+			}
+			return ByteBuffer.wrap(RespStream.toByteArray());
+		}
+		
+		private JsonObject ParseJsonResponse(ByteBuffer respData) {
+			if (respData.remaining() < 5) {
+				Misc.FAIL("Unexpected server response of %d bytes", respData.remaining());
+			}
+			
+			JsonObject Ret;
+			String RespJson;
+			if (new String(respData.array(), 0, 5).equals("ZBXD\1")) {
+				// Legacy style 'ZBXD\1' + (long)len
+				// Header 5 + 8 = 13 bytes
+				if (respData.remaining() < 13) {
+					Misc.FAIL("Unexpected server response of %d bytes", respData.remaining());
+				}
+				RespJson =
+						new String(respData.array(), 13, respData.remaining() - 13, StandardCharsets.UTF_8);
+			} else {
+				// New style, no header
+				RespJson = new String(respData.array(), 0, respData.remaining(), StandardCharsets.UTF_8);
+			}
+			Ret = new JsonParser().parse(RespJson).getAsJsonObject();
 			return Ret;
 		}
 		

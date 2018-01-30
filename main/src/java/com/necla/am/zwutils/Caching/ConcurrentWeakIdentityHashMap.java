@@ -5,6 +5,7 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,10 +37,14 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 		@Override
 		public boolean equals(Object obj) {
 			if (this == obj) return true;
+			// PERF: The usage context determines obj is always a valid WeakIdentity<?> instance
+			//if (obj == null) return false;
+			//if (WeakIdentity.class.isAssignableFrom(obj.getClass())) return false;
+			
 			WeakIdentity<?> WIRef = (WeakIdentity<?>) obj;
 			if (_HashCache != WIRef._HashCache) return false;
 			
-			Object Id = get();
+			Object Id = super.get();
 			if (Id == null) return false;
 			
 			Object WId = WIRef.get();
@@ -85,6 +90,7 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	@Override
 	public V put(K key, V value) {
 		Misc.FAIL("Unsupported operation");
+		// PERF: code analysis tool doesn't recognize custom throw functions
 		return null;
 	}
 	
@@ -92,8 +98,9 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	public V putIfAbsent(K key, V value) {
 		// Cleanup expired entries
 		Reference<?> RefKey;
-		while ((RefKey = RecycleBin.poll()) != null)
+		while ((RefKey = RecycleBin.poll()) != null) {
 			HashMap.remove(RefKey);
+		}
 		
 		return HashMap.putIfAbsent(new WeakIdentity<>(key, RecycleBin), value);
 	}
@@ -116,19 +123,22 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	@Override
 	public Set<K> keySet() {
 		Misc.FAIL("Unsupported operation");
-		return null;
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		return Collections.emptySet();
 	}
 	
 	@Override
 	public Collection<V> values() {
 		Misc.FAIL("Unsupported operation");
-		return null;
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		return Collections.emptyList();
 	}
 	
 	@Override
-	public Set<java.util.Map.Entry<K, V>> entrySet() {
+	public Set<Entry<K, V>> entrySet() {
 		Misc.FAIL("Unsupported operation");
-		return null;
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		return Collections.emptySet();
 	}
 	
 }

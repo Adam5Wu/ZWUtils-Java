@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Misc;
 
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 
 /**
@@ -44,11 +45,19 @@ import java.util.Iterator;
  */
 public class Iterables {
 	
-	public static abstract class ROIterator<T> implements Iterator<T> {
+	protected Iterables() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
+	public abstract static class ROIterator<T> implements Iterator<T> {
 		
 		@Override
 		public T next() {
-			Misc.ASSERT(hasNext(), "Iteration terminal has been reached");
+			if (!hasNext()) {
+				Misc.FAIL(NoSuchElementException.class, "Iteration terminal has been reached");
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				throw new NoSuchElementException("Should not reach");
+			}
 			return getNext();
 		}
 		
@@ -78,20 +87,20 @@ public class Iterables {
 	
 	private static class EnumIterator<T> extends ROIterator<T> {
 		
-		private Enumeration<? extends T> _Enum;
+		private Enumeration<? extends T> _ENUM;
 		
 		public EnumIterator(Enumeration<? extends T> Enum) {
-			_Enum = Enum;
+			_ENUM = Enum;
 		}
 		
 		@Override
 		public boolean hasNext() {
-			return _Enum.hasMoreElements();
+			return _ENUM.hasMoreElements();
 		}
 		
 		@Override
 		protected T getNext() {
-			return _Enum.nextElement();
+			return _ENUM.nextElement();
 		}
 		
 	}
@@ -101,7 +110,7 @@ public class Iterables {
 		private Iterator<T> Iterator;
 		
 		public EnumIterable(Enumeration<? extends T> Enum) {
-			Iterator = new EnumIterator<T>(Enum);
+			Iterator = new EnumIterator<>(Enum);
 		}
 		
 		@Override

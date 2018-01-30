@@ -84,7 +84,7 @@ public class FileSystemTest {
 		try {
 			FileSystemTest Main = new FileSystemTest();
 			Main.Go(args);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DebugLog.Logger.logExcept(e);
 		}
 		CLog.Info("#@~<");

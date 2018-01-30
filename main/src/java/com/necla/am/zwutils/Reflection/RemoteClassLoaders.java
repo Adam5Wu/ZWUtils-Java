@@ -23,12 +23,16 @@ import com.necla.am.zwutils.Misc.Misc;
 
 public class RemoteClassLoaders {
 	
+	protected RemoteClassLoaders() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
 	public static class viaMobilityRPC extends ClassLoader {
 		
-		protected static final String LogGroup = "ZWUtils.Reflection.RemoteClassLoaders.MobilityRPC";
-		protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+		protected static final String LOGGROUP = "ZWUtils.Reflection.RemoteClassLoaders.MobilityRPC";
+		protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 		
-		public MobilitySession RPCSession;
+		MobilitySession RPCSession;
 		public final ConnectionId RPCConnection;
 		
 		protected int RetryCount = 3;
@@ -49,6 +53,11 @@ public class RemoteClassLoaders {
 			
 			@Override
 			public boolean equals(Object obj) {
+				if (this == obj) return true;
+				// PERF: The usage context determines obj is always a valid RPCEndPoint instance
+				//if (obj == null) return false;
+				//if (RPCEndPoint.class.isAssignableFrom(obj.getClass())) return false;
+				
 				RPCEndPoint OtherEndPoint = (RPCEndPoint) obj;
 				return (Controller == OtherEndPoint.Controller)
 								&& RemoteAddr.equals(OtherEndPoint.RemoteAddr);
@@ -138,14 +147,14 @@ public class RemoteClassLoaders {
 			}
 			
 			if (Ret == null) {
-				String RemoteClassContainer = RemoteResolveCache.keySet().stream().filter(X -> {
-					return name.startsWith(X);
-				}).findAny().orElse(null);
+				String RemoteClassContainer =
+						RemoteResolveCache.keySet().stream().filter(name::startsWith).findAny().orElse(null);
 				
 				if (RemoteClassContainer != null) {
 					Ret = loadRemoteClass(name);
 				} else {
-					LocalResolveCache.put(name, Ret = super.loadClass(name, false));
+					Ret = super.loadClass(name, false);
+					LocalResolveCache.put(name, Ret);
 				}
 			}
 			if (resolve) {
@@ -170,8 +179,8 @@ public class RemoteClassLoaders {
 					Misc.FAIL("Failed to complete receive class bytecode");
 				}
 				
-				Class<?> Ret;
-				RemoteResolveCache.put(name, Ret = defineClass(name, BinaryData, 0, BinaryData.length));
+				Class<?> Ret = defineClass(name, BinaryData, 0, BinaryData.length);
+				RemoteResolveCache.put(name, Ret);
 				return Ret;
 			} catch (IOException e) {
 				Misc.CascadeThrow(e, "Unable to load class '%s'", name);

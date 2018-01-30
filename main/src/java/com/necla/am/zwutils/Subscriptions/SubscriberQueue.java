@@ -120,6 +120,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			}
 		} catch (InterruptedException e) {
 			ILog.Warn("Subscriber '%s' enqueue interrupted - %s", Name, e);
+			Thread.currentThread().interrupt();
 		}
 		
 		if (Ret) {
@@ -137,7 +138,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		} else {
 			try {
 				RepQueue.put(Payload);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e);
 			}
 		}
@@ -158,6 +159,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			}
 		} catch (InterruptedException e) {
 			ILog.Warn("Subscriber '%s' dequeue interrupted - %s", Name, e);
+			Thread.currentThread().interrupt();
 		}
 		
 		return Ret;
@@ -172,7 +174,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		} else {
 			try {
 				RepQueue.putLast(Payload);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e);
 			}
 		}
@@ -241,7 +243,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		
 		@FunctionalInterface
 		public static interface LaneEvent<X> {
-			void Notify(SubscriberQueue<X> Lane);
+			void Signal(SubscriberQueue<X> Lane);
 		}
 		
 		protected Demux<X> Demux = null;
@@ -258,8 +260,8 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			Queues = new HashSet<>();
 			
 			SubscriberQueue<X> Lane =
-					new SubscriberQueue<X>(Name + '.' + QueueIndex++, HighQueueLen, BatchQueueLen);
-			LaneInit.Notify(Lane);
+					new SubscriberQueue<>(Name + '.' + QueueIndex++, HighQueueLen, BatchQueueLen);
+			LaneInit.Signal(Lane);
 			Queues.add(Lane);
 			Demux = Demuxer;
 		}
@@ -285,7 +287,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 		
 		@FunctionalInterface
 		public static interface SplitMergeNonCritical<X> {
-			boolean Notify(SubscriberQueue<X> Lane);
+			boolean Signal(SubscriberQueue<X> Lane);
 		}
 		
 		public void LaneSplit(SubscriberQueue<X> Lane, LaneEvent<X> LaneAdd,
@@ -305,11 +307,11 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				Lane.MultiGet(LeftOver, 0);
 				
 				SubscriberQueue<X> NewLane =
-						new SubscriberQueue<X>(Name + '.' + QueueIndex++, HighQueueLen, BatchQueueLen);
-				LaneAdd.Notify(NewLane);
+						new SubscriberQueue<>(Name + '.' + QueueIndex++, HighQueueLen, BatchQueueLen);
+				LaneAdd.Signal(NewLane);
 				Queues.add(NewLane);
 				
-				if (NonCritical.Notify(Lane)) {
+				if (NonCritical.Signal(Lane)) {
 					LeftOver.forEach(Payload -> Demux.GetLane(Payload).onSubscription(Payload));
 				} else {
 					ILog.Warn("Dropping %d split-residual items", LeftOver.size());
@@ -336,10 +338,10 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 				}
 				Lane.MultiGet(LeftOver, 0);
 				
-				LaneRemove.Notify(Lane);
+				LaneRemove.Signal(Lane);
 				Queues.remove(Lane);
 				
-				if (NonCritical.Notify(Lane)) {
+				if (NonCritical.Signal(Lane)) {
 					LeftOver.forEach(Payload -> Demux.GetLane(Payload).onSubscription(Payload));
 				} else {
 					ILog.Warn("Dropping %d merge-residual items", LeftOver.size());

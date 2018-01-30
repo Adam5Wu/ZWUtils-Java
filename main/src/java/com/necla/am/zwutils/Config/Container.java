@@ -70,11 +70,11 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 *
 	 * @param confMap
 	 *          - Configuration data
-	 * @throws Throwable
+	 * @throws Exception
 	 *           - If configuration data failed to validate
 	 */
 	public Container(Class<M> MClass, Class<R> RClass, String Name, DataMap confMap)
-			throws Throwable {
+			throws Exception {
 		this(MClass, RClass, Name);
 		
 		load(confMap);
@@ -82,67 +82,67 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
 			Create(Class<M> MClass, Class<R> RClass, String Name, File confFile, String Prefix)
-					throws Throwable {
+					throws Exception {
 		return Create(MClass, RClass, Name, new DataFile(Name, confFile.getPath()), Prefix);
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
 			Create(Class<M> MClass, Class<R> RClass, String Name, DataFile confFile, String Prefix)
-					throws Throwable {
+					throws Exception {
 		return new Container<>(MClass, RClass, Name, new DataMap(Name, confFile, Prefix));
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
 			Create(Class<M> MClass, Class<R> RClass, String Name, String confStr, String Prefix)
-					throws Throwable {
+					throws Exception {
 		return new Container<>(MClass, RClass, Name, new DataMap(Name, confStr, Prefix));
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
 			Create(Class<M> MClass, Class<R> RClass, String Name, String[] confArgs, String Prefix)
-					throws Throwable {
+					throws Exception {
 		return new Container<>(MClass, RClass, Name, new DataMap(Name, confArgs, Prefix));
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R> Create(
 			Class<M> MClass, Class<R> RClass, String Name, Map<String, String> confMap, String Prefix)
-			throws Throwable {
+			throws Exception {
 		return new Container<>(MClass, RClass, Name, new DataMap(Name, confMap, Prefix));
 	}
 	
 	/**
 	 * Create configuration from given read-only configuration data
 	 *
-	 * @throws Throwable
+	 * @throws Exception
 	 *           - If read-only configuration failed to validate as mutable
 	 * @since 0.22
 	 */
 	@SuppressWarnings("unchecked")
-	public Container(Class<M> MClass, R Config, String Name) throws Throwable {
+	public Container(Class<M> MClass, R Config, String Name) throws Exception {
 		this(MClass, (Class<? extends R>) Config.getClass(), Name);
 		set(Config);
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
-			CreateFromReadOnly(Class<M> MClass, R Config, String Name) throws Throwable {
+			CreateFromReadOnly(Class<M> MClass, R Config, String Name) throws Exception {
 		return new Container<>(MClass, Config, Name);
 	}
 	
 	/**
 	 * Create configuration from given mutable configuration data
 	 *
-	 * @throws Throwable
+	 * @throws Exception
 	 *           - If mutable configuration failed to validate
 	 * @since 0.22
 	 */
 	@SuppressWarnings("unchecked")
-	public Container(M Config, Class<R> RClass, String Name) throws Throwable {
+	public Container(M Config, Class<R> RClass, String Name) throws Exception {
 		this((Class<? extends M>) Config.getClass(), RClass, Name);
 		set(Config);
 	}
 	
 	public static <M extends Data.Mutable, R extends Data.ReadOnly> Container<M, R>
-			CreateFromMutable(M Config, Class<R> RClass, String Name) throws Throwable {
+			CreateFromMutable(M Config, Class<R> RClass, String Name) throws Exception {
 		return new Container<>(Config, RClass, Name);
 	}
 	
@@ -153,7 +153,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 *          - Configuration data
 	 * @since 0.4
 	 */
-	public final void load(DataMap confMap) throws Throwable {
+	public final void load(DataMap confMap) throws Exception {
 		M Source = Data.load(MCLASS, confMap, ILog);
 		SetPayload(Data.reflect(Source, RCLASS, ILog));
 	}
@@ -211,10 +211,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 * @return ReadOnly configuration
 	 */
 	public final R reflect() {
-		// Note: Technically it should be done this way ...
-		// R Payload = CommonSubscriptions.TellPayload();
-		// return Data.reflect(Payload, Log);
-		
+		// Note: Technically it should be done via Data.reflect() of CommonSubscriptions.TellPayload() ...
 		// ... but assume all fields in the read-only configuration is really immutable,
 		// then it is not necessary to create a separate copy :)
 		return CommonSubscriptions.TellPayload();
@@ -239,7 +236,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 * @param Source
 	 *          - ReadOnly configuration
 	 */
-	public final void set(R Source) throws Throwable {
+	public final void set(R Source) throws Exception {
 		SetPayload(Data.reflect(Data.mirror(Source, MCLASS, ILog), RCLASS, ILog));
 	}
 	
@@ -249,7 +246,7 @@ public class Container<M extends Data.Mutable, R extends Data.ReadOnly>
 	 * @param Source
 	 *          - Mutable configuration
 	 */
-	public final void set(M Source) throws Throwable {
+	public final void set(M Source) throws Exception {
 		SetPayload(Data.reflect(Source, RCLASS, ILog));
 	}
 	

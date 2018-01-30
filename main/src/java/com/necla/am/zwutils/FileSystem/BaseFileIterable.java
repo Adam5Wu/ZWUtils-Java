@@ -47,27 +47,26 @@ import com.necla.am.zwutils.Logging.IGroupLogger;
  */
 public abstract class BaseFileIterable implements Iterable<File> {
 	
-	public static final String LogGroup = "ZWUtils.FileSystem.Iterable"; //$NON-NLS-1$
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	public static final String LOGGROUP = "ZWUtils.FileSystem.Iterable"; //$NON-NLS-1$
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	protected final File BaseDir;
-	public FileFilter Filter;
+	public final FileFilter Filter;
 	
 	public BaseFileIterable(String PathName) {
-		BaseDir = new File(PathName);
+		this(PathName, null);
 	}
 	
 	public BaseFileIterable(File Dir) {
-		BaseDir = Dir;
+		this(Dir, null);
 	}
 	
 	public BaseFileIterable(String PathName, FileFilter filter) {
-		this(PathName);
-		Filter = filter;
+		this(new File(PathName), filter);
 	}
 	
 	public BaseFileIterable(File Dir, FileFilter filter) {
-		this(Dir);
+		BaseDir = Dir;
 		Filter = filter;
 	}
 	

@@ -73,9 +73,12 @@ import com.necla.am.zwutils.Reflection.PackageClassIterable;
  */
 public class ProcStats extends Companion {
 	
-	public static final String LogGroup = ProcStats.class.getSimpleName();
+	public static final String LOGGROUP = ProcStats.class.getSimpleName();
 	
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static enum StatType {
 			RUNTIME,
@@ -106,6 +109,8 @@ public class ProcStats extends Companion {
 				public StatType parseOrFail(String From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					return StatType.parse(From.toUpperCase());
 				}
@@ -114,7 +119,7 @@ public class ProcStats extends Companion {
 			
 			public static final StringToStatType StringToStatType = new StringToStatType();
 			public static final Parsers.AnyToString<StatType> StringFromStatType =
-					new Parsers.AnyToString<StatType>();
+					new Parsers.AnyToString<>();
 			
 		}
 		
@@ -165,7 +170,7 @@ public class ProcStats extends Companion {
 			protected class Validation extends Companion.ConfigData.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					super.validateFields();
 					
 					ILog.Fine("Checking log interval...");
@@ -220,13 +225,14 @@ public class ProcStats extends Companion {
 	// Last CPU time
 	protected long LastCPUTime = 0;
 	
-	public static final String ZBXLogGroup = "Application.Statistics";
+	protected static final String ZBXLOGGROUP = "Application.Statistics";
+	
 	public final GroupLogger.Zabbix ZBXLog;
 	
 	public ProcStats(String Name) {
 		super(Name);
 		
-		ZBXLog = new GroupLogger.Zabbix(ZBXLogGroup);
+		ZBXLog = new GroupLogger.Zabbix(ZBXLOGGROUP);
 	}
 	
 	@Override
@@ -280,120 +286,13 @@ public class ProcStats extends Companion {
 		// Collect static information
 		List<Object> LogItems = new ArrayList<>();
 		if (Config.Stats.contains(ConfigData.StatType.RUNTIME)) {
-			// JVM info
-			ILog.Info("JVM: %s %s (%s %s)", RuntimeMX.getVmName(), RuntimeMX.getVmVersion(),
-					RuntimeMX.getSpecName(), RuntimeMX.getSpecVersion());
-			LogItems.add("JVMInfo");
-			LogItems.add(String.format("%s|%s|%s|%s", RuntimeMX.getVmName(), RuntimeMX.getVmVersion(),
-					RuntimeMX.getSpecName(), RuntimeMX.getSpecVersion()));
+			CollectJVMInfo(LogItems);
 		}
 		if (Config.Stats.contains(ConfigData.StatType.NETINFO)) {
-			InetAddress LocalHost = null;
-			try {
-				LocalHost = InetAddress.getLocalHost();
-			} catch (UnknownHostException e) {
-				ILog.Warn("Failed to get LocalHost - %s", e);
-			}
-			String HostName = LocalHost != null? LocalHost.getHostName() : "(unknown)";
-			ILog.Info("HostName: %s", HostName);
-			LogItems.add("HostName");
-			LogItems.add(HostName);
+			CollectNetInfo(LogItems);
 		}
 		if (Config.Stats.contains(ConfigData.StatType.APPINFO)) {
-			Set<String> ClassEnumeration = new HashSet<>();
-			String MainComponentClass = null;
-			// Class info
-			try {
-				String[] ClassPaths = RuntimeMX.getClassPath().split(File.pathSeparator);
-				
-				for (String ClassPath : ClassPaths) {
-					URL ClassRoot;
-					if (ClassPath.endsWith(".jar") || ClassPath.endsWith(".zip")) {
-						ClassRoot = new URL("jar:" + new File(ClassPath).toURI().toURL() + "!/");
-					} else {
-						ClassRoot = new File(ClassPath).toURI().toURL();
-					}
-					
-					try {
-						for (String NSClass : new PackageClassIterable(ClassRoot, "", Entry -> {
-							return Entry.SimpleName().equals(Config.CompNS);
-						})) {
-							try {
-								if (ClassEnumeration.contains(NSClass)) {
-									ILog.Fine("Ignored duplicated namespace class '%s' in '%s'", NSClass, ClassPath);
-									continue;
-								}
-								ClassEnumeration.add(NSClass);
-								
-								// Component Version
-								Class<?> NS = Class.forName(NSClass);
-								
-								Field NS_NAME = NS.getDeclaredField(COMPNS_NAME);
-								if (!Modifier.isStatic(NS_NAME.getModifiers())) {
-									Misc.FAIL("Field '%s' is not static", COMPNS_NAME);
-								}
-								NS_NAME.setAccessible(true);
-								String NAME = (String) NS_NAME.get(null);
-								
-								Field NS_VER = NS.getDeclaredField(COMPNS_VER);
-								if (!Modifier.isStatic(NS_VER.getModifiers())) {
-									Misc.FAIL("Field '%s' is not static", COMPNS_VER);
-								}
-								NS_VER.setAccessible(true);
-								String VER = (String) NS_VER.get(null);
-								
-								Field NS_BUILD = NS.getDeclaredField(COMPNS_BLD);
-								if (!Modifier.isStatic(NS_BUILD.getModifiers())) {
-									Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
-								}
-								NS_BUILD.setAccessible(true);
-								String BUILD = (String) NS_BUILD.get(null);
-								
-								boolean MainComponent = false;
-								try {
-									Field NS_MAIN = NS.getDeclaredField(COMPNS_MAIN);
-									if (!Modifier.isStatic(NS_MAIN.getModifiers())) {
-										Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
-									}
-									NS_MAIN.setAccessible(true);
-									MainComponent = NS_MAIN.getBoolean(null);
-								} catch (NoSuchFieldException e) {
-									// Eat Exception
-								} catch (Throwable e) {
-									ILog.Warn("Error probing 'package-main' attribute - %s", e);
-								}
-								
-								ILog.Info("%s '%s': %s (%s)", MainComponent? "Application" : "Component", NAME, VER,
-										BUILD);
-								if (MainComponent) {
-									if (MainComponentClass == null) {
-										MainComponentClass = NSClass;
-										LogItems.add("Application,Name");
-										LogItems.add(NAME);
-										LogItems.add("Application,Version");
-										LogItems.add(String.format("%s|%s", VER, BUILD));
-									} else {
-										ILog.Warn("Ignored extra main component specification!");
-									}
-								} else {
-									LogItems.add(String.format("Component,%s", NAME));
-									LogItems.add(String.format("%s|%s", VER, BUILD));
-								}
-							} catch (Throwable e) {
-								ILog.Warn("Unable to probe component information from '%s' - %s", NSClass, e);
-							}
-						}
-					} catch (Throwable e) {
-						ILog.Warn("Unable to probe class path '%s' - %s", ClassRoot, e);
-					}
-				}
-				
-				if (MainComponentClass == null) {
-					ILog.Warn("Missing main component specification!");
-				}
-			} catch (Throwable e) {
-				Misc.CascadeThrow(e);
-			}
+			CollectAppInfo(LogItems);
 		}
 		
 		if (!LogItems.isEmpty()) {
@@ -402,7 +301,143 @@ public class ProcStats extends Companion {
 		
 	}
 	
-	@SuppressWarnings("restriction")
+	private void CollectAppInfo(List<Object> LogItems) {
+		Set<String> ClassEnumeration = new HashSet<>();
+		String MainComponentClass = null;
+		// Class info
+		try {
+			String[] ClassPaths = RuntimeMX.getClassPath().split(File.pathSeparator);
+			
+			for (String ClassPath : ClassPaths) {
+				URL ClassRoot;
+				if (ClassPath.endsWith(".jar") || ClassPath.endsWith(".zip")) {
+					ClassRoot = new URL("jar:" + new File(ClassPath).toURI().toURL() + "!/");
+				} else {
+					ClassRoot = new File(ClassPath).toURI().toURL();
+				}
+				
+				MainComponentClass =
+						ScanBundle(LogItems, ClassEnumeration, MainComponentClass, ClassPath, ClassRoot);
+			}
+			
+			if (MainComponentClass == null) {
+				ILog.Warn("Missing main component specification!");
+			}
+		} catch (Exception e) {
+			Misc.CascadeThrow(e);
+		}
+	}
+	
+	private String ScanBundle(List<Object> LogItems, Set<String> ClassEnumeration,
+			String MainComponentClass, String ClassPath, URL ClassRoot) {
+		try {
+			for (String NSClass : new PackageClassIterable(ClassRoot, "", Entry -> {
+				return Entry.SimpleName().equals(Config.CompNS);
+			})) {
+				MainComponentClass =
+						ProbeNamespaceClass(LogItems, ClassEnumeration, MainComponentClass, ClassPath, NSClass);
+			}
+		} catch (Exception e) {
+			ILog.Warn("Unable to probe class path '%s' - %s", ClassRoot, e);
+		}
+		return MainComponentClass;
+	}
+	
+	private String ProbeNamespaceClass(List<Object> LogItems, Set<String> ClassEnumeration,
+			String MainComponentClass, String ClassPath, String NSClass) {
+		try {
+			if (ClassEnumeration.contains(NSClass)) {
+				ILog.Fine("Ignored duplicated namespace class '%s' in '%s'", NSClass, ClassPath);
+				return MainComponentClass;
+			}
+			ClassEnumeration.add(NSClass);
+			
+			// Component Version
+			Class<?> NS = Class.forName(NSClass);
+			
+			Field NS_NAME = NS.getDeclaredField(COMPNS_NAME);
+			if (!Modifier.isStatic(NS_NAME.getModifiers())) {
+				Misc.FAIL("Field '%s' is not static", COMPNS_NAME);
+			}
+			NS_NAME.setAccessible(true);
+			String NAME = (String) NS_NAME.get(null);
+			
+			Field NS_VER = NS.getDeclaredField(COMPNS_VER);
+			if (!Modifier.isStatic(NS_VER.getModifiers())) {
+				Misc.FAIL("Field '%s' is not static", COMPNS_VER);
+			}
+			NS_VER.setAccessible(true);
+			String VER = (String) NS_VER.get(null);
+			
+			Field NS_BUILD = NS.getDeclaredField(COMPNS_BLD);
+			if (!Modifier.isStatic(NS_BUILD.getModifiers())) {
+				Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
+			}
+			NS_BUILD.setAccessible(true);
+			String BUILD = (String) NS_BUILD.get(null);
+			
+			boolean MainComponent = ProbeMainComp(NS);
+			
+			ILog.Info("%s '%s': %s (%s)", MainComponent? "Application" : "Component", NAME, VER, BUILD);
+			if (MainComponent) {
+				if (MainComponentClass == null) {
+					MainComponentClass = NSClass;
+					LogItems.add("Application,Name");
+					LogItems.add(NAME);
+					LogItems.add("Application,Version");
+					LogItems.add(String.format("%s|%s", VER, BUILD));
+				} else {
+					ILog.Warn("Ignored extra main component specification!");
+				}
+			} else {
+				LogItems.add(String.format("Component,%s", NAME));
+				LogItems.add(String.format("%s|%s", VER, BUILD));
+			}
+		} catch (Exception e) {
+			ILog.Warn("Unable to probe component information from '%s' - %s", NSClass, e);
+		}
+		return MainComponentClass;
+	}
+	
+	private boolean ProbeMainComp(Class<?> NS) {
+		boolean MainComponent = false;
+		try {
+			Field NS_MAIN = NS.getDeclaredField(COMPNS_MAIN);
+			if (!Modifier.isStatic(NS_MAIN.getModifiers())) {
+				Misc.FAIL("Field '%s' is not static", COMPNS_BLD);
+			}
+			NS_MAIN.setAccessible(true);
+			MainComponent = NS_MAIN.getBoolean(null);
+		} catch (NoSuchFieldException e) {
+			// Eat Exception
+		} catch (Exception e) {
+			ILog.Warn("Error probing 'package-main' attribute - %s", e);
+		}
+		return MainComponent;
+	}
+	
+	private void CollectNetInfo(List<Object> LogItems) {
+		InetAddress LocalHost = null;
+		try {
+			LocalHost = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			ILog.Warn("Failed to get LocalHost - %s", e);
+		}
+		String HostName = LocalHost != null? LocalHost.getHostName() : "(unknown)";
+		ILog.Info("HostName: %s", HostName);
+		LogItems.add("HostName");
+		LogItems.add(HostName);
+	}
+	
+	private void CollectJVMInfo(List<Object> LogItems) {
+		// JVM info
+		ILog.Info("JVM: %s %s (%s %s)", RuntimeMX.getVmName(), RuntimeMX.getVmVersion(),
+				RuntimeMX.getSpecName(), RuntimeMX.getSpecVersion());
+		LogItems.add("JVMInfo");
+		LogItems.add(String.format("%s|%s|%s|%s", RuntimeMX.getVmName(), RuntimeMX.getVmVersion(),
+				RuntimeMX.getSpecName(), RuntimeMX.getSpecVersion()));
+	}
+	
 	@Override
 	public void PollWait() {
 		if (Config.LogInterval > 0) {
@@ -411,72 +446,7 @@ public class ProcStats extends Companion {
 			if (Interval > Config.LogInterval) {
 				ILog.Info("+ Periodical statistics");
 				
-				if (StaticLogItems != null) {
-					ZBXLog.ZInfo(StaticLogItems);
-				}
-				
-				List<Object> LogItems = new ArrayList<>();
-				if (Config.Stats.contains(ConfigData.StatType.RUNTIME)
-						|| Config.Stats.contains(ConfigData.StatType.CPUUSE)) {
-					long UpTime = RuntimeMX.getUptime();
-					if (Config.Stats.contains(ConfigData.StatType.RUNTIME)) {
-						ILog.Info("Up-time: %s", Misc.FormatDeltaTime(UpTime));
-						double UpDays = (double) UpTime / Misc.TimeUnit.DAY.Convert(1, Misc.TimeUnit.MSEC);
-						LogItems.add("UpTime");
-						LogItems.add(UpDays);
-					}
-					if (Config.Stats.contains(ConfigData.StatType.CPUUSE)) {
-						long CPUTime = ((com.sun.management.OperatingSystemMXBean) OSMX).getProcessCpuTime();
-						long DeltaTime = TimeUnit.NSEC.Convert(CPUTime - LastCPUTime, TimeUnit.MSEC);
-						LastCPUTime = CPUTime;
-						
-						long ITime = UpTime - LastUpTime;
-						LastUpTime = UpTime;
-						double CPUUsage = (DeltaTime * 100.0) / ITime;
-						
-						long GCTime = 0;
-						for (GarbageCollectorMXBean GCMX : ManagementFactory.getGarbageCollectorMXBeans()) {
-							GCTime += GCMX.getCollectionTime();
-						}
-						
-						long DeltaGCTime = GCTime - LastGCTime;
-						LastGCTime = GCTime;
-						double GCUsage = (DeltaGCTime * 100.0) / ITime;
-						
-						ILog.Info("CPU Usage: %.2f%% (%.2f%% GC)", CPUUsage, GCUsage);
-						LogItems.add("CPU,App");
-						LogItems.add(CPUUsage);
-						LogItems.add("CPU,GC");
-						LogItems.add(GCUsage);
-					}
-				}
-				if (Config.Stats.contains(ConfigData.StatType.THREADS)) {
-					long[] ThreadIDs = ThreadMX.getAllThreadIds();
-					long ThreadTotal = ThreadMX.getTotalStartedThreadCount();
-					ILog.Info("Thread: %d running, %d total", ThreadIDs.length, ThreadTotal);
-					LogItems.add("Thread,Running");
-					LogItems.add(ThreadIDs.length);
-					LogItems.add("Thread,Total");
-					LogItems.add(ThreadTotal);
-				}
-				if (Config.Stats.contains(ConfigData.StatType.MEMINFO)) {
-					MemoryUsage Heap = MemoryMX.getHeapMemoryUsage();
-					int AllocUseHeap = (int) ((Heap.getUsed() * 100) / Heap.getCommitted());
-					MemoryUsage NHeap = MemoryMX.getNonHeapMemoryUsage();
-					int AllocUseNHeap = (int) ((NHeap.getUsed() * 100) / NHeap.getCommitted());
-					ILog.Info("Memory: Heap %s/%s (%d%%), Non-Heap %s/%s (%d%%)",
-							Misc.FormatSize(Heap.getUsed()), Misc.FormatSize(Heap.getCommitted()), AllocUseHeap,
-							Misc.FormatSize(NHeap.getUsed()), Misc.FormatSize(NHeap.getCommitted()),
-							AllocUseNHeap);
-					LogItems.add("Memory,Heap");
-					LogItems.add(Heap.getUsed());
-					LogItems.add("Memory,NonHeap");
-					LogItems.add(NHeap.getUsed());
-				}
-				
-				if (!LogItems.isEmpty()) {
-					ZBXLog.ZInfo(LogItems.toArray());
-				}
+				CollectAndLog();
 				
 				if (LastTime == 0) {
 					Interval = Config.LogInterval;
@@ -486,6 +456,87 @@ public class ProcStats extends Companion {
 			}
 		}
 		super.PollWait();
+	}
+	
+	private void CollectAndLog() {
+		if (StaticLogItems != null) {
+			ZBXLog.ZInfo(StaticLogItems);
+		}
+		
+		List<Object> LogItems = new ArrayList<>();
+		if (Config.Stats.contains(ConfigData.StatType.RUNTIME)
+				|| Config.Stats.contains(ConfigData.StatType.CPUUSE)) {
+			CollectCPUUsage(LogItems);
+		}
+		if (Config.Stats.contains(ConfigData.StatType.THREADS)) {
+			CollectThreadInfo(LogItems);
+		}
+		if (Config.Stats.contains(ConfigData.StatType.MEMINFO)) {
+			CollectMemUsage(LogItems);
+		}
+		
+		if (!LogItems.isEmpty()) {
+			ZBXLog.ZInfo(LogItems.toArray());
+		}
+	}
+	
+	private void CollectMemUsage(List<Object> LogItems) {
+		MemoryUsage Heap = MemoryMX.getHeapMemoryUsage();
+		int AllocUseHeap = (int) ((Heap.getUsed() * 100) / Heap.getCommitted());
+		MemoryUsage NHeap = MemoryMX.getNonHeapMemoryUsage();
+		int AllocUseNHeap = (int) ((NHeap.getUsed() * 100) / NHeap.getCommitted());
+		ILog.Info("Memory: Heap %s/%s (%d%%), Non-Heap %s/%s (%d%%)", Misc.FormatSize(Heap.getUsed()),
+				Misc.FormatSize(Heap.getCommitted()), AllocUseHeap, Misc.FormatSize(NHeap.getUsed()),
+				Misc.FormatSize(NHeap.getCommitted()), AllocUseNHeap);
+		LogItems.add("Memory,Heap");
+		LogItems.add(Heap.getUsed());
+		LogItems.add("Memory,NonHeap");
+		LogItems.add(NHeap.getUsed());
+	}
+	
+	private void CollectThreadInfo(List<Object> LogItems) {
+		long[] ThreadIDs = ThreadMX.getAllThreadIds();
+		long ThreadTotal = ThreadMX.getTotalStartedThreadCount();
+		ILog.Info("Thread: %d running, %d total", ThreadIDs.length, ThreadTotal);
+		LogItems.add("Thread,Running");
+		LogItems.add(ThreadIDs.length);
+		LogItems.add("Thread,Total");
+		LogItems.add(ThreadTotal);
+	}
+	
+	@SuppressWarnings("restriction")
+	private void CollectCPUUsage(List<Object> LogItems) {
+		long UpTime = RuntimeMX.getUptime();
+		if (Config.Stats.contains(ConfigData.StatType.RUNTIME)) {
+			ILog.Info("Up-time: %s", Misc.FormatDeltaTime(UpTime));
+			double UpDays = (double) UpTime / Misc.TimeUnit.DAY.Convert(1, Misc.TimeUnit.MSEC);
+			LogItems.add("UpTime");
+			LogItems.add(UpDays);
+		}
+		if (Config.Stats.contains(ConfigData.StatType.CPUUSE)) {
+			long CPUTime = ((com.sun.management.OperatingSystemMXBean) OSMX).getProcessCpuTime();
+			long DeltaTime = TimeUnit.NSEC.Convert(CPUTime - LastCPUTime, TimeUnit.MSEC);
+			LastCPUTime = CPUTime;
+			
+			long ITime = UpTime - LastUpTime;
+			LastUpTime = UpTime;
+			double CPUUsage = (DeltaTime * 100.0) / ITime;
+			
+			long GCTime = 0;
+			for (GarbageCollectorMXBean GCMX : ManagementFactory.getGarbageCollectorMXBeans()) {
+				GCTime += GCMX.getCollectionTime();
+			}
+			
+			long DeltaGCTime = GCTime - LastGCTime;
+			LastGCTime = GCTime;
+			double GCUsage = (DeltaGCTime * 100.0) / ITime;
+			
+			ILog.Info("CPU Usage: %.2f%% (%.2f%% GC)", CPUUsage, GCUsage);
+			LogItems.add("CPU,App");
+			LogItems.add(CPUUsage);
+			LogItems.add("CPU,GC");
+			LogItems.add(GCUsage);
+		}
 	}
 	
 	@SuppressWarnings("restriction")

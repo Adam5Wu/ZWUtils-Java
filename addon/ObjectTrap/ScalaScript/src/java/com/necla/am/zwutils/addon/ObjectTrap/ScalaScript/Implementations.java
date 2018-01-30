@@ -128,7 +128,7 @@ public class Implementations {
 						return new NativeForkScript((INativeForkScript) clazz.newInstance());
 				}
 				Misc.FAIL("No class found implements 'INativeForkScript' interface");
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FAILURE"), //$NON-NLS-1$
 						Name);
 			}

@@ -44,6 +44,7 @@ import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
+import com.necla.am.zwutils.Misc.Misc.SizeUnit;
 import com.necla.am.zwutils.Misc.Misc.TimeSystem;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
@@ -60,7 +61,7 @@ public class MiscTest {
 		} else {
 			try {
 				CascadeFailureTest(i + 1);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e);
 			}
 		}
@@ -101,7 +102,7 @@ public class MiscTest {
 		}
 		
 		protected boolean equals(TestObj obj) {
-			return obj.L == L && obj.I == I && obj.S.equals(S) && obj.U.equals(U);
+			return (obj.L == L) && (obj.I == I) && obj.S.equals(S) && obj.U.equals(U);
 		}
 		
 		@Override
@@ -133,7 +134,7 @@ public class MiscTest {
 		}
 		
 		protected boolean equals(TestObj obj) {
-			return obj.L == L && obj.I == I && obj.S.equals(S) && obj.U.equals(U);
+			return (obj.L == L) && (obj.I == I) && obj.S.equals(S) && obj.U.equals(U);
 		}
 		
 		@Override
@@ -159,7 +160,7 @@ public class MiscTest {
 		CLog.Info("#---------- Test Cascade Failure");
 		try {
 			CascadeFailureTest(0);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e);
 		}
 		CLog.Info("#---------- Test Cascade Error");
@@ -190,24 +191,107 @@ public class MiscTest {
 			CLog.Info("* %d days = %d milliseconds", TimeDay, TimeMS);
 			
 			long TDUNIX = TimeSystem.GREGORIAN.Convert(TimeDay, TimeUnit.DAY, TimeSystem.UNIX);
-			CLog.Info("* Gregorian %d days = Unix %d days", TimeDay, TDUNIX);
+			CLog.Info("* Gregorian day #%d = Unix day #%d", TimeDay, TDUNIX);
 			
-			long DeltaMS = TimeUnit.DAY.Convert(5, TimeUnit.MSEC)+ TimeUnit.HR.Convert(4, TimeUnit.MSEC)
+			long DeltaMS = TimeUnit.DAY.Convert(5, TimeUnit.MSEC)+ TimeUnit.HR.Convert(1, TimeUnit.MSEC)
 											+ TimeUnit.MIN.Convert(3, TimeUnit.MSEC)
 											+ TimeUnit.SEC.Convert(2, TimeUnit.MSEC)
 											+ TimeUnit.MSEC.Convert(100, TimeUnit.MSEC);
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
-		} catch (Throwable e) {
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+			
+			DeltaMS -= TimeUnit.MIN.Convert(3, TimeUnit.MSEC);
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+			
+			DeltaMS -= TimeUnit.DAY.Convert(5, TimeUnit.MSEC);
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+			
+			DeltaMS -= TimeUnit.SEC.Convert(2, TimeUnit.MSEC);
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+			
+			DeltaMS -= TimeUnit.MSEC.Convert(100, TimeUnit.MSEC);
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+			
+			DeltaMS -= TimeUnit.HR.Convert(1, TimeUnit.MSEC);
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+		} catch (Exception e) {
+			CLog.logExcept(e);
+		}
+		CLog.Info("#---------- Test Size Conversion");
+		try {
+			long SizeVal = 2;
+			long SizeKB = SizeUnit.MB.Convert(SizeVal, SizeUnit.KB);
+			CLog.Info("* %d MB = %d KB", SizeVal, SizeKB);
+			
+			SizeVal = SizeUnit.KB.Convert(SizeKB, SizeUnit.MB);
+			CLog.Info("* %d KB = %d MB", SizeKB, SizeVal);
+			
+			long SizeB = SizeUnit.MB.Convert(SizeVal, SizeUnit.BYTE);
+			CLog.Info("* %d MB = %d B", SizeVal, SizeB);
+			
+			SizeVal = SizeUnit.BYTE.Convert(SizeB, SizeUnit.MB);
+			CLog.Info("* %d B = %d MB", SizeB, SizeVal);
+			
+			long SizeTB = SizeUnit.PB.Convert(SizeVal, SizeUnit.TB);
+			CLog.Info("* %d PB = %d TB", SizeVal, SizeTB);
+			
+			long SizeGB = SizeUnit.PB.Convert(SizeVal, SizeUnit.GB);
+			CLog.Info("* %d PB = %d GB", SizeVal, SizeGB);
+			
+			long CompSize = SizeUnit.TB.Convert(5, SizeUnit.BYTE)+ SizeUnit.GB.Convert(1, SizeUnit.BYTE)
+											+ SizeUnit.MB.Convert(3, SizeUnit.BYTE)
+											+ SizeUnit.KB.Convert(2, SizeUnit.BYTE)
+											+ SizeUnit.BYTE.Convert(100, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+			
+			CompSize -= SizeUnit.MB.Convert(3, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+			
+			CompSize -= SizeUnit.TB.Convert(5, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+			
+			CompSize -= SizeUnit.KB.Convert(2, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+			
+			CompSize -= SizeUnit.BYTE.Convert(100, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+			
+			CompSize -= SizeUnit.GB.Convert(1, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+		} catch (Exception e) {
 			CLog.logExcept(e);
 		}
 		CLog.Info("#---------- Test SMTP Email");
 		try {
-			String MailServer = "amsec12-01";
+			String MailServer = "amsec12-01.cs.nec-labs.com";
 			String ToEmail = "adamwu@nec-labs.com";
 			SMTPEmail Mailer = new SMTPEmail(MailServer, 25, "ZWUtils-Test@nec-labs.com", ToEmail);
 			Mailer.Send("Test", "This is just a test!");
 			CLog.Info("* Sent test email to '%s' via '%s'", ToEmail, MailServer);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e);
 		}
 		CLog.Info("#---------- Test Canonicalizer");
@@ -242,8 +326,9 @@ public class MiscTest {
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
-					for (int i = 0; i < 8000000; i++)
+					for (int i = 0; i < 8000000; i++) {
 						List0.add(new TestObj(123L, 123, new String("Test"), new UUID(123L, 123L)));
+					}
 					End = ITimeStamp.Impl.Now();
 				}
 				CLog.Info("Intermediary GC");
@@ -255,9 +340,10 @@ public class MiscTest {
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
-					for (int i = 0; i < 8000000; i++)
+					for (int i = 0; i < 8000000; i++) {
 						List1.add(CMagic.Cast(123L, 123, CTest.CCreate(String.class, "Test"),
 								CTest.CCreate(UUID.class, 123L, 123L)));
+					}
 					End = ITimeStamp.Impl.Now();
 				}
 				CLog.Info("After Finish GC");
@@ -269,16 +355,18 @@ public class MiscTest {
 				CLog.Info("+ Set lookup");
 				Set<TestObj> Set1 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
-				for (int i = 0; i < 8000000; i++)
+				for (int i = 0; i < 8000000; i++) {
 					Set1.add(List0.get(i));
+				}
 				End = ITimeStamp.Impl.Now();
 				EMem = runtime.totalMemory();
 				CLog.Info("Plain @ %d ms", End.MillisecondsFrom(Start));
 				
 				Set<TestCObj> Set2 = new HashSet<>();
 				Start = ITimeStamp.Impl.Now();
-				for (int i = 0; i < 8000000; i++)
+				for (int i = 0; i < 8000000; i++) {
 					Set2.add(List1.get(i));
+				}
 				End = ITimeStamp.Impl.Now();
 				CLog.Info("** Canonicalized @ %d ms", End.MillisecondsFrom(Start));
 			}
@@ -291,9 +379,10 @@ public class MiscTest {
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
-					for (int i = 0; i < 1000000; i++)
+					for (int i = 0; i < 1000000; i++) {
 						List2.add(
 								new TestObj(R.nextLong(), R.nextInt(), new String("Test"), new UUID(123L, 123L)));
+					}
 					End = ITimeStamp.Impl.Now();
 				}
 				CLog.Info("After Finish GC");
@@ -308,9 +397,10 @@ public class MiscTest {
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
-					for (int i = 0; i < 1000000; i++)
+					for (int i = 0; i < 1000000; i++) {
 						List3.add(Canonicalizer.Global.CCreate(TestCObj.class, R.nextLong(), R.nextInt(),
 								new String("Test").intern(), CTest.CCreate(UUID.class, 123L, 123L)));
+					}
 					End = ITimeStamp.Impl.Now();
 				}
 				CLog.Info("After Finish GC");
@@ -325,9 +415,10 @@ public class MiscTest {
 				SMem = runtime.totalMemory();
 				{
 					Start = ITimeStamp.Impl.Now();
-					for (int i = 0; i < 1000000; i++)
+					for (int i = 0; i < 1000000; i++) {
 						List4.add(Canonicalizer.Global.CCreate(TestCObj.class, R.nextLong(), R.nextInt(),
 								CTest.CCreate(String.class, "Test"), CTest.CCreate(UUID.class, 123L, 123L)));
+					}
 					End = ITimeStamp.Impl.Now();
 				}
 				CLog.Info("After Finish GC");
@@ -336,7 +427,7 @@ public class MiscTest {
 				CLog.Info("*+ Canonicalized @ %d ms, %s", End.MillisecondsFrom(Start),
 						Misc.FormatSize(EMem - SMem, false));
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e);
 		}
 	}
@@ -346,7 +437,7 @@ public class MiscTest {
 		try {
 			MiscTest Main = new MiscTest();
 			Main.Go(args);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DebugLog.Logger.logExcept(e);
 		}
 		CLog.Info("#@~<");

@@ -58,7 +58,7 @@ public class ZabbixTest {
 			LogFormatterConfig.SetConfig(SlimFormatter.CONFIG_PFX + SlimFormatter.CONFIG_METHODWIDTH,
 					"0");
 			LogFormatter.Config.set(LogFormatterConfig);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		
@@ -84,7 +84,7 @@ public class ZabbixTest {
 		try {
 			ZabbixTest Main = new ZabbixTest();
 			Main.Go(args);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DebugLog.Logger.logExcept(e);
 		}
 		CLog.Info("#@~<");

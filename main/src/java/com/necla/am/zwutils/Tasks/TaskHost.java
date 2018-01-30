@@ -32,7 +32,6 @@
 package com.necla.am.zwutils.Tasks;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -97,9 +96,12 @@ import com.necla.am.zwutils.Tasks.Wrappers.TaskRunner;
  */
 public class TaskHost extends Poller {
 	
-	public static final String LogGroup = "ZWUtils.Tasks.TaskHost";
+	public static final String LOGGROUP = "ZWUtils.Tasks.TaskHost";
 	
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		private static String[] CmdArgs = null;
 		
@@ -107,8 +109,8 @@ public class TaskHost extends Poller {
 				extends Parsers.SimpleStringParse<InetSocketAddress> {
 			
 			protected static final Pattern SocketAddrItemToken = Pattern.compile(":");
-			protected static final String NetAddrAny = "*";
-			protected static final String NetWildCard = "0.0.0.0";
+			protected static final String NETADDR_ANY = "*";
+			protected static final String NETADDR_WILD = "0.0.0.0";
 			
 			@Override
 			public InetSocketAddress parseOrFail(String From) {
@@ -117,7 +119,7 @@ public class TaskHost extends Poller {
 				}
 				
 				String[] Items = SocketAddrItemToken.split(From, 2);
-				String Address = (Items[0].equals(NetAddrAny)? NetWildCard : Items[0]);
+				String Address = (Items[0].equals(NETADDR_ANY)? NETADDR_WILD : Items[0]);
 				int Port = (Items.length > 1? Parsers.StringToInteger
 						.parseOrFail(Items[1]) : EmbeddedMobilityServer.DEFAULT_PORT);
 				
@@ -133,6 +135,8 @@ public class TaskHost extends Poller {
 			public String parseOrFail(InetSocketAddress From) {
 				if (From == null) {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+					// PERF: code analysis tool doesn't recognize custom throw functions
+					return null;
 				}
 				
 				return From.getHostString() + ':' + From.getPort();
@@ -184,7 +188,7 @@ public class TaskHost extends Poller {
 				TermTaskNames = new HashSet<>();
 				ReturnTaskName = null;
 				TaskClassDict =
-						new SuffixClassDictionary(LogGroup + ".ClassDict", this.getClass().getClassLoader());
+						new SuffixClassDictionary(LOGGROUP + ".ClassDict", this.getClass().getClassLoader());
 				
 				HostingAddress = null;
 				RemoteTaskServers = new HashMap<>();
@@ -219,7 +223,7 @@ public class TaskHost extends Poller {
 			
 			public static class TaskRunnableFilter implements IClassFilter {
 				
-				protected static final int UnacceptableModifiers =
+				protected static final int UNACCEPTABLE_MODIFIERS =
 						Modifier.ABSTRACT | Modifier.INTERFACE | Modifier.PRIVATE | Modifier.PROTECTED;
 				
 				@Override
@@ -227,9 +231,8 @@ public class TaskHost extends Poller {
 					try {
 						Class<?> Class = Entry.toClass();
 						int ClassModifiers = Class.getModifiers();
-						if ((ClassModifiers & UnacceptableModifiers) != 0) return false;
-						if (!TaskRunnable.class.isAssignableFrom(Class)) return false;
-						return true;
+						if ((ClassModifiers & UNACCEPTABLE_MODIFIERS) != 0) return false;
+						return TaskRunnable.class.isAssignableFrom(Class);
 					} catch (ClassNotFoundException e) {
 						Misc.CascadeThrow(e);
 						return false;
@@ -243,189 +246,32 @@ public class TaskHost extends Poller {
 				super.loadFields(confMap);
 				
 				// Process host configuration ahead of time
-				DataMap setupMap = new DataMap("Setup", confMap, String.valueOf(CONFIG_TASK_SETUP));
-				for (String Key : setupMap.keySet()) {
-					if (Key.equals(CONFIG_TASK_SETUP_RETURN)) {
-						ReturnTaskName = setupMap.getText(Key);
-					} else if (Key.startsWith(CONFIG_TASK_SETUP_SEARCHPKG_PFX)) {
-						String pkgname = setupMap.getText(Key);
-						try {
-							int ClassCount = 0;
-							
-							ClassLoader CL = this.getClass().getClassLoader();
-							String PackagePath = pkgname.replace('.', '/') + '/';
-							URL PackageURL = CL.getResource(PackagePath);
-							if (PackageURL == null) {
-								Misc.ERROR("Unable to resolve package");
-							}
-							
-							for (String cname : new PackageClassIterable(PackageURL, pkgname,
-									new TaskRunnableFilter())) {
-								TaskClassDict.Add(cname);
-								ClassCount++;
-							}
-							ILog.Fine("Loaded %d task classes from %s:'%s'", ClassCount,
-									Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for package %s->'%s'",
-									Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
-						}
-					} else if (Key.equals(CONFIG_TASK_SETUP_SERVER)) {
-						try {
-							HostingAddress =
-									setupMap.getObject(Key, StringToInetSocketAddress, StringFromInetSocketAddress);
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e, "Failed to load task serving bind address");
-						}
-					} else if (Key.startsWith(CONFIG_TASK_SETUP_SERVER_PFX)) {
-						String ServName = Key.substring(CONFIG_TASK_SETUP_SERVER_PFX.length());
-						try {
-							InetSocketAddress ServerAddress =
-									setupMap.getObject(Key, StringToInetSocketAddress, StringFromInetSocketAddress);
-							RemoteTaskServers.put(ServName, ServerAddress);
-						} catch (Throwable e) {
-							Misc.CascadeThrow(e, "Failed to load task server '%s' target address", ServName);
-						}
-					} else {
-						ILog.Warn("Unrecognized task host setup '%s' = '%s'", Key, setupMap.getText(Key));
-					}
-				}
+				LoadHostConfigurations(confMap);
 				
 				Set<String> BundleConfigTasks = new HashSet<>();
 				Set<String> TasksWithBundledConfig = new HashSet<>();
 				for (String Key : confMap.keySet()) {
-					HostedTaskRec.TType TaskType = null;
-					switch (Key.charAt(0)) {
-						case CONFIG_TASK_NORMAL:
-							TaskType = HostedTaskRec.TType.NORMAL;
-							break;
-						case CONFIG_TASK_DAEMON:
-							TaskType = HostedTaskRec.TType.DAEMON;
-							break;
-						case CONFIG_TASK_GRACEDAEMON:
-							TaskType = HostedTaskRec.TType.GRACEDAEMON;
-							break;
-						case CONFIG_TASK_SETUP:
-							// Setup keys already digested
-							continue;
-						default:
-							ILog.Warn("Unrecognized configuration '%s' = '%s'", Key, confMap.getText(Key));
-							continue;
-					}
+					HostedTaskRec.TType TaskType = SenseTaskType(confMap, Key);
 					
 					String[] TaskTok = KeyToken.split(Key.substring(1), 2);
-					HostedTaskRec HostedTask = HostedTaskRecs.get(TaskTok[0]);
-					if (HostedTask == null) {
-						HostedTask = new HostedTaskRec();
-						HostedTaskRecs.put(TaskTok[0], HostedTask);
-						HostedTask.TaskType = TaskType;
-						ILog.Config("Created %s task entry '%s'", TaskType, TaskTok[0]);
-						// Normal tasks will be joined implicitly
-						if (TaskType.equals(HostedTaskRec.TType.NORMAL)) {
-							JoinTaskNames.add(TaskTok[0]);
-						}
-					} else {
-						Misc.ASSERT(HostedTask.TaskType.equals(TaskType),
-								"Inconsistent type notation for task '%s' (%s and %s)", TaskTok[0],
-								HostedTask.TaskType, TaskType);
-					}
+					HostedTaskRec HostedTask = ObtainTaskEntry(TaskType, TaskTok);
 					
 					if (TaskTok.length > 1) {
 						switch (TaskTok[1]) {
 							case CONFIG_TASK_CONFIG:
-								String ConfigType = confMap.getTextDef(Key, null);
-								if (ConfigType != null) {
-									String ConfigPrefix = null;
-									if (ConfigType.startsWith(CONFIG_TASK_CONFIG_FILE)) {
-										String[] PfxFile = FileItemToken
-												.split(ConfigType.substring(CONFIG_TASK_CONFIG_FILE.length()), 2);
-										String ConfigFile = PfxFile[0];
-										ConfigPrefix = PfxFile.length > 1? PfxFile[1] : "";
-										HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
-												new DataFile("Task." + TaskTok[0] + ".ConfigFile", ConfigFile),
-												ConfigPrefix);
-										ILog.Finer("Task '%s' configuration file: %s<", TaskTok[0], ConfigFile);
-									} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_ENV)) {
-										ConfigPrefix = ConfigType.substring(CONFIG_TASK_CONFIG_ENV.length());
-										HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
-												System.getenv(), ConfigPrefix);
-										ILog.Finer("Task '%s' configuration environmental<", TaskTok[0]);
-									} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_CMD)) {
-										ConfigPrefix = ConfigType.substring(CONFIG_TASK_CONFIG_CMD.length());
-										HostedTask.ConfigData =
-												new DataMap("Task." + TaskTok[0] + ".Config", CmdArgs, ConfigPrefix);
-										ILog.Finer("Task '%s' configuration commandline<", TaskTok[0]);
-									} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_DATA)) {
-										ConfigPrefix = "";
-										HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
-												ConfigType.substring(CONFIG_TASK_CONFIG_DATA.length()), ConfigPrefix);
-										ILog.Finer("Task '%s' configuration from embeded string<", TaskTok[0]);
-									} else if (ConfigType.equals(CONFIG_TASK_CONFIG_BUNDLED)) {
-										ConfigPrefix = "";
-										HostedTask.ConfigData =
-												new DataMap("ConfigBundle", confMap, Key + CONFIG_TASK_CONFIG_BUNDLEDELIM);
-										BundleConfigTasks.add(TaskTok[0]);
-										ILog.Finer("Task '%s' configuration from bundled configurations<", TaskTok[0]);
-									} else {
-										Misc.FAIL(IllegalArgumentException.class, "Unrecognized task configuration: %s",
-												ConfigType);
-									}
-									
-									if (ILog.isLoggable(Level.FINER)) {
-										if (!ConfigPrefix.isEmpty()) {
-											ILog.Finer("@, prefix: %s", ConfigPrefix);
-										} else {
-											ILog.Finer("@~<");
-										}
-									}
-								}
+								LoadTaskConfiguration(confMap, BundleConfigTasks, Key, TaskTok, HostedTask);
 								break;
 							case CONFIG_TASK_DEPENDS:
-								String DepItem = confMap.getTextDef(Key, null);
-								if (DepItem != null) {
-									ILog.Finer("Task '%s' dependencies:<", TaskTok[0]);
-									HostedTask.TaskDep = new HashSet<>();
-									String[] DataToks = DataItemToken.split(DepItem);
-									for (String DataTok : DataToks) {
-										if (!DataTok.isEmpty()) {
-											if (DataTok.equals(CONFIG_TASK_HOSTDEP)) {
-												ILog.Finer("@: [%s]<", DataTok);
-												// Special dependency on the task host
-												DataTok = null;
-											} else {
-												ILog.Finer("@: [%s]<", DataTok);
-											}
-											HostedTask.TaskDep.add(DataTok);
-										}
-									}
-									ILog.Finer("@~<");
-								}
+								LoadTaskDependencies(confMap, Key, TaskTok, HostedTask);
 								break;
 							case CONFIG_TASK_WAITFOR:
-								Boolean WaitFor = confMap.getBoolDef(Key, false);
-								if (WaitFor) {
-									ILog.Fine("Task '%s' requires to be joined", TaskTok[0]);
-									JoinTaskNames.add(TaskTok[0]);
-								}
+								LoadTaskJoinRequest(confMap, Key, TaskTok);
 								break;
 							case CONFIG_TASK_TERMSIG:
-								Boolean TermSignal = confMap.getBoolDef(Key, false);
-								if (TermSignal) {
-									ILog.Fine("Task '%s' requires to be signaled for termination", TaskTok[0]);
-									TermTaskNames.add(TaskTok[0]);
-								}
+								LoadTaskTermSigRequest(confMap, Key, TaskTok);
 								break;
 							case CONFIG_TASK_PRIORITY:
-								Integer Priority = confMap.getIntDef(Key, null);
-								if (Priority != null) {
-									ILog.Fine("Task '%s' priority %d", TaskTok[0], Priority);
-									HostedTask.TaskPriority = Priority;
-									if ((Priority < Thread.MIN_PRIORITY) || (Priority > Thread.MAX_PRIORITY)) {
-										Misc.FAIL(IndexOutOfBoundsException.class,
-												"Thread priority must be in range [%d .. %d]", Thread.MIN_PRIORITY,
-												Thread.MAX_PRIORITY);
-									}
-								}
+								LoadTaskPriority(confMap, Key, TaskTok, HostedTask);
 								break;
 							default:
 								// Ignore bundled configuration keys
@@ -446,28 +292,250 @@ public class TaskHost extends Poller {
 				}
 			}
 			
+			private void LoadTaskJoinRequest(DataMap confMap, String Key, String[] TaskTok) {
+				Boolean WaitFor = confMap.getBoolDef(Key, false);
+				if (WaitFor) {
+					ILog.Fine("Task '%s' requires to be joined", TaskTok[0]);
+					JoinTaskNames.add(TaskTok[0]);
+				}
+			}
+			
+			private void LoadTaskTermSigRequest(DataMap confMap, String Key, String[] TaskTok) {
+				Boolean TermSignal = confMap.getBoolDef(Key, false);
+				if (TermSignal) {
+					ILog.Fine("Task '%s' requires to be signaled for termination", TaskTok[0]);
+					TermTaskNames.add(TaskTok[0]);
+				}
+			}
+			
+			private void LoadTaskPriority(DataMap confMap, String Key, String[] TaskTok,
+					HostedTaskRec HostedTask) {
+				Integer Priority = confMap.getIntDef(Key, null);
+				if (Priority != null) {
+					ILog.Fine("Task '%s' priority %d", TaskTok[0], Priority);
+					HostedTask.TaskPriority = Priority;
+					if ((Priority < Thread.MIN_PRIORITY) || (Priority > Thread.MAX_PRIORITY)) {
+						Misc.FAIL(IndexOutOfBoundsException.class,
+								"Thread priority must be in range [%d .. %d]", Thread.MIN_PRIORITY,
+								Thread.MAX_PRIORITY);
+					}
+				}
+			}
+			
+			private void LoadHostConfigurations(DataMap confMap) {
+				DataMap setupMap = new DataMap("Setup", confMap, String.valueOf(CONFIG_TASK_SETUP));
+				for (String Key : setupMap.keySet()) {
+					if (Key.equals(CONFIG_TASK_SETUP_RETURN)) {
+						ReturnTaskName = setupMap.getText(Key);
+					} else if (Key.startsWith(CONFIG_TASK_SETUP_SEARCHPKG_PFX)) {
+						LoadTaskSearchPrefix(setupMap, Key);
+					} else if (Key.equals(CONFIG_TASK_SETUP_SERVER)) {
+						try {
+							HostingAddress =
+									setupMap.getObject(Key, StringToInetSocketAddress, StringFromInetSocketAddress);
+						} catch (Exception e) {
+							Misc.CascadeThrow(e, "Failed to load task serving bind address");
+						}
+					} else if (Key.startsWith(CONFIG_TASK_SETUP_SERVER_PFX)) {
+						String ServName = Key.substring(CONFIG_TASK_SETUP_SERVER_PFX.length());
+						try {
+							InetSocketAddress ServerAddress =
+									setupMap.getObject(Key, StringToInetSocketAddress, StringFromInetSocketAddress);
+							RemoteTaskServers.put(ServName, ServerAddress);
+						} catch (Exception e) {
+							Misc.CascadeThrow(e, "Failed to load task server '%s' target address", ServName);
+						}
+					} else {
+						ILog.Warn("Unrecognized task host setup '%s' = '%s'", Key, setupMap.getText(Key));
+					}
+				}
+			}
+			
+			private void LoadTaskDependencies(DataMap confMap, String Key, String[] TaskTok,
+					HostedTaskRec HostedTask) {
+				String DepItem = confMap.getTextDef(Key, null);
+				if (DepItem != null) {
+					ILog.Finer("Task '%s' dependencies:<", TaskTok[0]);
+					HostedTask.TaskDep = new HashSet<>();
+					String[] DataToks = DataItemToken.split(DepItem);
+					for (String DataTok : DataToks) {
+						if (!DataTok.isEmpty()) {
+							if (DataTok.equals(CONFIG_TASK_HOSTDEP)) {
+								ILog.Finer("@: [%s]<", DataTok);
+								// Special dependency on the task host
+								DataTok = null;
+							} else {
+								ILog.Finer("@: [%s]<", DataTok);
+							}
+							HostedTask.TaskDep.add(DataTok);
+						}
+					}
+					ILog.Finer("@~<");
+				}
+			}
+			
+			private void LoadTaskConfiguration(DataMap confMap, Set<String> BundleConfigTasks, String Key,
+					String[] TaskTok, HostedTaskRec HostedTask) {
+				String ConfigType = confMap.getTextDef(Key, null);
+				if (ConfigType != null) {
+					String ConfigPrefix = null;
+					if (ConfigType.startsWith(CONFIG_TASK_CONFIG_FILE)) {
+						ConfigPrefix = LoadFileBasedTaskConfig(TaskTok, HostedTask, ConfigType);
+					} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_ENV)) {
+						ConfigPrefix = LoadEnvBasedTaskConfig(TaskTok, HostedTask, ConfigType);
+					} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_CMD)) {
+						ConfigPrefix = LoadCmdlineBasedTaskConfig(TaskTok, HostedTask, ConfigType);
+					} else if (ConfigType.startsWith(CONFIG_TASK_CONFIG_DATA)) {
+						ConfigPrefix = LoadInlineEmbededTaskConfig(TaskTok, HostedTask, ConfigType);
+					} else if (ConfigType.equals(CONFIG_TASK_CONFIG_BUNDLED)) {
+						ConfigPrefix =
+								LoadSubkeyEmbeddedTaskConfig(confMap, BundleConfigTasks, Key, TaskTok, HostedTask);
+					} else {
+						Misc.FAIL(IllegalArgumentException.class, "Unrecognized task configuration: %s",
+								ConfigType);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						throw new IllegalArgumentException();
+					}
+					
+					if (ILog.isLoggable(Level.FINER)) {
+						if (!ConfigPrefix.isEmpty()) {
+							ILog.Finer("@, prefix: %s", ConfigPrefix);
+						} else {
+							ILog.Finer("@~<");
+						}
+					}
+				}
+			}
+			
+			private String LoadSubkeyEmbeddedTaskConfig(DataMap confMap, Set<String> BundleConfigTasks,
+					String Key, String[] TaskTok, HostedTaskRec HostedTask) {
+				String ConfigPrefix;
+				ConfigPrefix = "";
+				HostedTask.ConfigData =
+						new DataMap("ConfigBundle", confMap, Key + CONFIG_TASK_CONFIG_BUNDLEDELIM);
+				BundleConfigTasks.add(TaskTok[0]);
+				ILog.Finer("Task '%s' configuration from bundled configurations<", TaskTok[0]);
+				return ConfigPrefix;
+			}
+			
+			private String LoadInlineEmbededTaskConfig(String[] TaskTok, HostedTaskRec HostedTask,
+					String ConfigType) {
+				String ConfigPrefix;
+				ConfigPrefix = "";
+				HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
+						ConfigType.substring(CONFIG_TASK_CONFIG_DATA.length()), ConfigPrefix);
+				ILog.Finer("Task '%s' configuration from embeded string<", TaskTok[0]);
+				return ConfigPrefix;
+			}
+			
+			private String LoadCmdlineBasedTaskConfig(String[] TaskTok, HostedTaskRec HostedTask,
+					String ConfigType) {
+				String ConfigPrefix;
+				ConfigPrefix = ConfigType.substring(CONFIG_TASK_CONFIG_CMD.length());
+				HostedTask.ConfigData =
+						new DataMap("Task." + TaskTok[0] + ".Config", CmdArgs, ConfigPrefix);
+				ILog.Finer("Task '%s' configuration commandline<", TaskTok[0]);
+				return ConfigPrefix;
+			}
+			
+			private String LoadEnvBasedTaskConfig(String[] TaskTok, HostedTaskRec HostedTask,
+					String ConfigType) {
+				String ConfigPrefix;
+				ConfigPrefix = ConfigType.substring(CONFIG_TASK_CONFIG_ENV.length());
+				HostedTask.ConfigData =
+						new DataMap("Task." + TaskTok[0] + ".Config", System.getenv(), ConfigPrefix);
+				ILog.Finer("Task '%s' configuration environmental<", TaskTok[0]);
+				return ConfigPrefix;
+			}
+			
+			private String LoadFileBasedTaskConfig(String[] TaskTok, HostedTaskRec HostedTask,
+					String ConfigType) {
+				String ConfigPrefix;
+				String[] PfxFile =
+						FileItemToken.split(ConfigType.substring(CONFIG_TASK_CONFIG_FILE.length()), 2);
+				String ConfigFile = PfxFile[0];
+				ConfigPrefix = PfxFile.length > 1? PfxFile[1] : "";
+				HostedTask.ConfigData = new DataMap("Task." + TaskTok[0] + ".Config",
+						new DataFile("Task." + TaskTok[0] + ".ConfigFile", ConfigFile), ConfigPrefix);
+				ILog.Finer("Task '%s' configuration file: %s<", TaskTok[0], ConfigFile);
+				return ConfigPrefix;
+			}
+			
+			private HostedTaskRec ObtainTaskEntry(HostedTaskRec.TType TaskType, String[] TaskTok) {
+				HostedTaskRec HostedTask = HostedTaskRecs.get(TaskTok[0]);
+				if (HostedTask == null) {
+					HostedTask = new HostedTaskRec();
+					HostedTaskRecs.put(TaskTok[0], HostedTask);
+					HostedTask.TaskType = TaskType;
+					ILog.Config("Created %s task entry '%s'", TaskType, TaskTok[0]);
+					// Normal tasks will be joined implicitly
+					if (TaskType.equals(HostedTaskRec.TType.NORMAL)) {
+						JoinTaskNames.add(TaskTok[0]);
+					}
+				} else {
+					Misc.ASSERT(HostedTask.TaskType.equals(TaskType),
+							"Inconsistent type notation for task '%s' (%s and %s)", TaskTok[0],
+							HostedTask.TaskType, TaskType);
+				}
+				return HostedTask;
+			}
+			
+			private HostedTaskRec.TType SenseTaskType(DataMap confMap, String Key) {
+				HostedTaskRec.TType TaskType = null;
+				switch (Key.charAt(0)) {
+					case CONFIG_TASK_NORMAL:
+						TaskType = HostedTaskRec.TType.NORMAL;
+						break;
+					case CONFIG_TASK_DAEMON:
+						TaskType = HostedTaskRec.TType.DAEMON;
+						break;
+					case CONFIG_TASK_GRACEDAEMON:
+						TaskType = HostedTaskRec.TType.GRACEDAEMON;
+						break;
+					case CONFIG_TASK_SETUP:
+						return TaskType;
+					default:
+						ILog.Warn("Unrecognized configuration '%s' = '%s'", Key, confMap.getText(Key));
+						return TaskType;
+				}
+				return TaskType;
+			}
+			
+			private void LoadTaskSearchPrefix(DataMap setupMap, String Key) {
+				String pkgname = setupMap.getText(Key);
+				try {
+					int ClassCount = 0;
+					
+					ClassLoader CL = this.getClass().getClassLoader();
+					String PackagePath = pkgname.replace('.', '/') + '/';
+					URL PackageURL = CL.getResource(PackagePath);
+					if (PackageURL == null) {
+						Misc.ERROR("Unable to resolve package");
+					}
+					
+					for (String cname : new PackageClassIterable(PackageURL, pkgname,
+							new TaskRunnableFilter())) {
+						TaskClassDict.Add(cname);
+						ClassCount++;
+					}
+					ILog.Fine("Loaded %d task classes from %s:'%s'", ClassCount,
+							Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
+				} catch (Exception e) {
+					Misc.CascadeThrow(e, "Failed to prepare short-hand class lookup for package %s->'%s'",
+							Key.substring(CONFIG_TASK_SETUP_SEARCHPKG_PFX.length()), pkgname);
+				}
+			}
+			
 			protected class Validation extends Poller.ConfigData.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					super.validateFields();
 					
 					HostedTaskRecs.forEach((TaskName, HostedTask) -> {
 						ILog.Finer("+Checking task '%s'..", TaskName);
 						
-						if (HostedTask.ClassDesc == null) {
-							Misc.FAIL(NoSuchElementException.class, "Task '%s' misses class descriptor",
-									TaskName);
-						}
-						
-						if (HostedTask.TaskDep != null) {
-							HostedTask.TaskDep.forEach(DepTaskName -> {
-								if ((DepTaskName != null) && !HostedTaskRecs.containsKey(DepTaskName)) {
-									Misc.FAIL(NoSuchElementException.class, "Dependency task '%s' not defined",
-											DepTaskName);
-								}
-							});
-						}
+						ValidateTaskClass(TaskName, HostedTask);
 						ILog.Finer("*@<");
 					});
 					
@@ -489,11 +557,28 @@ public class TaskHost extends Poller {
 						if (HostedTask == null) {
 							Misc.FAIL(NoSuchElementException.class, "Return task '%s' not defined",
 									ReturnTaskName);
+							// PERF: code analysis tool doesn't recognize custom throw functions
+							throw new NoSuchElementException();
 						}
 						if (HostedTask.TaskType.equals(HostedTaskRec.TType.DAEMON)) {
 							Misc.FAIL(UnsupportedOperationException.class,
 									"Daemon task '%s' cannot be return task", ReturnTaskName);
 						}
+					}
+				}
+				
+				private void ValidateTaskClass(String TaskName, HostedTaskRec HostedTask) {
+					if (HostedTask.ClassDesc == null) {
+						Misc.FAIL(NoSuchElementException.class, "Task '%s' misses class descriptor", TaskName);
+					}
+					
+					if (HostedTask.TaskDep != null) {
+						HostedTask.TaskDep.forEach(DepTaskName -> {
+							if ((DepTaskName != null) && !HostedTaskRecs.containsKey(DepTaskName)) {
+								Misc.FAIL(NoSuchElementException.class, "Dependency task '%s' not defined",
+										DepTaskName);
+							}
+						});
 					}
 				}
 			}
@@ -575,7 +660,7 @@ public class TaskHost extends Poller {
 	}
 	
 	@Override
-	public void setConfiguration(File ConfigFile, String Prefix) throws Throwable {
+	public void setConfiguration(File ConfigFile, String Prefix) throws Exception {
 		synchronized (ConfigData.class) {
 			ConfigData.CmdArgs = CmdArgs;
 			super.setConfiguration(ConfigFile, Prefix);
@@ -583,7 +668,7 @@ public class TaskHost extends Poller {
 	}
 	
 	@Override
-	public void setConfiguration(String ConfigStr, String Prefix) throws Throwable {
+	public void setConfiguration(String ConfigStr, String Prefix) throws Exception {
 		synchronized (ConfigData.class) {
 			ConfigData.CmdArgs = CmdArgs;
 			super.setConfiguration(ConfigStr, Prefix);
@@ -591,7 +676,7 @@ public class TaskHost extends Poller {
 	}
 	
 	@Override
-	public void setConfiguration(String[] ConfigArgs, String Prefix) throws Throwable {
+	public void setConfiguration(String[] ConfigArgs, String Prefix) throws Exception {
 		synchronized (ConfigData.class) {
 			ConfigData.CmdArgs = CmdArgs;
 			super.setConfiguration(ConfigArgs, Prefix);
@@ -599,7 +684,7 @@ public class TaskHost extends Poller {
 	}
 	
 	@Override
-	public void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Throwable {
+	public void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Exception {
 		synchronized (ConfigData.class) {
 			ConfigData.CmdArgs = CmdArgs;
 			super.setConfiguration(ConfigMap, Prefix);
@@ -623,7 +708,10 @@ public class TaskHost extends Poller {
 	}
 	
 	protected MobilityController NeedRPC() {
-		return (RPCHandler == null)? RPCHandler = MobilityRPC.newController() : RPCHandler;
+		if (RPCHandler == null) {
+			RPCHandler = MobilityRPC.newController();
+		}
+		return RPCHandler;
 	}
 	
 	private static final Pattern RemoteTaskToken = Pattern.compile("@");
@@ -668,7 +756,7 @@ public class TaskHost extends Poller {
 				ILog.Fine("Task class loaded from %s", ClassDesc);
 				break;
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Error resolving task class descriptor '%s'", ClassDesc);
 		}
 		Misc.ASSERT(TaskClassRef != null, "Unable to resolve class descriptor (should not reach)");
@@ -683,11 +771,10 @@ public class TaskHost extends Poller {
 			@SuppressWarnings("unchecked")
 			Class<TaskRunnable> TaskClass = (Class<TaskRunnable>) ClassRef.toClass();
 			Task = TaskClass.getDeclaredConstructor(String.class).newInstance(TaskName);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException) {
-				e = ((InvocationTargetException) e).getTargetException();
-			}
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return null;
 		}
 		
 		// Send configurations (if applicable)
@@ -696,7 +783,7 @@ public class TaskHost extends Poller {
 			Configurable Configurable = (Configurable) Task;
 			try {
 				Configurable.setConfiguration(TaskConfig);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e, "Failed to configure task '%s'", Task);
 			}
 		}
@@ -736,6 +823,8 @@ public class TaskHost extends Poller {
 		InetSocketAddress RemoteAddress = Config.RemoteTaskServers.get(RemoteName);
 		if (RemoteAddress == null) {
 			Misc.FAIL("Undefined remote server '%s'", RemoteName);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return null;
 		}
 		
 		// Lookup task class on remote server
@@ -779,37 +868,10 @@ public class TaskHost extends Poller {
 						CreateTaskRunnable(TaskName, HostedTask.ClassDesc, HostedTask.ConfigData);
 				Tasks.put(TaskName, Task);
 				
-				TaskRunner TaskWrap = null;
-				switch (HostedTask.TaskType) {
-					case NORMAL:
-						if (HostedTask.TaskPriority == null) {
-							TaskWrap = new TaskRunner(Task);
-						} else {
-							TaskWrap = new TaskRunner(Task, HostedTask.TaskPriority);
-						}
-						break;
-					case DAEMON:
-						if (HostedTask.TaskPriority == null) {
-							TaskWrap = new DaemonRunner(Task);
-						} else {
-							TaskWrap = new DaemonRunner(Task, HostedTask.TaskPriority);
-						}
-						break;
-					case GRACEDAEMON:
-						if (HostedTask.TaskPriority == null) {
-							TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task);
-						} else {
-							TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task, HostedTask.TaskPriority);
-						}
-						break;
-					default:
-						Misc.FAIL(UnsupportedOperationException.class, "Unrecognized task type: %s",
-								HostedTask.TaskType);
-				}
-				RunTasks.put(TaskName, TaskWrap);
+				RunTasks.put(TaskName, CreateTaskWrap(HostedTask, Task));
 				ILog.Fine("*@<");
 			});
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Failed to instantiate all hosted tasks.");
 		}
 		
@@ -840,7 +902,7 @@ public class TaskHost extends Poller {
 			if (Config.ReturnTaskName != null) {
 				ReturnTask = RunTasks.get(Config.ReturnTaskName);
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Error while resolving task dependencies");
 		}
 		ILog.Fine("*@<");
@@ -862,6 +924,39 @@ public class TaskHost extends Poller {
 					new ConnectionId(Config.HostingAddress.getHostString(), Config.HostingAddress.getPort()));
 			HostDirectory.put(RPC, this);
 		}
+	}
+	
+	private TaskRunner CreateTaskWrap(
+			com.necla.am.zwutils.Tasks.TaskHost.ConfigData.ReadOnly.HostedTaskRec HostedTask,
+			TaskRunnable Task) {
+		TaskRunner TaskWrap = null;
+		switch (HostedTask.TaskType) {
+			case NORMAL:
+				if (HostedTask.TaskPriority == null) {
+					TaskWrap = new TaskRunner(Task);
+				} else {
+					TaskWrap = new TaskRunner(Task, HostedTask.TaskPriority);
+				}
+				break;
+			case DAEMON:
+				if (HostedTask.TaskPriority == null) {
+					TaskWrap = new DaemonRunner(Task);
+				} else {
+					TaskWrap = new DaemonRunner(Task, HostedTask.TaskPriority);
+				}
+				break;
+			case GRACEDAEMON:
+				if (HostedTask.TaskPriority == null) {
+					TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task);
+				} else {
+					TaskWrap = DaemonRunner.GraceExitTaskDaemon(Task, HostedTask.TaskPriority);
+				}
+				break;
+			default:
+				Misc.FAIL(UnsupportedOperationException.class, "Unrecognized task type: %s",
+						HostedTask.TaskType);
+		}
+		return TaskWrap;
 	}
 	
 	protected ISubscription<State> TaskStateChanges = Payload -> {
@@ -887,13 +982,13 @@ public class TaskHost extends Poller {
 					try {
 						Task.Start(0);
 						GoodTasks.add(Task);
-					} catch (Throwable e) {
+					} catch (Exception e) {
 						BadTasks.add(Task);
 						ILog.logExcept(e, "Exception while starting task '%s'", TaskName);
 						// Eat exception
 					}
 				});
-				if (BadTasks.size() > 0) {
+				if (!BadTasks.isEmpty()) {
 					ILog.Warn("%d tasks failed to start", BadTasks.size());
 				}
 				ILog.Finer("*@<");
@@ -925,6 +1020,8 @@ public class TaskHost extends Poller {
 						if (GlobalConfig.DEBUG_CHECK) {
 							ILog.Warn("Join interrupted: %s", e.getLocalizedMessage());
 						}
+						Thread.currentThread().interrupt();
+						break;
 					}
 				}
 			});
@@ -975,7 +1072,7 @@ public class TaskHost extends Poller {
 				ILog.Fine(":%s|", Task.getName());
 				try {
 					Task.Terminate(0);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					ILog.logExcept(e, "Exception while terminating task '%s'", Task.getName());
 					// Eat exception
 				}
@@ -992,7 +1089,7 @@ public class TaskHost extends Poller {
 	
 	// ======= Static Service Functions ======= //
 	
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	public static TaskHost CreateTaskHost(String Name, String[] CmdArgs, File ConfigFile,
 			String Prefix) {
@@ -1000,7 +1097,7 @@ public class TaskHost extends Poller {
 			TaskHost TaskHost = new TaskHost(Name, CmdArgs);
 			TaskHost.setConfiguration(ConfigFile, Prefix);
 			return TaskHost;
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
@@ -1012,7 +1109,7 @@ public class TaskHost extends Poller {
 			TaskHost TaskHost = new TaskHost(Name, CmdArgs);
 			TaskHost.setConfiguration(ConfigStr, Prefix);
 			return TaskHost;
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
@@ -1024,7 +1121,7 @@ public class TaskHost extends Poller {
 			TaskHost TaskHost = new TaskHost(Name, CmdArgs);
 			TaskHost.setConfiguration(ConfigArgs, Prefix);
 			return TaskHost;
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
@@ -1036,33 +1133,36 @@ public class TaskHost extends Poller {
 			TaskHost TaskHost = new TaskHost(Name, CmdArgs);
 			TaskHost.setConfiguration(ConfigMap, Prefix);
 			return TaskHost;
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Failed to instantiate task host");
 			return null;
 		}
 	}
 	
 	protected static TaskHost TaskHostTask = null;
-	private static final String ConfigKeyBase = TaskHost.class.getSimpleName();
+	private static final String CONFIG_KEYBASE = TaskHost.class.getSimpleName();
 	
-	synchronized public static TaskHost GlobalTaskHost(String[] Args) {
-		return (TaskHostTask == null? TaskHostTask = CreateTaskHost("GlobalTaskHost", Args,
-				ConfigData.ConfigFile, ConfigKeyBase) : TaskHostTask);
+	public static synchronized TaskHost GlobalTaskHost(String[] Args) {
+		if (TaskHostTask == null) {
+			TaskHostTask = CreateTaskHost("GlobalTaskHost", Args, ConfigData.ConfigFile, CONFIG_KEYBASE);
+		}
+		return TaskHostTask;
 	}
 	
 	protected static Map<String, String> ClassMap = null;
 	
-	synchronized public static void RegisterTaskAlias(String Alias,
+	public static synchronized void RegisterTaskAlias(String Alias,
 			Class<? extends ITask> TaskClass) {
 		Misc.ASSERT((Alias != null) && !Alias.isEmpty(), "Alias must be specified");
 		
-		Map<String, String> CMap = (ClassMap == null? (ClassMap = new HashMap<>()) : ClassMap);
+		if (ClassMap == null) {
+			ClassMap = new HashMap<>();
+		}
 		
-		if (CMap.containsKey(Alias)) {
-			String TaskClassName = CMap.get(Alias);
+		String TaskClassName = ClassMap.putIfAbsent(Alias, TaskClass.getName());
+		if (TaskClassName != null) {
 			Misc.ERROR("Alias '%s' is already registered for class '%s'", TaskClassName);
 		}
-		CMap.put(Alias, TaskClass.getName());
 	}
 	
 	public static void RegisterTaskAlias(Class<? extends ITask> TaskClass) {

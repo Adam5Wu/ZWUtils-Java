@@ -67,21 +67,23 @@ public interface IIdentifier {
 	 *       If you decide to do differently, you must make sure the implementations of hashing and
 	 *       equality comparison are correct!
 	 */
-	public static abstract class Impl implements IIdentifier {
+	public abstract static class Impl implements IIdentifier {
 		
 		private Integer _HashCache = null;
 		
-		protected int HashCode() {
+		protected int _hashCode() {
 			return super.hashCode();
 		}
 		
 		@Override
 		public final int hashCode() {
-			if (_HashCache == null) _HashCache = HashCode();
+			if (_HashCache == null) {
+				_HashCache = _hashCode();
+			}
 			return _HashCache;
 		}
 		
-		protected boolean equals(IIdentifier ident) {
+		protected boolean _equals(IIdentifier ident) {
 			return ident.getClass() == getClass();
 		}
 		
@@ -92,8 +94,7 @@ public interface IIdentifier {
 			// Fast rejection
 			if (hashCode() != Objects.hashCode(obj)) return false;
 			// Assumes only identifiers will compare with each other
-			// return (obj instanceof IIdentifier)? equals((IIdentifier) obj) : false;
-			return equals((IIdentifier) obj);
+			return _equals((IIdentifier) obj);
 		}
 		
 	}
@@ -115,75 +116,55 @@ public interface IIdentifier {
 		
 		public static class Impl extends IIdentifier.Impl implements Named {
 			
-			public String NAME;
+			public String _NAME;
 			
 			public Impl(String name) {
-				NAME = name;
-			}
-			
-			// Beans Compatibility
-			public String getNAME() {
-				return NAME;
-			}
-			
-			// Beans Compatibility
-			public void setNAME(String name) {
-				NAME = name;
+				_NAME = name;
 			}
 			
 			@Override
 			public String Name() {
-				return NAME;
+				return _NAME;
 			}
 			
 			@Override
 			public String toString() {
-				return NAME;
+				return _NAME;
 			}
 			
 			@Override
-			protected int HashCode() {
-				return NAME.hashCode();
+			protected int _hashCode() {
+				return _NAME.hashCode();
 			}
 			
-			boolean equals(Named ident) {
-				return NAME.equals(ident.Name());
+			boolean _equals(Named ident) {
+				return _NAME.equals(ident.Name());
 			}
 			
 			@Override
-			protected final boolean equals(IIdentifier ident) {
-				if (!super.equals(ident)) return false;
-				return equals((Named) ident);
+			protected final boolean _equals(IIdentifier ident) {
+				if (!super._equals(ident)) return false;
+				return _equals((Named) ident);
 			}
 			
 		}
 		
 		public static class CImpl implements Named {
 			
-			public String NAME;
+			public String _NAME;
 			
 			protected CImpl(String name) {
-				NAME = name;
-			}
-			
-			// Beans Compatibility
-			public String getNAME() {
-				return NAME;
-			}
-			
-			// Beans Compatibility
-			public void setNAME(String name) {
-				NAME = name;
+				_NAME = name;
 			}
 			
 			@Override
 			public String Name() {
-				return NAME;
+				return _NAME;
 			}
 			
 			@Override
 			public String toString() {
-				return NAME;
+				return _NAME;
 			}
 			
 		}
@@ -212,28 +193,20 @@ public interface IIdentifier {
 		 *
 		 * @note Usually <em>ALL</em> nested identifier implementation should inherit from this base
 		 *       class.<br>
-		 *       If you decide to do differently, you must make sure the implementation of HashCode and
-		 *       equals are correct!
+		 *       If you decide to do differently, you must make sure the implementation of _hashCode()
+		 *       and _equals() are correct!
 		 */
 		public static class Impl<T extends Nested<?>> extends IIdentifier.Impl implements Nested<T> {
 			
-			public T CONTEXT;
+			public T _CONTEXT;
 			
 			public Impl(T context) {
-				CONTEXT = context;
-			}
-			
-			public T getCONTEXT() {
-				return CONTEXT;
-			}
-			
-			public void setCONTEXT(T context) {
-				CONTEXT = context;
+				_CONTEXT = context;
 			}
 			
 			@Override
 			public T Context() {
-				return CONTEXT;
+				return _CONTEXT;
 			}
 			
 			@Override
@@ -243,45 +216,37 @@ public interface IIdentifier {
 			
 			@Override
 			public String toString(int ContextLevel) {
-				return ContextLevel != 0? "[" + CONTEXT.toString(ContextLevel - 1) + "]" : "";
+				return ContextLevel != 0? "[" + _CONTEXT.toString(ContextLevel - 1) + "]" : "";
 			}
 			
 			@Override
-			protected int HashCode() {
-				return CONTEXT.hashCode();
+			protected int _hashCode() {
+				return _CONTEXT.hashCode();
 			}
 			
-			protected boolean equals(Nested<?> ident) {
-				return CONTEXT.equals(ident.Context());
+			protected boolean _equals(Nested<?> ident) {
+				return _CONTEXT.equals(ident.Context());
 			}
 			
 			@Override
-			protected final boolean equals(IIdentifier ident) {
-				if (!super.equals(ident)) return false;
-				return equals((Nested<?>) ident);
+			protected final boolean _equals(IIdentifier ident) {
+				if (!super._equals(ident)) return false;
+				return _equals((Nested<?>) ident);
 			}
 			
 		}
 		
 		public static class CImpl<T extends Nested<?>> implements Nested<T> {
 			
-			public T CONTEXT;
+			public T _CONTEXT;
 			
 			protected CImpl(T context) {
-				CONTEXT = context;
-			}
-			
-			public T getCONTEXT() {
-				return CONTEXT;
-			}
-			
-			public void setCONTEXT(T context) {
-				CONTEXT = context;
+				_CONTEXT = context;
 			}
 			
 			@Override
 			public T Context() {
-				return CONTEXT;
+				return _CONTEXT;
 			}
 			
 			@Override
@@ -291,7 +256,7 @@ public interface IIdentifier {
 			
 			@Override
 			public String toString(int ContextLevel) {
-				return ContextLevel != 0? "[" + CONTEXT.toString(ContextLevel - 1) + "]" : "";
+				return ContextLevel != 0? "[" + _CONTEXT.toString(ContextLevel - 1) + "]" : "";
 			}
 			
 		}
@@ -301,11 +266,11 @@ public interface IIdentifier {
 		 */
 		public static final Nested<?> ROOT = new Nested<Nested<?>>() {
 			
-			public final String NAME = "(ROOT)";
+			public static final String ROOT_NAME = "(ROOT)";
 			
 			@Override
 			public String toString() {
-				return NAME;
+				return ROOT_NAME;
 			}
 			
 			@Override
@@ -332,30 +297,22 @@ public interface IIdentifier {
 			public static class Impl<T extends Nested<?>> extends Nested.Impl<T>
 					implements Nested.Named<T> {
 				
-				public IIdentifier.Named NAMEIDENT;
+				public IIdentifier.Named _NAMEIDENT;
 				
 				public Impl(T context, String name) {
 					super(context);
 					
-					this.NAMEIDENT = new IIdentifier.Named.Impl(name);
-				}
-				
-				public IIdentifier.Named getNAMEIDENT() {
-					return NAMEIDENT;
-				}
-				
-				public void setNAMEIDENT(IIdentifier.Named nameident) {
-					NAMEIDENT = nameident;
+					this._NAMEIDENT = new IIdentifier.Named.Impl(name);
 				}
 				
 				@Override
 				public IIdentifier.Named NameIdent() {
-					return NAMEIDENT;
+					return _NAMEIDENT;
 				}
 				
 				@Override
 				public String Name() {
-					return NAMEIDENT.Name();
+					return _NAMEIDENT.Name();
 				}
 				
 				@Override
@@ -365,22 +322,22 @@ public interface IIdentifier {
 				
 				@Override
 				public String toString(int ContextLevel) {
-					return super.toString(ContextLevel) + NAMEIDENT;
+					return super.toString(ContextLevel) + _NAMEIDENT;
 				}
 				
 				@Override
-				protected int HashCode() {
-					return super.HashCode() ^ NAMEIDENT.hashCode();
+				protected int _hashCode() {
+					return super._hashCode() ^ _NAMEIDENT.hashCode();
 				}
 				
-				public boolean equals(Nested.Named<?> ident) {
-					return NAMEIDENT.equals(ident.NameIdent());
+				public boolean _equals(Nested.Named<?> ident) {
+					return _NAMEIDENT.equals(ident.NameIdent());
 				}
 				
 				@Override
-				protected final boolean equals(Nested<?> ident) {
-					if (!super.equals(ident)) return false;
-					return equals((Nested.Named<?>) ident);
+				protected final boolean _equals(Nested<?> ident) {
+					if (!super._equals(ident)) return false;
+					return _equals((Nested.Named<?>) ident);
 				}
 				
 			}
@@ -388,30 +345,22 @@ public interface IIdentifier {
 			public static class CImpl<T extends Nested<?>> extends Nested.CImpl<T>
 					implements Nested.Named<T> {
 				
-				public IIdentifier.Named NAMEIDENT;
+				public IIdentifier.Named _NAMEIDENT;
 				
 				protected CImpl(T context, IIdentifier.Named nameident) {
 					super(context);
 					
-					NAMEIDENT = nameident;
-				}
-				
-				public IIdentifier.Named getNAMEIDENT() {
-					return NAMEIDENT;
-				}
-				
-				public void setNAMEIDENT(IIdentifier.Named nameident) {
-					NAMEIDENT = nameident;
+					_NAMEIDENT = nameident;
 				}
 				
 				@Override
 				public IIdentifier.Named NameIdent() {
-					return NAMEIDENT;
+					return _NAMEIDENT;
 				}
 				
 				@Override
 				public String Name() {
-					return NAMEIDENT.Name();
+					return _NAMEIDENT.Name();
 				}
 				
 				@Override
@@ -421,7 +370,7 @@ public interface IIdentifier {
 				
 				@Override
 				public String toString(int ContextLevel) {
-					return super.toString(ContextLevel) + NAMEIDENT;
+					return super.toString(ContextLevel) + _NAMEIDENT;
 				}
 				
 			}
@@ -446,14 +395,6 @@ public interface IIdentifier {
 			
 			public Impl(T annotation) {
 				this.ANNOTATION = annotation;
-			}
-			
-			public T getANNOTATION() {
-				return ANNOTATION;
-			}
-			
-			public void setANNOTATION(T annotation) {
-				ANNOTATION = annotation;
 			}
 			
 			@Override

@@ -39,6 +39,7 @@ import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
+import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.Subscriptions.Dispatchers;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
 import com.necla.am.zwutils.Subscriptions.Message.IMessage;
@@ -56,7 +57,7 @@ import com.necla.am.zwutils.Subscriptions.Message.IMessage;
 public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		implements ITask.TaskRunnable {
 	
-	public static final String LogGroupPfx = "ZWUtils.Tasks.Runnable.";
+	public static final String LOGGROUPPFX = "ZWUtils.Tasks.Runnable.";
 	
 	private Object[] WaitBar = null;
 	
@@ -100,7 +101,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	protected RunnableTask(String Name) {
 		super(Name + ".State", State.CONSTRUCTION);
 		
-		ILog = new GroupLogger.PerInst(LogGroupPfx + Name);
+		ILog = new GroupLogger.PerInst(LOGGROUPPFX + Name);
 		
 		RegisterSubscription(StateNotifier);
 		
@@ -134,6 +135,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * @see java.lang.Runnable#run()
 	 */
 	@Override
+	@SuppressWarnings("squid:S128")
 	public final void run() {
 		try {
 			EnterState(State.STARTING);
@@ -143,6 +145,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 			switch (CurState) {
 				case STARTING:
 					tryEnterState(State.RUNNING);
+					// Execution continues
 				case RUNNING:
 					try {
 						doTask();
@@ -159,7 +162,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 				default:
 					Misc.FAIL(IllegalStateException.class, "Illegal task state: %s", CurState);
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			ILog.Error("Terminated by unhandled exception");
 			ILog.logExcept(e);
 			FatalException = e;
@@ -261,38 +264,41 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 		// If no wait, return fast
 		if (Timeout == 0) return false;
 		
-		// Synchronize on this for consistent WaitBar list creation
-		synchronized (this) {
-			// Poll state again, we can save the expensive operation if lucky enough
-			CurState = tellState();
-			if (CurState.ordinal() >= WaitState.ordinal()) return true;
-			
-			if (WaitBar == null) {
-				WaitBar = new Object[State._ALL_.length];
-				for (State TState : State._ALL_)
-					if (TState.ordinal() > CurState.ordinal()) {
-						WaitBar[TState.ordinal()] = new Object();
-					}
-			}
-		}
+		Object Waiter = GetWaitBar(WaitState, CurState);
 		
-		Object Waiter = WaitBar[WaitState.ordinal()];
 		synchronized (Waiter) {
-			// Poll state again, if state has changed we must not wait, or we
-			// sleep forever!
+			// Poll state again, if state has changed we must not wait, or we sleep forever!
 			CurState = tellState();
-			if (CurState.ordinal() >= WaitState.ordinal()) return true;
-			
-			if (Timeout > 0) {
-				Waiter.wait(Timeout);
-			} else {
-				Waiter.wait();
+			ITimeStamp WaitStart = ITimeStamp.Impl.Now();
+			while (CurState.ordinal() < WaitState.ordinal()) {
+				if (Timeout > 0) {
+					Waiter.wait(Timeout);
+					CurState = tellState();
+					if (ITimeStamp.Impl.Now().MillisecondsFrom(WaitStart) > Timeout) {
+						break;
+					}
+				} else {
+					Waiter.wait();
+					CurState = tellState();
+				}
 			}
 		}
 		
-		// Poll state the last time, check if our wait was worth it
-		CurState = tellState();
+		// Check if our wait was worth it
 		return CurState.ordinal() >= WaitState.ordinal();
+	}
+	
+	private synchronized Object GetWaitBar(State WaitState, State CurState) {
+		// Synchronize on this for consistent WaitBar list creation
+		if (WaitBar == null) {
+			State[] AllStates = State.values();
+			WaitBar = new Object[AllStates.length];
+			for (State TState : AllStates)
+				if (TState.ordinal() > CurState.ordinal()) {
+					WaitBar[TState.ordinal()] = new Object();
+				}
+		}
+		return WaitBar[WaitState.ordinal()];
 	}
 	
 	Thread WorkerThread = null;
@@ -317,7 +323,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 			Sleeping = false;
 			
 			Interrupted = Thread.interrupted();
-			if (GlobalConfig.DEBUG_CHECK && Interrupted) {
+			if (Interrupted && GlobalConfig.DEBUG_CHECK) {
 				ILog.Warn("Sleep interrupted");
 			}
 		} else {
@@ -383,7 +389,8 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 			return waitFor(State.TERMINATED, Timeout);
 		} catch (InterruptedException e) {
 			ILog.Warn("Task termination wait interrupted");
-			return tellState().equals(State.TERMINATED);
+			Thread.currentThread().interrupt();
+			return tellState().hasTerminated();
 		}
 	}
 	

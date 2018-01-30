@@ -130,7 +130,7 @@ public class Implementations {
 				CLog.Config(Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FILE"), //$NON-NLS-1$
 						CodeCont.getName());
 				return new PythonForkScript(_Py_ScriptCompile(Name, new FileInputStream(CodeCont)));
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.SCRIPT_COMPILE_FAILURE"), //$NON-NLS-1$
 						Name);
 			}

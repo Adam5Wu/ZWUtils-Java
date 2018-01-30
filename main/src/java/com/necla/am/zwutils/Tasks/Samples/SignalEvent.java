@@ -59,7 +59,7 @@ import sun.misc.Signal;
 @SuppressWarnings("restriction")
 public class SignalEvent extends Poller implements ITask.TaskDependency {
 	
-	public static final String LogGroup = ProcStats.class.getSimpleName();
+	public static final String LOGGROUP = ProcStats.class.getSimpleName();
 	
 	public static final String EVENT_TASK_SIGNAL = "Task/Signal";
 	
@@ -68,6 +68,9 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 	}
 	
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Poller.ConfigData.Mutable {
 			
@@ -83,7 +86,7 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 				super.loadDefaults();
 				
 				SignalName = "";
-				StrMode = InstallMode.NoDefault.name();
+				StrMode = InstallMode.NODEFAULT.name();
 				Event = EVENT_TASK_SIGNAL;
 			}
 			
@@ -103,15 +106,16 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 			protected class Validation extends Poller.ConfigData.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					super.validateFields();
 					
 					// Validate signal name
 					if (SignalName.length() > 0) {
 						ILog.Fine("Checking signal name...");
 						Signal = new Signal(SignalName);
-					} else
+					} else {
 						Signal = null;
+					}
 					
 					Mode = InstallMode.valueOf(StrMode);
 					
@@ -175,7 +179,7 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 	protected void doInit() {
 		super.doInit();
 		
-		SignalTasks = new TaskCollection<ITask>(getName() + ".Targets", this);
+		SignalTasks = new TaskCollection<>(getName() + ".Targets", this);
 	}
 	
 	@Override
@@ -215,8 +219,6 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 		}
 	}
 	
-	protected void CreateSignalEvent() {}
-	
 	protected boolean Signaled() {
 		return SignalEvent != null;
 	}
@@ -234,21 +236,25 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 				ILog.Fine("Signaling task '%s'...", SignalTask.getName());
 				try {
 					Notifiable.class.cast(SignalTask).onSubscription(SignalEvent);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					ILog.logExcept(e, "Exception while signaling task '%s'", SignalTask.getName());
 					// Eat exception
 				}
 			});
 		}
-		if (SignalHelper != null) SignalHelper.SetBypass(true);
+		if (SignalHelper != null) {
+			SignalHelper.SetBypass(true);
+		}
 		super.postTask(RefState);
 	}
 	
 	@Override
 	public void AddDependency(ITask Task) {
-		if (!Notifiable.class.isInstance(Task)) Misc.FAIL(ClassCastException.class,
-				"Notification task is of class '%s' which does not implemented required %s interface",
-				Task.getClass(), Notifiable.class.getSimpleName());
+		if (!Notifiable.class.isInstance(Task)) {
+			Misc.FAIL(ClassCastException.class,
+					"Notification task is of class '%s' which does not implemented required %s interface",
+					Task.getClass(), Notifiable.class.getSimpleName());
+		}
 		
 		SignalTasks.AddTask(Task);
 	}

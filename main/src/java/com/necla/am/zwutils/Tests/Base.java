@@ -60,6 +60,9 @@ public abstract class Base
 	 * Configurations
 	 */
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Data.Mutable {
 			
@@ -90,7 +93,7 @@ public abstract class Base
 							Formatter.ConfigLogMessage(SlimFormatter.CONFIG_PFX + SlimFormatter.CONFIG_MSGHDR,
 									"False");
 							LogHandler.setFormatter(Formatter);
-						} catch (Throwable e) {
+						} catch (Exception e) {
 							Misc.CascadeThrow(e);
 						}
 					} else {
@@ -174,7 +177,7 @@ public abstract class Base
 		try {
 			SetReturn(doTest());
 			ILog.Info("Test finished");
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			SetReturn(-1);
 			ILog.logExcept(e);
 			ILog.Warn("Test aborted");
@@ -188,7 +191,7 @@ public abstract class Base
 	/**
 	 * Implement main test code here
 	 */
-	protected abstract int doTest() throws Throwable;
+	protected abstract int doTest() throws Exception;
 	
 	@Override
 	protected void postRun() {
@@ -212,6 +215,7 @@ public abstract class Base
 			}
 		} catch (InterruptedException e) {
 			ILog.Warn("Termination wait interrupted");
+			Thread.currentThread().interrupt();
 		}
 		
 		// If the state hasn't reached termination, we pretend that we are

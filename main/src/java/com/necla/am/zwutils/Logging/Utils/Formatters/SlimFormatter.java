@@ -33,9 +33,6 @@ package com.necla.am.zwutils.Logging.Utils.Formatters;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -46,6 +43,8 @@ import com.necla.am.zwutils.Logging.DebugLog;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.Utils.Handlers.Zabbix.ZabbixHandler;
 import com.necla.am.zwutils.Misc.Misc;
+import com.necla.am.zwutils.Misc.Misc.TimeSystem;
+import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 
 
 /**
@@ -84,8 +83,8 @@ public final class SlimFormatter extends LogFormatter {
 	private static final String PRINT_STACK_START = "==== Stack trace ====";
 	private static final String PRINT_STACK_END = EXCEPTION_STACK_END;
 	
-	private static final String DEF_NoGroupName = "";
-	private static final int DEF_TimeWidth = 10 + 1 + 12;
+	private static final String DEF_NOGROUP_NAME = "";
+	private static final int DEF_TS_WIDTH = 10 + 1 + 12;
 	
 	private static int MIN_LogGroupWidth = 15;
 	private static int MIN_MethodIdentWidth = 31;
@@ -109,7 +108,7 @@ public final class SlimFormatter extends LogFormatter {
 	 * Handles configurations valid for this formatter
 	 */
 	@Override
-	synchronized public void ConfigLogMessage(String Key, String Value) {
+	public synchronized void ConfigLogMessage(String Key, String Value) {
 		if (Key.startsWith(CONFIG_PFX)) {
 			String SubKey = Key.substring(CONFIG_PFX.length());
 			switch (SubKey) {
@@ -248,41 +247,37 @@ public final class SlimFormatter extends LogFormatter {
 			}
 		}
 		if (MsgTime) {
-			LogPad = String.format("%" + DEF_TimeWidth + "s | ", " ") + LogPad;
+			LogPad = String.format("%" + DEF_TS_WIDTH + "s | ", " ") + LogPad;
 		}
 	}
 	
 	private int NestDepth = 0;
-	private static final char NoInterpPrefix = '!';
-	private static final char NestStart = '+';
-	private static final char NestPrefix = '|';
-	private static final char NestTerm = '*';
-	private static final char NestAllTerm = '#';
-	private static final char NoLineHdrPrefix = '@';
-	private static final char TimeNoLineHdrPrefix = '$';
-	private static final char CondNoLineHdrPrefix = '?';
-	private static final char ProbeNewLinePrefix = '~';
-	private static final char MoreNewLinePrefix = '>';
-	private static final char NoNewLinePostfix = '<';
-	private static final char MoreNewLinePostfix = '~';
+	private static final char NO_INTERP_PREFX = '!';
+	private static final char NEST_START = '+';
+	private static final char NEST_PREFX = '|';
+	private static final char NEXT_TERM = '*';
+	private static final char NEXT_ALLTERM = '#';
+	private static final char NOLINEHDR_PREFX = '@';
+	private static final char TIME_NOLINEHDR_PREFX = '$';
+	private static final char COND_NOLINEHDR_PREFX = '?';
+	private static final char PROBE_NEWLINE_PREFX = '~';
+	private static final char MORE_NEWLINE_PREFX = '>';
+	private static final char NO_NEWLINE_PREFX = '<';
+	private static final char MORE_NEWLINE_POSTFX = '~';
 	
-	private static final char DISP_NestTermIndent = '^';
-	private static final char DISP_NestLimit = '>';
-	private static final String DISP_OmittedData_Ellipsis = "..";
+	private static final char DISP_NESTTERM_INDENT = '^';
+	private static final char DISP_NEXTLIMIT = '>';
+	private static final String DISP_OMITDATA_ELPS = "..";
 	
-	private static final int DISP_OmittedData_PreEllipsisLen = 7;
-	private static final int DISP_OmittedData_MinTailLen = 5;
-	private static final int DISP_OmittedData_EllipsisHead;
-	private static final int DISP_OmittedData_MinLen;
+	private static final int DISP_OMITDATA_PREELPS_LEN = 7;
+	private static final int DISP_OMITDATA_MINTAIL_LEN = 5;
+	private static final int DISP_OMITDATA_ELPS_HEAD;
+	private static final int DISP_OMITDATA_MINLEN;
 	
 	static {
-		DISP_OmittedData_EllipsisHead =
-				DISP_OmittedData_PreEllipsisLen + DISP_OmittedData_Ellipsis.length();
-		DISP_OmittedData_MinLen = DISP_OmittedData_EllipsisHead + DISP_OmittedData_MinTailLen;
+		DISP_OMITDATA_ELPS_HEAD = DISP_OMITDATA_PREELPS_LEN + DISP_OMITDATA_ELPS.length();
+		DISP_OMITDATA_MINLEN = DISP_OMITDATA_ELPS_HEAD + DISP_OMITDATA_MINTAIL_LEN;
 	}
-	
-	private static final String DateFormatPattern = "yyyy-MM-dd HH:mm:ss.SSS";
-	private static DateFormat DateFormatter = new SimpleDateFormat(DateFormatPattern);
 	
 	private boolean LastNewLine = true;
 	
@@ -299,7 +294,8 @@ public final class SlimFormatter extends LogFormatter {
 	 * </ol>
 	 */
 	@Override
-	synchronized public String FormatLogMessage(LogRecord record) {
+	// Well, what should I say... every mountain needs a peak?
+	public synchronized String FormatLogMessage(LogRecord record) {
 		StringWriter LogLine = new StringWriter();
 		String MsgTimeStr = "";
 		
@@ -308,16 +304,17 @@ public final class SlimFormatter extends LogFormatter {
 			if (LogGroupWidth >= MIN_LogGroupWidth) {
 				DISPLogGroup = record.getLoggerName();
 				if ((DISPLogGroup == null) || (DISPLogGroup.isEmpty())) {
-					DISPLogGroup = DEF_NoGroupName;
+					DISPLogGroup = DEF_NOGROUP_NAME;
 				}
 				if (DISPLogGroup.length() > LogGroupWidth) {
-					if (EllipsisGroup == null) EllipsisGroup = new CanonicalCacheMap.Classic<>(
-							SlimFormatter.class.getSimpleName() + "-EllipsisGroup");
+					if (EllipsisGroup == null) {
+						EllipsisGroup = new CanonicalCacheMap.Classic<>(
+								SlimFormatter.class.getSimpleName() + "-EllipsisGroup");
+					}
 					DISPLogGroup = EllipsisGroup.Query(DISPLogGroup, Key -> {
 						StringBuilder StrBuf = new StringBuilder();
-						StrBuf.append(Key.substring(0, DISP_OmittedData_PreEllipsisLen))
-								.append(DISP_OmittedData_Ellipsis).append(
-										Key.substring(Key.length() - (LogGroupWidth - DISP_OmittedData_EllipsisHead)));
+						StrBuf.append(Key.substring(0, DISP_OMITDATA_PREELPS_LEN)).append(DISP_OMITDATA_ELPS)
+								.append(Key.substring(Key.length() - (LogGroupWidth - DISP_OMITDATA_ELPS_HEAD)));
 						return StrBuf.toString();
 					});
 				}
@@ -328,19 +325,21 @@ public final class SlimFormatter extends LogFormatter {
 				if (!record.getSourceMethodName().isEmpty()) {
 					DISPMethodIdent = Misc.stripPackageName(record.getSourceMethodName());
 					if (DISPMethodIdent.length() > MethodIdentWidth) {
-						if (EllipsisMethod == null) EllipsisMethod = new CanonicalCacheMap.Classic<>(
-								SlimFormatter.class.getSimpleName() + "-EllipsisMethod");
+						if (EllipsisMethod == null) {
+							EllipsisMethod = new CanonicalCacheMap.Classic<>(
+									SlimFormatter.class.getSimpleName() + "-EllipsisMethod");
+						}
 						DISPMethodIdent = EllipsisMethod.Query(DISPMethodIdent, Key -> {
 							StringBuilder StrBuf = new StringBuilder();
 							String[] ClassMethodTok = Key.split(DebugLog.LOGMSG_CLASSMETHOD_DELIM, 2);
 							int ClassWidth =
 									Math.max(MethodIdentWidth- DebugLog.LOGMSG_CLASSMETHOD_DELIM.length()
 														- ClassMethodTok[1].length(),
-											DISP_OmittedData_MinLen);
+											DISP_OMITDATA_MINLEN);
 							if (ClassMethodTok[0].length() > ClassWidth) {
-								StrBuf.append(ClassMethodTok[0].substring(0, DISP_OmittedData_PreEllipsisLen))
-										.append(DISP_OmittedData_Ellipsis).append(ClassMethodTok[0].substring(
-												ClassMethodTok[0].length() - (ClassWidth - DISP_OmittedData_EllipsisHead)));
+								StrBuf.append(ClassMethodTok[0].substring(0, DISP_OMITDATA_PREELPS_LEN))
+										.append(DISP_OMITDATA_ELPS).append(ClassMethodTok[0].substring(
+												ClassMethodTok[0].length() - (ClassWidth - DISP_OMITDATA_ELPS_HEAD)));
 							} else {
 								StrBuf.append(ClassMethodTok[0]);
 								ClassWidth = ClassMethodTok[0].length();
@@ -349,11 +348,9 @@ public final class SlimFormatter extends LogFormatter {
 							int MethodWidth =
 									MethodIdentWidth - DebugLog.LOGMSG_CLASSMETHOD_DELIM.length() - ClassWidth;
 							if (ClassMethodTok[1].length() > MethodWidth) {
-								StrBuf.append(ClassMethodTok[1].substring(0, DISP_OmittedData_PreEllipsisLen))
-										.append(DISP_OmittedData_Ellipsis)
-										.append(ClassMethodTok[1]
-												.substring(ClassMethodTok[1].length()
-																		- (MethodWidth - DISP_OmittedData_PreEllipsisLen)));
+								StrBuf.append(ClassMethodTok[1].substring(0, DISP_OMITDATA_PREELPS_LEN))
+										.append(DISP_OMITDATA_ELPS).append(ClassMethodTok[1].substring(
+												ClassMethodTok[1].length() - (MethodWidth - DISP_OMITDATA_PREELPS_LEN)));
 							} else {
 								StrBuf.append(ClassMethodTok[1]);
 							}
@@ -374,9 +371,8 @@ public final class SlimFormatter extends LogFormatter {
 			
 			StringBuilder LineStart = new StringBuilder();
 			if (MsgTime) {
-				Date MsgDateTime = new Date(record.getMillis());
-				MsgTimeStr =
-						String.format("%-" + DEF_TimeWidth + "s | ", DateFormatter.format(MsgDateTime));
+				String MsgDateTime = Misc.FormatTS(record.getMillis(), TimeSystem.UNIX, TimeUnit.MSEC);
+				MsgTimeStr = String.format("%-" + DEF_TS_WIDTH + "s | ", MsgDateTime);
 				LineStart.append(MsgTimeStr);
 			}
 			
@@ -401,7 +397,7 @@ public final class SlimFormatter extends LogFormatter {
 		
 		String Message = record.getMessage();
 		if ((Message != null) && (Message.length() != 0)) {
-			if (Message.charAt(0) == NoInterpPrefix) {
+			if (Message.charAt(0) == NO_INTERP_PREFX) {
 				NoInterp = !NoInterp;
 				Message = Message.substring(1);
 			} else {
@@ -422,22 +418,24 @@ public final class SlimFormatter extends LogFormatter {
 					StrBuf.append(DebugLog.ZabbixSupport()? "[Zabbix]" : "[Zabbix (Disabled)]");
 					boolean Key = true;
 					for (Object Item : Params) {
-						if (Key)
+						if (Key) {
 							StrBuf.append(' ').append(Item).append('=');
-						else
+						} else {
 							StrBuf.append(Item).append(';');
+						}
 						Key = !Key;
 					}
-					if (!Key)
+					if (!Key) {
 						StrBuf.append("???");
-					else
+					} else {
 						StrBuf.deleteCharAt(StrBuf.length() - 1);
+					}
 				}
 				MessageLines = Misc.wrap(StrBuf.toString());
 			} else {
 				if (!NoInterp) {
 					// Parse for nest termination reset control sequence
-					String PMsg = Misc.StripRepeat(Message, NestAllTerm, true);
+					String PMsg = Misc.StripRepeat(Message, NEXT_ALLTERM, true);
 					int CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
@@ -447,7 +445,7 @@ public final class SlimFormatter extends LogFormatter {
 					
 					// For non-exception log
 					// Parse for nest termination control sequence
-					PMsg = Misc.StripRepeat(Message, NestTerm, true);
+					PMsg = Misc.StripRepeat(Message, NEXT_TERM, true);
 					CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
@@ -460,7 +458,7 @@ public final class SlimFormatter extends LogFormatter {
 					NestDepth -= TermCnt;
 					
 					// Parse for nest start control sequence
-					PMsg = Misc.StripRepeat(Message, NestStart, true);
+					PMsg = Misc.StripRepeat(Message, NEST_START, true);
 					CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
@@ -470,46 +468,48 @@ public final class SlimFormatter extends LogFormatter {
 					TermCnt -= NestCnt;
 					
 					// Parse preambles
-					PMsg = Misc.StripRepeat(Message, NoLineHdrPrefix, true);
+					PMsg = Misc.StripRepeat(Message, NOLINEHDR_PREFX, true);
 					CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
 					NoLineHdr = CharCount > 0;
 					
 					if (NoLineHdr) {
-						PMsg = Misc.StripRepeat(Message, TimeNoLineHdrPrefix, true);
+						PMsg = Misc.StripRepeat(Message, TIME_NOLINEHDR_PREFX, true);
 						CharCount = Message.length() - PMsg.length();
 						Message = PMsg;
 						
 						TimeNoLineHdr = CharCount > 0;
 						
-						PMsg = Misc.StripRepeat(Message, CondNoLineHdrPrefix, true);
+						PMsg = Misc.StripRepeat(Message, COND_NOLINEHDR_PREFX, true);
 						CharCount = Message.length() - PMsg.length();
 						Message = PMsg;
 						
 						CondNoLineHdr = CharCount > 0;
 					}
 					
-					PMsg = Misc.StripRepeat(Message, ProbeNewLinePrefix, true);
+					PMsg = Misc.StripRepeat(Message, PROBE_NEWLINE_PREFX, true);
 					CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
-					if ((CharCount > 0) && !LastNewLine) PreNewLine++;
+					if ((CharCount > 0) && !LastNewLine) {
+						PreNewLine++;
+					}
 					
-					PMsg = Misc.StripRepeat(Message, MoreNewLinePrefix, true);
+					PMsg = Misc.StripRepeat(Message, MORE_NEWLINE_PREFX, true);
 					CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
 					PreNewLine += CharCount;
 					
-					PMsg = Misc.StripRepeat(Message, NoNewLinePostfix, false);
+					PMsg = Misc.StripRepeat(Message, NO_NEWLINE_PREFX, false);
 					CharCount = Message.length() - PMsg.length();
 					Message = PMsg;
 					
 					if (CharCount > 0) {
 						PostNewLine = 0;
 					} else {
-						PMsg = Misc.StripRepeat(Message, MoreNewLinePostfix, false);
+						PMsg = Misc.StripRepeat(Message, MORE_NEWLINE_POSTFX, false);
 						CharCount = Message.length() - PMsg.length();
 						Message = PMsg;
 						PostNewLine += CharCount;
@@ -525,26 +525,26 @@ public final class SlimFormatter extends LogFormatter {
 				// Generate nest prefix
 				for (int i = 0; i < NestDepth; i++)
 					if (NestBudget-- > 0) {
-						LogLine.write(NestPrefix);
+						LogLine.write(NEST_PREFX);
 					} else {
 						break;
 					}
 				// Generate nest start
 				for (int i = 0; i < NestCnt; i++)
 					if (NestBudget-- > 0) {
-						LogLine.write(NestStart);
+						LogLine.write(NEST_START);
 					} else {
 						break;
 					}
 				// Generate nest termination
 				for (int i = 0; i < TermCnt; i++)
 					if (NestBudget-- > 0) {
-						LogLine.write(NestTerm);
+						LogLine.write(NEXT_TERM);
 					} else {
 						break;
 					}
 				if (NestBudget < 0) {
-					LogLine.write(DISP_NestLimit);
+					LogLine.write(DISP_NEXTLIMIT);
 				}
 				if ((NestDepth | TermCnt | NestCnt) != 0) {
 					LogLine.write(' ');
@@ -659,24 +659,26 @@ public final class SlimFormatter extends LogFormatter {
 			String NestPfxStr;
 			if (!NoLineHdr) {
 				StringWriter NestPfx = new StringWriter();
-				if (LogPad == null) GenerateLogPad();
+				if (LogPad == null) {
+					GenerateLogPad();
+				}
 				NestPfx.write(LogPad);
 				int NestBudget = NestDepthMax;
 				for (int i = 0; i < NestDepth; i++)
 					if (NestBudget-- > 0) {
-						NestPfx.write(NestPrefix);
+						NestPfx.write(NEST_PREFX);
 					} else {
 						break;
 					}
 				// Temporary indent of multi-line nest termination log
 				for (int i = 0; i < TermCnt; i++)
 					if (NestBudget-- > 0) {
-						NestPfx.write(DISP_NestTermIndent);
+						NestPfx.write(DISP_NESTTERM_INDENT);
 					} else {
 						break;
 					}
 				if (NestBudget < 0) {
-					NestPfx.write(DISP_NestLimit);
+					NestPfx.write(DISP_NEXTLIMIT);
 				}
 				if ((NestDepth | TermCnt) != 0) {
 					NestPfx.write(' ');
@@ -685,7 +687,7 @@ public final class SlimFormatter extends LogFormatter {
 				NestPfxStr = NestPfx.toString();
 			} else {
 				if (TimeNoLineHdr && !MsgTimeStr.isEmpty()) {
-					NestPfxStr = String.format("%" + DEF_TimeWidth + "s | ", " ");
+					NestPfxStr = String.format("%" + DEF_TS_WIDTH + "s | ", " ");
 				} else {
 					NestPfxStr = "";
 				}

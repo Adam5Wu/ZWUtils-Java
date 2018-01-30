@@ -151,7 +151,7 @@ public class DaemonRunner extends TaskRunner {
 				Task.Terminate(-1);
 				try {
 					Join(-1);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					ILog.logExcept(e, "Cleanup failed");
 					// Eat exception
 				}

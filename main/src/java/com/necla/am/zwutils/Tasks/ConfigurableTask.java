@@ -118,7 +118,7 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 				try {
 					R NewConfig = Data.reflect(MClass.cast(ConfigData), RClass, ILog);
 					UpdateConfig(NewConfig);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					ILog.logExcept(e, "Unable to apply mutable configuration");
 					// Eat exception
 				}
@@ -131,52 +131,52 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 		MessageDispatcher.RegisterSubscription(MessageCategories.EVENT_TASK_CONFIGURE, OnConfigure);
 	}
 	
-	protected void setConfiguration(R Config) throws Throwable {
+	protected void setConfiguration(R Config) throws Exception {
 		setConfiguration(Config, null);
 	}
 	
-	protected void setConfiguration(R Config, ITask Sender) throws Throwable {
+	protected void setConfiguration(R Config, ITask Sender) throws Exception {
 		sendConfiguration(Config, Sender);
 	}
 	
-	protected void setConfiguration(M Config) throws Throwable {
+	protected void setConfiguration(M Config) throws Exception {
 		setConfiguration(Config, null);
 	}
 	
-	protected void setConfiguration(M Config, ITask Sender) throws Throwable {
+	protected void setConfiguration(M Config, ITask Sender) throws Exception {
 		sendConfiguration(Config, Sender);
 	}
 	
-	private void sendConfiguration(Object Config, ITask Sender) throws Throwable {
+	private void sendConfiguration(Object Config, ITask Sender) throws Exception {
 		onSubscription(CreateMessage(MessageCategories.EVENT_TASK_CONFIGURE, Config, Sender));
 	}
 	
 	@Override
-	public void setConfiguration(DataMap ConfigData) throws Throwable {
+	public void setConfiguration(DataMap ConfigData) throws Exception {
 		setConfiguration(new Container<>(MutableConfigClass(), ReadOnlyConfigClass(),
 				ILog.GroupName() + ".Config", ConfigData).reflect());
 	}
 	
 	@Override
-	public void setConfiguration(File ConfigFile, String Prefix) throws Throwable {
+	public void setConfiguration(File ConfigFile, String Prefix) throws Exception {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
 				ILog.GroupName() + ".Config", ConfigFile, Prefix).reflect());
 	}
 	
 	@Override
-	public void setConfiguration(String ConfigStr, String Prefix) throws Throwable {
+	public void setConfiguration(String ConfigStr, String Prefix) throws Exception {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
 				ILog.GroupName() + ".Config", ConfigStr, Prefix).reflect());
 	}
 	
 	@Override
-	public void setConfiguration(String[] ConfigArgs, final String Prefix) throws Throwable {
+	public void setConfiguration(String[] ConfigArgs, final String Prefix) throws Exception {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
 				ILog.GroupName() + ".Config", ConfigArgs, Prefix).reflect());
 	}
 	
 	@Override
-	public void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Throwable {
+	public void setConfiguration(Map<String, String> ConfigMap, String Prefix) throws Exception {
 		setConfiguration(Container.Create(MutableConfigClass(), ReadOnlyConfigClass(),
 				ILog.GroupName() + ".Config", ConfigMap, Prefix).reflect());
 	}
@@ -190,7 +190,7 @@ public abstract class ConfigurableTask<M extends Data.Mutable, R extends Data.Re
 			try {
 				PreStartConfigUpdate(
 						Data.reflect(Data.defaults(MutableConfigClass(), ILog), ReadOnlyConfigClass(), ILog));
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				Misc.CascadeThrow(e);
 			}
 		}

@@ -141,7 +141,7 @@ public class ModelingTest {
 					Misc.FormatDeltaTime(TS2.MillisecondsFrom(TS), false));
 			CLog.Info("* TimeStamp TS2 -> TS = %s", Misc.FormatDeltaTime(TS2.MillisecondsTo(TS), false));
 			
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e);
 		}
 	}
@@ -151,7 +151,7 @@ public class ModelingTest {
 		try {
 			ModelingTest Main = new ModelingTest();
 			Main.Go(args);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DebugLog.Logger.logExcept(e);
 		}
 		CLog.Info("#@~<");

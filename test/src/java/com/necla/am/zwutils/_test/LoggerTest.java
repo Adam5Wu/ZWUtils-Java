@@ -57,7 +57,7 @@ public class LoggerTest {
 		CLog.Exit("*ExceptStackTraceTest");
 	}
 	
-	public void Go(String[] args) throws Throwable {
+	public void Go(String[] args) throws Exception {
 		
 		CLog.Info("---------- Test NoInterp");
 		CLog.Info("!ABC");
@@ -310,7 +310,7 @@ public class LoggerTest {
 		try {
 			LoggerTest Main = new LoggerTest();
 			Main.Go(args);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DebugLog.Logger.logExcept(e);
 		}
 		CLog.Info("#@~<");

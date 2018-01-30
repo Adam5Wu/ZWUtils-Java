@@ -58,7 +58,7 @@ import com.necla.am.zwutils.i18n.Messages;
 public class DataMap {
 	
 	protected final IGroupLogger ILog;
-	protected final Map<String, String> DataMap = new HashMap<>();
+	protected final Map<String, String> DM = new HashMap<>();
 	
 	/**
 	 * Create empty configuration data
@@ -83,7 +83,7 @@ public class DataMap {
 			String Key = confKey.trim();
 			if (Key.startsWith(KeyPfx)) {
 				Key = Key.substring(KeyPfx.length()).trim();
-				DataMap.put(Key, confFile.getProperty(confKey).trim());
+				DM.put(Key, confFile.getProperty(confKey).trim());
 			}
 		});
 	}
@@ -111,9 +111,9 @@ public class DataMap {
 				if (confKey.startsWith(Prefix)) {
 					String Key = confKey.substring(Prefix.length()).trim();
 					if (CmdKeyValue.length > 1) {
-						DataMap.put(Key, CmdKeyValue[1].trim());
+						DM.put(Key, CmdKeyValue[1].trim());
 					} else {
-						DataMap.put(Key, null);
+						DM.put(Key, null);
 					}
 				}
 			}
@@ -147,7 +147,7 @@ public class DataMap {
 			String Key = confKey.trim();
 			if (Key.startsWith(Prefix)) {
 				Key = Key.substring(Prefix.length()).trim();
-				DataMap.put(Key, V.trim());
+				DM.put(Key, V.trim());
 			}
 		});
 	}
@@ -165,37 +165,38 @@ public class DataMap {
 		if (Prefix != null) {
 			dataMap.keySet(Prefix).forEach(confKey -> {
 				String Key = confKey.substring(Prefix.length()).trim();
-				DataMap.put(Key, dataMap.getText(confKey));
+				DM.put(Key, dataMap.getText(confKey));
 			});
-		} else
-			DataMap.putAll(dataMap.getDataMap());
+		} else {
+			DM.putAll(dataMap.getDataMap());
+		}
 	}
 	
 	public Map<String, String> getDataMap() {
-		return DataMap;
+		return DM;
 	}
 	
 	/**
 	 * Dump configuration data into a configuration file with prefixed keys
 	 */
 	public void DumpToFile(DataFile DataFile, String Prefix) {
-		DataMap.forEach((Key, V) -> {
+		DM.forEach((Key, V) -> {
 			String confKey = Prefix == null? Key : Prefix + Key;
 			DataFile.setProperty(confKey, V);
 		});
 	}
 	
-	private static final char KeyValueDelim = '=';
+	private static final char KEYVALUE_DELIM = '=';
 	
 	/**
 	 * Dump configuration data into an argument string list with prefixed keys
 	 */
 	public String[] DumpToArgs(String Prefix) {
 		List<String> RetArgs = new ArrayList<>();
-		DataMap.forEach((Key, V) -> {
+		DM.forEach((Key, V) -> {
 			String confKey = Prefix == null? Key : Prefix + Key;
 			if (V != null) {
-				RetArgs.add(confKey + KeyValueDelim + V);
+				RetArgs.add(confKey + KEYVALUE_DELIM + V);
 			} else {
 				RetArgs.add(confKey);
 			}
@@ -203,7 +204,7 @@ public class DataMap {
 		return RetArgs.toArray(new String[RetArgs.size()]);
 	}
 	
-	private static final char KeyItemDelim = '|';
+	private static final char KEYITEM_DELIM = '|';
 	
 	/**
 	 * Dump configuration data into a configuration string with prefixed keys
@@ -216,7 +217,7 @@ public class DataMap {
 			if (RetStr == null) {
 				RetStr = new StringWriter();
 			} else {
-				RetStr.append(KeyItemDelim);
+				RetStr.append(KEYITEM_DELIM);
 			}
 			RetStr.append(DataTok);
 		}
@@ -231,7 +232,7 @@ public class DataMap {
 	 */
 	public Map<String, String> DumpToMap(String Prefix) {
 		Map<String, String> RetMap = new HashMap<>();
-		DataMap.forEach((Key, V) -> {
+		DM.forEach((Key, V) -> {
 			String confKey = Prefix == null? Key : Prefix + Key;
 			RetMap.put(confKey, V);
 		});
@@ -239,11 +240,11 @@ public class DataMap {
 	}
 	
 	public boolean containsKey(String Key) {
-		return DataMap.containsKey(Key);
+		return DM.containsKey(Key);
 	}
 	
 	public Collection<String> keySet() {
-		return DataMap.keySet();
+		return DM.keySet();
 	}
 	
 	/**
@@ -251,7 +252,7 @@ public class DataMap {
 	 */
 	public Collection<String> keySet(String Prefix) {
 		List<String> Keys = new ArrayList<>();
-		DataMap.keySet().forEach(Key -> {
+		DM.keySet().forEach(Key -> {
 			if (Key.startsWith(Prefix)) {
 				Keys.add(Key);
 			}
@@ -280,8 +281,10 @@ public class DataMap {
 	private static final Pattern EnvToken = Pattern.compile("%([^%\\s|]+)(\\|[^%]*)?%"); //$NON-NLS-1$
 	private static final Matcher EnvMatcher = EnvToken.matcher(""); //$NON-NLS-1$
 	
+	// Yes it is complex code, so is the problem, so suck it!
+	@SuppressWarnings("squid:S3776")
 	protected String GetValue(String Key) {
-		String Value = DataMap.get(Key);
+		String Value = DM.get(Key);
 		
 		if ((Value != null) && EnvSubstitute) {
 			boolean Matched = false;
@@ -325,29 +328,34 @@ public class DataMap {
 			if (Matched) {
 				ILog.Finer("*@<"); //$NON-NLS-1$
 			}
-			
-			// Uncover delayed environmental variable expansion
-			if (Value != null) {
-				Matched = false;
-				while (true) {
-					EnvDelayMatcher.reset(Value);
-					if (!EnvDelayMatcher.find()) {
-						break;
-					}
-					
-					if (!Matched) {
-						Matched = true;
-						ILog.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION")); //$NON-NLS-1$
-					}
-					String DelayEnvMatch = EnvDelayMatcher.group();
-					String DelayEnvReplace = '%' + EnvDelayMatcher.group(1) + '%';
-					ILog.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION_RECOVER"), DelayEnvMatch, //$NON-NLS-1$
-							DelayEnvReplace);
-					Value = Value.replace(DelayEnvMatch, DelayEnvReplace);
+			Value = HandleDelayedExpansion(Value);
+		}
+		return Value;
+	}
+	
+	private String HandleDelayedExpansion(String Value) {
+		boolean Matched;
+		// Uncover delayed environmental variable expansion
+		if (Value != null) {
+			Matched = false;
+			while (true) {
+				EnvDelayMatcher.reset(Value);
+				if (!EnvDelayMatcher.find()) {
+					break;
 				}
-				if (Matched) {
-					ILog.Finer("*@<"); //$NON-NLS-1$
+				
+				if (!Matched) {
+					Matched = true;
+					ILog.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION")); //$NON-NLS-1$
 				}
+				String DelayEnvMatch = EnvDelayMatcher.group();
+				String DelayEnvReplace = '%' + EnvDelayMatcher.group(1) + '%';
+				ILog.Finer(Messages.Localize("Config.DataMap.ENV_DELAY_ENPANSION_RECOVER"), DelayEnvMatch, //$NON-NLS-1$
+						DelayEnvReplace);
+				Value = Value.replace(DelayEnvMatch, DelayEnvReplace);
+			}
+			if (Matched) {
+				ILog.Finer("*@<"); //$NON-NLS-1$
 			}
 		}
 		return Value;
@@ -411,7 +419,7 @@ public class DataMap {
 	 *          - Parser to generate string from object
 	 */
 	public <T> void setObject(String Key, T Value, Parsers.IParseString<T> RevParser) {
-		DataMap.put(Key, RevParser.parseOrFail(Value));
+		DM.put(Key, RevParser.parseOrFail(Value));
 		ILog.Config(":%s <= '%s'", Key, RevParser.parseOrFail(Value)); //$NON-NLS-1$
 	}
 	

@@ -64,7 +64,7 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public class Canonicalizer {
 	
-	public static final String LogGroup = "ZWUtils.Caching.Canonicalizer"; //$NON-NLS-1$
+	public static final String LOGGROUP = "ZWUtils.Caching.Canonicalizer"; //$NON-NLS-1$
 	protected final IGroupLogger ILog;
 	
 	protected static final Set<Class<?>> PClass = new HashSet<>();
@@ -72,7 +72,7 @@ public class Canonicalizer {
 	protected Set<Class<?>> AClass = new HashSet<>();
 	
 	public Canonicalizer(String Name) {
-		ILog = new GroupLogger.PerInst(LogGroup + (Name != null? '.' + Name : "")); //$NON-NLS-1$
+		ILog = new GroupLogger.PerInst(LOGGROUP + (Name != null? '.' + Name : "")); //$NON-NLS-1$
 		
 		// Some objects are supported out-of-box
 		Register(String.class, String.class);
@@ -106,25 +106,7 @@ public class Canonicalizer {
 				Misc.FAIL(IllegalArgumentException.class,
 						Messages.Localize("Caching.Canonicalizer.NOAC_DEFAULTCONSTRUCT"), C.getName()); //$NON-NLS-1$
 			}
-			for (int PIdx = 0; PIdx < CCP.length; PIdx++) {
-				Class<?> CP = CCP[PIdx];
-				if (!PClass.contains(CP) && !CClass.containsKey(CP)) {
-					if (CP.equals(Object.class)) {
-						Misc.FAIL(IllegalStateException.class,
-								Messages.Localize("Caching.Canonicalizer.NOAC_GENERICPARAM"), PIdx); //$NON-NLS-1$
-					}
-					
-					if (Pending.contains(CP)) {
-						Misc.FAIL(IllegalStateException.class,
-								Messages.Localize("Caching.Canonicalizer.NOAC_TYPERECURSIVE"), PIdx, CP.getName()); //$NON-NLS-1$
-					}
-					
-					ILog.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_PARAM"), PIdx, CP.getName()); //$NON-NLS-1$
-					Pending.add(CP);
-					Register(CP, Pending);
-					Pending.remove(CP);
-				}
-			}
+			HandleParameters(Pending, CCP);
 			CC.setAccessible(true);
 		} else {
 			if (ILog.isLoggable(Level.CONFIG)) {
@@ -134,6 +116,28 @@ public class Canonicalizer {
 			AClass.add(C);
 		}
 		CClass.put(C, CC);
+	}
+	
+	private void HandleParameters(Set<Class<?>> Pending, Class<?>[] CCP) {
+		for (int PIdx = 0; PIdx < CCP.length; PIdx++) {
+			Class<?> CP = CCP[PIdx];
+			if (!PClass.contains(CP) && !CClass.containsKey(CP)) {
+				if (CP.equals(Object.class)) {
+					Misc.FAIL(IllegalStateException.class,
+							Messages.Localize("Caching.Canonicalizer.NOAC_GENERICPARAM"), PIdx); //$NON-NLS-1$
+				}
+				
+				if (Pending.contains(CP)) {
+					Misc.FAIL(IllegalStateException.class,
+							Messages.Localize("Caching.Canonicalizer.NOAC_TYPERECURSIVE"), PIdx, CP.getName()); //$NON-NLS-1$
+				}
+				
+				ILog.Config(Messages.Localize("Caching.Canonicalizer.AUTOREG_PARAM"), PIdx, CP.getName()); //$NON-NLS-1$
+				Pending.add(CP);
+				Register(CP, Pending);
+				Pending.remove(CP);
+			}
+		}
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -152,51 +156,36 @@ public class Canonicalizer {
 		}
 		
 		Constructor<?>[] CCs = C.getDeclaredConstructors();
-		Object CCC = null;
-		for (Constructor<?> CC : CCs) {
-			Hint CHint = CC.getAnnotation(Hint.class);
-			if (CHint != null) {
-				Register(C, CC, Pending);
-				return;
-			} else {
-				// Default construction is not eligible for auto-canonicalization
-				if (CC.getParameterTypes().length == 0) {
-					continue;
-				}
-				// Certain types of parameter are not eligible
-				for (Class<?> CP : CC.getParameterTypes()) {
-					if (CP.equals(Object.class)) {
-						CC = null;
-						break;
-					}
-					if (CP.isArray()) {
-						CC = null;
-						break;
-					}
-					if (CP.isInterface()) {
-						CC = null;
-						break;
-					}
-				}
-				if (CC == null) {
-					continue;
-				}
-				
-				if (CCC == null) {
-					CCC = CC;
-				} else {
-					if (CCC.getClass().equals(Constructor.class)) {
-						CCC = new ArrayList<Constructor<?>>(Collections.singletonList((Constructor<?>) CCC));
-					}
-					((List<Constructor<?>>) CCC).add(CC);
-				}
-			}
-		}
+		Object CCC = FilterConstructors(CCs);
 		if (CCC == null) {
 			ILog.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_NOCONSTRUCT"), C.getName()); //$NON-NLS-1$
 		} else if (CCC.getClass().equals(Constructor.class)) {
-			// Although Hint is not provided, since there is only one candidate, we try anyway
-			Constructor<?> CC = (Constructor<?>) CCC;
+			RegisterSelectedConstructor(C, (Constructor<?>) CCC, Pending);
+			return;
+		} else {
+			LogMultipleConstructors(C, (List<Constructor<?>>) CCC);
+		}
+		Misc.FAIL(IllegalArgumentException.class,
+				Messages.Localize("Caching.Canonicalizer.NOAC_CONSTRUCT_ERROR"), C.getName(), CCs.length); //$NON-NLS-1$
+	}
+	
+	private void LogMultipleConstructors(Class<?> C, List<Constructor<?>> CCL) {
+		ILog.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_MULTICONSTRUCT"), C.getName()); //$NON-NLS-1$
+		if (ILog.isLoggable(Level.CONFIG)) {
+			for (int CIdx = 0; CIdx < CCL.size(); CIdx++) {
+				Constructor<?> CC = CCL.get(CIdx);
+				List<String> CPS = new ArrayList<>();
+				for (Class<?> CP : CC.getParameterTypes()) {
+					CPS.add(CP.getSimpleName());
+				}
+				ILog.Info("%d. %s", CIdx, CPS); //$NON-NLS-1$
+			}
+		}
+	}
+	
+	private void RegisterSelectedConstructor(Class<?> C, Constructor<?> CC, Set<Class<?>> Pending) {
+		Hint CHint = CC.getAnnotation(Hint.class);
+		if (CHint == null) {
 			if (ILog.isLoggable(Level.CONFIG)) {
 				List<String> CPS = new ArrayList<>();
 				for (Class<?> CP : CC.getParameterTypes()) {
@@ -204,24 +193,45 @@ public class Canonicalizer {
 				}
 				ILog.Config(Messages.Localize("Caching.Canonicalizer.CONSTRUCT_AUTOSEL"), CPS); //$NON-NLS-1$
 			}
-			Register(C, CC, Pending);
-			return;
-		} else {
-			ILog.Warn(Messages.Localize("Caching.Canonicalizer.NOAC_MULTICONSTRUCT"), C.getName()); //$NON-NLS-1$
-			if (ILog.isLoggable(Level.CONFIG)) {
-				List<Constructor<?>> CCL = (List<Constructor<?>>) CCC;
-				for (int CIdx = 0; CIdx < CCL.size(); CIdx++) {
-					Constructor<?> CC = CCL.get(CIdx);
-					List<String> CPS = new ArrayList<>();
-					for (Class<?> CP : CC.getParameterTypes()) {
-						CPS.add(CP.getSimpleName());
+		}
+		Register(C, CC, Pending);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private Object FilterConstructors(Constructor<?>[] CCs) {
+		Object CCC = null;
+		for (Constructor<?> CC : CCs) {
+			Hint CHint = CC.getAnnotation(Hint.class);
+			if (CHint != null) return CC;
+			
+			// Default construction is not eligible for auto-canonicalization
+			if (CC.getParameterTypes().length == 0) {
+				continue;
+			}
+			// Certain types of parameter are not eligible
+			CC = ExcludeParams(CC);
+			if (CC != null) {
+				if (CCC == null) {
+					CCC = CC;
+				} else {
+					if (!CCC.getClass().equals(Constructor.class)) {
+						CCC = new ArrayList<Constructor<?>>(Collections.singletonList((Constructor<?>) CCC));
 					}
-					ILog.Info("%d. %s", CIdx, CPS); //$NON-NLS-1$
+					((List<Constructor<?>>) CCC).add(CC);
 				}
 			}
 		}
-		Misc.FAIL(IllegalArgumentException.class,
-				Messages.Localize("Caching.Canonicalizer.NOAC_CONSTRUCT_ERROR"), C.getName(), CCs.length); //$NON-NLS-1$
+		return CCC;
+	}
+	
+	private Constructor<?> ExcludeParams(Constructor<?> CC) {
+		for (Class<?> CP : CC.getParameterTypes()) {
+			if (CP.equals(Object.class) || CP.isArray() || CP.isInterface()) {
+				CC = null;
+				break;
+			}
+		}
+		return CC;
 	}
 	
 	/**
@@ -240,11 +250,11 @@ public class Canonicalizer {
 	/**
 	 * Container for Auto-Magic Construction Parameters
 	 */
-	protected final static class TParamContainer {
+	protected static final class TParamContainer {
 		
 		public final Object[] Values;
 		
-		public final int HashCode;
+		public final int _HashCode;
 		
 		protected TParamContainer(Object[] values) {
 			Values = values;
@@ -253,20 +263,24 @@ public class Canonicalizer {
 			for (Object value : values) {
 				hashcode = hashcode ^ value.hashCode();
 			}
-			HashCode = hashcode;
+			_HashCode = hashcode;
 		}
 		
 		@Override
 		public int hashCode() {
-			return HashCode;
+			return _HashCode;
 		}
 		
 		@Override
 		public boolean equals(Object obj) {
-			// The usage context of this container determines that we will never encounter same reference
-			// if (this == obj) return true;
+			// PERF: The usage context of this container determines that we will never encounter same reference
+			//if (this == obj) return true;
+			// PERF: The usage context determines obj is always a valid TParamContainer instance
+			//if (obj == null) return false;
+			//if (TParamContainer.class.isAssignableFrom(obj.getClass())) return false;
+			
 			TParamContainer p = (TParamContainer) obj;
-			if (HashCode != p.HashCode) return false;
+			if (_HashCode != p._HashCode) return false;
 			for (int i = 0; i < Values.length; i++) {
 				// We know each element is either a primitive type or canonicalized type
 				// So we can directly use reference comparison instead of value comparison
@@ -308,12 +322,12 @@ public class Canonicalizer {
 		
 		if (AClass.contains(C)) {
 			CanonicalCacheMap.Auto<T> ACMap =
-					new CanonicalCacheMap.Auto<>(LogGroup + '@' + C.getSimpleName());
+					new CanonicalCacheMap.Auto<>(LOGGROUP + '@' + C.getSimpleName());
 			return Params -> ACMap.Query((T) Params[0]);
 		} else {
 			Constructor<?> CX = CClass.get(C);
 			CanonicalCacheMap<TParamContainer, T> CMap =
-					new CanonicalCacheMap.Classic<>(LogGroup + '@' + C.getSimpleName());
+					new CanonicalCacheMap.Classic<>(LOGGROUP + '@' + C.getSimpleName());
 			return Params -> CMap._Query(TParamContainer.wrap(Params, CX.getParameterTypes().length),
 					Key -> {
 						try {
@@ -328,13 +342,11 @@ public class Canonicalizer {
 	
 	protected final Map<Class<?>, AutoMagic<?>> MagicStore = new HashMap<>();
 	
+	@SuppressWarnings("squid:S1452")
 	protected AutoMagic<?> Lookup(Class<?> C) {
 		AutoMagic<?> GMagic;
 		synchronized (MagicStore) {
-			GMagic = MagicStore.get(C);
-			if (GMagic == null) {
-				MagicStore.put(C, GMagic = Instance(C));
-			}
+			GMagic = MagicStore.computeIfAbsent(C, this::Instance);
 		}
 		return GMagic;
 	}
@@ -344,7 +356,7 @@ public class Canonicalizer {
 		return (T) Lookup(C).Cast(Params);
 	}
 	
-	public final static Canonicalizer Global = new Canonicalizer(null);
+	public static final Canonicalizer Global = new Canonicalizer(null);
 	
 	static {
 		// Primitives type support

@@ -31,6 +31,7 @@
 
 package com.necla.am.zwutils.Subscriptions.Message;
 
+import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Subscriptions.Dispatchers;
 import com.necla.am.zwutils.Subscriptions.ISubscription;
 
@@ -44,6 +45,10 @@ import com.necla.am.zwutils.Subscriptions.ISubscription;
  * @version 0.2 - Jan. 20 2016: Initial public release
  */
 public class MessageDispatchers {
+	
+	protected MessageDispatchers() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
 	
 	public static class DataDispatchAdapter<T> implements IMessage.Subscription<T> {
 		

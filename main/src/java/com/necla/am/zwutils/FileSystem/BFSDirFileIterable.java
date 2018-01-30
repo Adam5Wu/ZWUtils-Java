@@ -49,35 +49,30 @@ import com.necla.am.zwutils.Misc.Iterables;
  */
 public class BFSDirFileIterable extends BaseFileIterable {
 	
-	public boolean EnumRoot;
-	
-	public BFSDirFileIterable(File Dir) {
-		super(Dir);
-		EnumRoot = true;
-	}
+	public final boolean EnumRoot;
 	
 	public BFSDirFileIterable(String PathName) {
-		super(PathName);
-		EnumRoot = true;
+		this(PathName, null, true);
 	}
 	
-	public BFSDirFileIterable(File Dir, FileFilter filter) {
-		super(Dir, filter);
-		EnumRoot = true;
+	public BFSDirFileIterable(File Dir) {
+		this(Dir, null, true);
 	}
 	
 	public BFSDirFileIterable(String PathName, FileFilter filter) {
-		super(PathName, filter);
-		EnumRoot = true;
+		this(PathName, filter, true);
 	}
 	
-	public BFSDirFileIterable(File Dir, FileFilter filter, boolean enumRoot) {
-		this(Dir, filter);
-		EnumRoot = enumRoot;
+	public BFSDirFileIterable(File Dir, FileFilter filter) {
+		this(Dir, filter, true);
 	}
 	
 	public BFSDirFileIterable(String PathName, FileFilter filter, boolean enumRoot) {
-		super(PathName, filter);
+		this(new File(PathName), filter, enumRoot);
+	}
+	
+	public BFSDirFileIterable(File Dir, FileFilter filter, boolean enumRoot) {
+		super(Dir, filter);
 		EnumRoot = enumRoot;
 	}
 	

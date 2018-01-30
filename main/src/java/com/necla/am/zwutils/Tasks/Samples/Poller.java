@@ -51,9 +51,13 @@ import com.necla.am.zwutils.Tasks.ConfigurableTask;
 public abstract class Poller
 		extends ConfigurableTask<Poller.ConfigData.Mutable, Poller.ConfigData.ReadOnly> {
 	
-	public static final String LogGroup = Poller.class.getSimpleName();
+	public static final String LOGGROUP = Poller.class.getSimpleName();
 	
 	public static class ConfigData {
+		
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Data.Mutable {
 			
@@ -77,7 +81,7 @@ public abstract class Poller
 			protected class Validation implements Data.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					ILog.Fine("Checking time resolution...");
 					if (TimeRes > 0) {
 						if (TimeRes < MIN_TIMERES) {

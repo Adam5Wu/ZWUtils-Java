@@ -11,6 +11,10 @@ buildscript {
 	}
 }
 
+plugins {
+	id "org.sonarqube" version "2.5"
+}
+
 apply plugin: "se.bjurr.gitchangelog.git-changelog-gradle-plugin"
 
 import org.ajoberstar.grgit.*
@@ -26,10 +30,6 @@ apply plugin: "com.zoltu.git-versioning"
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
-
-plugins {
-	id "org.sonarqube" version "2.5"
-}
 
 compileJava {
 	sourceCompatibility = '1.8'

@@ -52,7 +52,7 @@ public class MULArray extends ComputationArray {
 	}
 	
 	@Override
-	synchronized protected double computeBlock() {
+	protected synchronized double computeBlock() {
 		double Ret = Cache;
 		for (int i = 0; i < Ptr; i++) {
 			Ret = Ret * Data[i];

@@ -48,8 +48,12 @@ import com.necla.am.zwutils.Logging.IGroupLogger;
  */
 public final class Parsers {
 	
-	static public final String LogGroup = "ZWUtils.Parsers";
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	protected Parsers() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
+	public static final String LOGGROUP = "ZWUtils.Parsers";
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	/**
 	 * Generic parser interface from one object to another
@@ -82,7 +86,7 @@ public final class Parsers {
 			
 			try {
 				Ret = parseOrFail(From);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (CLog.isLoggable(Level.FINE)) {
 					CLog.logExcept(e, ERROR_PARSE_FALLBACK, From);
 				}
@@ -102,17 +106,21 @@ public final class Parsers {
 		
 	}
 	
-	public static AnyToString<String> StringFromString = new AnyToString<>();
-	public static AnyToString<Boolean> StringFromBoolean = new AnyToString<>();
-	public static AnyToString<Integer> StringFromInteger = new AnyToString<>();
-	public static AnyToString<Long> StringFromLong = new AnyToString<>();
-	public static AnyToString<Short> StringFromShort = new AnyToString<>();
-	public static AnyToString<Byte> StringFromByte = new AnyToString<>();
-	public static AnyToString<Double> StringFromDouble = new AnyToString<>();
-	public static AnyToString<Float> StringFromFloat = new AnyToString<>();
-	public static AnyToString<Character> StringFromChar = new AnyToString<>();
+	public static final AnyToString<String> StringFromString = new AnyToString<>();
+	public static final AnyToString<Boolean> StringFromBoolean = new AnyToString<>();
+	public static final AnyToString<Integer> StringFromInteger = new AnyToString<>();
+	public static final AnyToString<Long> StringFromLong = new AnyToString<>();
+	public static final AnyToString<Short> StringFromShort = new AnyToString<>();
+	public static final AnyToString<Byte> StringFromByte = new AnyToString<>();
+	public static final AnyToString<Double> StringFromDouble = new AnyToString<>();
+	public static final AnyToString<Float> StringFromFloat = new AnyToString<>();
+	public static final AnyToString<Character> StringFromChar = new AnyToString<>();
 	
-	public static final Map<Class<?>, SimpleParseString<?>> StringFroms;
+	protected static final Map<Class<?>, SimpleParseString<?>> StringFroms;
+	
+	public static SimpleParseString<?> StringFrom(Class<?> cls) {
+		return StringFroms.get(cls);
+	}
 	
 	static {
 		Map<Class<?>, SimpleParseString<?>> _StringFroms = new HashMap<>();
@@ -155,7 +163,7 @@ public final class Parsers {
 			
 			try {
 				Ret = parseOrFail(From);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				if (CLog.isLoggable(Level.FINE)) {
 					CLog.logExcept(e, ERROR_PARSE_FALLBACK, From);
 				}
@@ -170,7 +178,11 @@ public final class Parsers {
 		
 		@Override
 		public String parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				return null;
+			}
 			
 			if (From.length() > 1) {
 				if ((From.charAt(0) == '"') && (From.charAt(From.length() - 1) == '"'))
@@ -185,7 +197,9 @@ public final class Parsers {
 		
 		@Override
 		public Boolean parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Boolean.parseBoolean(From);
 		}
@@ -196,7 +210,9 @@ public final class Parsers {
 		
 		@Override
 		public Integer parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Integer.parseInt(From);
 		}
@@ -207,7 +223,9 @@ public final class Parsers {
 		
 		@Override
 		public Long parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Long.parseLong(From);
 		}
@@ -218,7 +236,9 @@ public final class Parsers {
 		
 		@Override
 		public Short parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Short.parseShort(From);
 		}
@@ -229,7 +249,9 @@ public final class Parsers {
 		
 		@Override
 		public Byte parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Byte.parseByte(From);
 		}
@@ -240,7 +262,9 @@ public final class Parsers {
 		
 		@Override
 		public Double parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Double.parseDouble(From);
 		}
@@ -251,7 +275,9 @@ public final class Parsers {
 		
 		@Override
 		public Float parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+			}
 			
 			return Float.parseFloat(From);
 		}
@@ -262,25 +288,35 @@ public final class Parsers {
 		
 		@Override
 		public Character parseOrFail(String From) {
-			if (From == null) Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
-			if (From.length() != 1) Misc.FAIL(IllegalArgumentException.class, From);
+			if (From == null) {
+				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				return null;
+			}
+			if (From.length() != 1) {
+				Misc.FAIL(IllegalArgumentException.class, From);
+			}
 			
 			return From.charAt(0);
 		}
 		
 	}
 	
-	public static StringToString StringToString = new StringToString();
-	public static StringToBoolean StringToBoolean = new StringToBoolean();
-	public static StringToInteger StringToInteger = new StringToInteger();
-	public static StringToLong StringToLong = new StringToLong();
-	public static StringToShort StringToShort = new StringToShort();
-	public static StringToByte StringToByte = new StringToByte();
-	public static StringToDouble StringToDouble = new StringToDouble();
-	public static StringToFloat StringToFloat = new StringToFloat();
-	public static StringToChar StringToChar = new StringToChar();
+	public static final StringToString StringToString = new StringToString();
+	public static final StringToBoolean StringToBoolean = new StringToBoolean();
+	public static final StringToInteger StringToInteger = new StringToInteger();
+	public static final StringToLong StringToLong = new StringToLong();
+	public static final StringToShort StringToShort = new StringToShort();
+	public static final StringToByte StringToByte = new StringToByte();
+	public static final StringToDouble StringToDouble = new StringToDouble();
+	public static final StringToFloat StringToFloat = new StringToFloat();
+	public static final StringToChar StringToChar = new StringToChar();
 	
-	public static final Map<Class<?>, SimpleStringParse<?>> StringTos;
+	protected static final Map<Class<?>, SimpleStringParse<?>> StringTos;
+	
+	public static SimpleStringParse<?> StringTo(Class<?> cls) {
+		return StringTos.get(cls);
+	}
 	
 	static {
 		Map<Class<?>, SimpleStringParse<?>> _StringTos = new HashMap<>();

@@ -132,7 +132,7 @@ public class ConfigTest {
 		
 		public static final File ConfigFile = DataFile.DeriveConfigFile();
 		
-		public static Container<Mutable, ReadOnly> Create() throws Throwable {
+		public static Container<Mutable, ReadOnly> Create() throws Exception {
 			return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config", ConfigFile, "");
 		}
 		
@@ -147,7 +147,7 @@ public class ConfigTest {
 		Container<TestConfig.Mutable, TestConfig.ReadOnly> Test = null;
 		try {
 			Test = TestConfig.Create();
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Failed to load configurations");
 			return;
 		}
@@ -162,7 +162,7 @@ public class ConfigTest {
 		CLog.Info("Applying changes...");
 		try {
 			Test.set(MConfig);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Failed to apply configurations");
 		}
 		
@@ -182,7 +182,7 @@ public class ConfigTest {
 		try {
 			ConfigTest Main = new ConfigTest();
 			Main.Go(args);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DebugLog.Logger.logExcept(e);
 		}
 		CLog.Info("#@~<");

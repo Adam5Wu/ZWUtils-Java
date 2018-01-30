@@ -102,51 +102,27 @@ public interface ITimeStamp extends IIdentifier {
 	
 	public static class Impl extends IIdentifier.Impl implements ITimeStamp {
 		
-		static protected final String LogGroup = "ZWUtils.Modeling.TimeStamp";
-		static protected final IGroupLogger CLog = new GroupLogger(LogGroup);
+		protected static final String LOGGROUP = "ZWUtils.Modeling.TimeStamp";
+		protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 		
-		public long VALUE;
+		public final long _VALUE;
 		
-		public TimeSystem SYSTEM;
-		public TimeUnit UNIT;
+		public final TimeSystem SYSTEM;
+		public final TimeUnit UNIT;
 		
 		public Impl(long value) {
 			this(value, TimeSystem.UNIX, TimeUnit.MSEC);
 		}
 		
 		public Impl(long value, TimeSystem timeSystem, TimeUnit timeUnit) {
-			VALUE = value;
+			_VALUE = value;
 			SYSTEM = timeSystem;
 			UNIT = timeUnit;
 		}
 		
-		public long getVALUE() {
-			return VALUE;
-		}
-		
-		public void setVALUE(long value) {
-			VALUE = value;
-		}
-		
-		public TimeSystem getSYSTEM() {
-			return SYSTEM;
-		}
-		
-		public void setSYSTEM(TimeSystem system) {
-			SYSTEM = system;
-		}
-		
-		public TimeUnit getUNIT() {
-			return UNIT;
-		}
-		
-		public void setUNIT(TimeUnit unit) {
-			UNIT = unit;
-		}
-		
 		@Override
 		public long VALUE(TimeSystem timeSystem, TimeUnit timeUnit) {
-			return SYSTEM.Convert(UNIT.Convert(VALUE, timeUnit), timeUnit, timeSystem);
+			return SYSTEM.Convert(UNIT.Convert(_VALUE, timeUnit), timeUnit, timeSystem);
 		}
 		
 		@Override
@@ -172,40 +148,41 @@ public interface ITimeStamp extends IIdentifier {
 		@Override
 		public String toString() {
 			try {
-				return Misc.FormatTS(VALUE, SYSTEM, UNIT);
-			} catch (Throwable e) {
-				if (GlobalConfig.DEBUG_CHECK)
-					CLog.Warn("Failed to format timestamp (%d,%s,%s) - %s", VALUE, SYSTEM, UNIT, e);
+				return Misc.FormatTS(_VALUE, SYSTEM, UNIT);
+			} catch (Exception e) {
+				if (GlobalConfig.DEBUG_CHECK) {
+					CLog.Warn("Failed to format timestamp (%d,%s,%s) - %s", _VALUE, SYSTEM, UNIT, e);
+				}
 				return "(bad-timestamp)";
 			}
 		}
 		
 		@Override
 		public String toString(DateFormat format) {
-			return Misc.FormatTS(VALUE, SYSTEM, UNIT, format);
+			return Misc.FormatTS(_VALUE, SYSTEM, UNIT, format);
 		}
 		
-		protected boolean equals(ITimeStamp timestamp) {
+		protected boolean _equals(ITimeStamp timestamp) {
 			return Long.valueOf(UNIXMS()).equals(timestamp.UNIXMS());
 		}
 		
-		protected final boolean equals(ITimeStamp.Impl timestamp) {
-			if ((SYSTEM == timestamp.SYSTEM) && (UNIT == timestamp.UNIT)) return VALUE == timestamp.VALUE;
-			return equals((ITimeStamp) timestamp);
+		protected final boolean _equals(ITimeStamp.Impl timestamp) {
+			if ((SYSTEM == timestamp.SYSTEM) && (UNIT == timestamp.UNIT))
+				return _VALUE == timestamp._VALUE;
+			return _equals((ITimeStamp) timestamp);
 		}
 		
 		@Override
-		protected final boolean equals(IIdentifier ident) {
-			if (!super.equals(ident)) return false;
-			if (ident instanceof ITimeStamp.Impl) return equals((ITimeStamp.Impl) ident);
-			return equals((ITimeStamp) ident);
+		protected final boolean _equals(IIdentifier ident) {
+			if (!super._equals(ident)) return false;
+			if (ident instanceof ITimeStamp.Impl) return _equals((ITimeStamp.Impl) ident);
+			return _equals((ITimeStamp) ident);
 		}
 		
 		@Override
-		protected int HashCode() {
-			// return Long.valueOf(UNIXMS()).hashCode();
-			// A faster but potentially less accurate implementation
-			return (int) VALUE;
+		protected int _hashCode() {
+			// A faster but potentially less accurate implementation than Long.valueOf(UNIXMS()).hashCode()
+			return (int) _VALUE;
 		}
 		
 		@Override

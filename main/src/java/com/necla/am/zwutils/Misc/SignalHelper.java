@@ -49,17 +49,17 @@ import sun.misc.SignalHandler;
 @SuppressWarnings("restriction")
 public class SignalHelper implements SignalHandler {
 	
-	public static final String LogGroup = "ZWUtils.SignalHelper";
+	public static final String LOGGROUP = "ZWUtils.SignalHelper";
 	
 	protected final IGroupLogger ILog;
 	
 	protected final Signal Capture;
 	protected final Runnable Task;
 	
-	public static enum InstallMode {
-		Cascade,
-		NoDefault,
-		Override
+	public enum InstallMode {
+		CASCADE,
+		NODEFAULT,
+		OVERRIDE
 	}
 	
 	protected final InstallMode Mode;
@@ -68,7 +68,7 @@ public class SignalHelper implements SignalHandler {
 	protected boolean Bypass = false;
 	
 	public SignalHelper(Signal signal, Runnable task, InstallMode mode) {
-		ILog = new GroupLogger.PerInst(LogGroup + '.' + signal.getName());
+		ILog = new GroupLogger.PerInst(LOGGROUP + '.' + signal.getName());
 		
 		Capture = signal;
 		Task = task;
@@ -78,28 +78,33 @@ public class SignalHelper implements SignalHandler {
 	}
 	
 	@Override
+	@SuppressWarnings("squid:S128")
 	public void handle(Signal signal) {
 		if (!Bypass) {
 			ILog.Info("Received signal '%s'", signal);
 			try {
-				if (GlobalConfig.DEBUG_CHECK) if (signal != Capture)
+				if (GlobalConfig.DEBUG_CHECK && (signal != Capture)) {
 					Misc.ERROR("Unexpected signal received, expect '%s', received '%s'", Capture, signal);
+				}
 				
 				Task.run();
 				
 				switch (Mode) {
-					case NoDefault:
-						if (Cascade == SIG_DFL) break;
-					case Cascade:
+					case NODEFAULT:
+						if (Cascade == SIG_DFL) {
+							break;
+						}
+						// Execution continues
+					case CASCADE:
 						ILog.Info("Cascading signal '%s'", signal);
 						Cascade.handle(signal);
 						break;
-					case Override:
+					case OVERRIDE:
 						break;
 					default:
 						Misc.ERROR("Unrecognized installation mode '%s'", Mode);
 				}
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				ILog.logExcept(e);
 			}
 		} else {

@@ -58,9 +58,12 @@ import com.necla.am.zwutils.Tasks.TaskCollection;
  */
 public class Companion extends Poller implements ITask.TaskDependency {
 	
-	public static final String LogGroup = Companion.class.getSimpleName();
+	public static final String LOGGROUP = Companion.class.getSimpleName();
 	
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Poller.ConfigData.Mutable {
 			
@@ -125,22 +128,26 @@ public class Companion extends Poller implements ITask.TaskDependency {
 			}
 			
 			synchronized (PollTasks) {
-				PollTasks.forEach(CoTask -> {
-					ILog.Fine("Signaling task '%s'...", CoTask.getName());
-					try {
-						if (CoTask instanceof Notifiable)
-							((Notifiable) CoTask).onSubscription(IntegrityEvent);
-						else
-							ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
-					} catch (Throwable e) {
-						ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
-						// Eat exception
-					}
-				});
+				SignalIntegrityEvent();
 			}
 			ILog.Exit("*Termination request forwarded");
 		};
 		MessageDispatcher.RegisterSubscription(MessageCategories.EVENT_TASK_TERMINATE, OnTerminate);
+	}
+
+	private void SignalIntegrityEvent() {
+		PollTasks.forEach(CoTask -> {
+			ILog.Fine("Signaling task '%s'...", CoTask.getName());
+			try {
+				if (CoTask instanceof Notifiable)
+					((Notifiable) CoTask).onSubscription(IntegrityEvent);
+				else
+					ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
+			} catch (Exception e) {
+				ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
+				// Eat exception
+			}
+		});
 	}
 	
 	@Override
@@ -193,18 +200,7 @@ public class Companion extends Poller implements ITask.TaskDependency {
 				TaskNames.setLength(TaskNames.length() - 1);
 				if (GlobalConfig.DEBUG_CHECK)
 					ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
-				PollTasks.forEach(CoTask -> {
-					ILog.Fine("Signaling task '%s'...", CoTask.getName());
-					try {
-						if (CoTask instanceof Notifiable)
-							((Notifiable) CoTask).onSubscription(IntegrityEvent);
-						else
-							ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
-					} catch (Throwable e) {
-						ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
-						// Eat exception
-					}
-				});
+				SignalIntegrityEvent();
 				IntegrityEvent = null;
 			}
 		}

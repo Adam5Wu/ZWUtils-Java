@@ -39,6 +39,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
@@ -60,7 +62,7 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	
-	public static final String LogGroup = "ZWUtils.Debugging.SfxClsDict"; //$NON-NLS-1$
+	public static final String LOGGROUP = "ZWUtils.Debugging.SfxClsDict"; //$NON-NLS-1$
 	protected final IGroupLogger ILog;
 	
 	protected Map<String, Object> RAWDict;
@@ -68,7 +70,7 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 	protected final ClassLoader Loader;
 	
 	public SuffixClassDictionary(String name, ClassLoader loader) {
-		ILog = new GroupLogger.PerInst(LogGroup + '.' + name);
+		ILog = new GroupLogger.PerInst(LOGGROUP + '.' + name);
 		RAWDict = new HashMap<>();
 		RevDict = new HashMap<>();
 		Loader = loader;
@@ -84,7 +86,7 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 		
 	}
 	
-	public static abstract class _SuffixClassSolver implements ISuffixClassSolver {
+	public abstract static class _SuffixClassSolver implements ISuffixClassSolver {
 		
 		protected final List<String> Tokens;
 		protected final String CName;
@@ -165,8 +167,10 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 			return CInst;
 		}
 		
-		public static final DirectSuffixClassSolver[] BaseClasses = new DirectSuffixClassSolver[] {
-				new DirectSuffixClassSolver(Object.class),		// Object
+		public static final DirectSuffixClassSolver OBJECT = new DirectSuffixClassSolver(Object.class);
+		
+		protected static final DirectSuffixClassSolver[] BaseClasses = new DirectSuffixClassSolver[] {
+				OBJECT,		// Object
 				new DirectSuffixClassSolver(String.class),		// String
 				new DirectSuffixClassSolver(Integer.class),		// Integer
 				new DirectSuffixClassSolver(Long.class),			// Long
@@ -176,6 +180,19 @@ public class SuffixClassDictionary implements Iterable<IClassSolver> {
 				new DirectSuffixClassSolver(Double.class),		// Double
 				new DirectSuffixClassSolver(Character.class)	// Character
 		};
+		
+		public static void EnumBaseClassSolvers(Consumer<ISuffixClassSolver> C) {
+			for (ISuffixClassSolver X : BaseClasses) {
+				C.accept(X);
+			}
+		}
+		
+		public static boolean FilterBaseClassSolvers(Predicate<ISuffixClassSolver> P) {
+			for (ISuffixClassSolver X : BaseClasses) {
+				if (!P.test(X)) return false;
+			}
+			return true;
+		}
 		
 	}
 	

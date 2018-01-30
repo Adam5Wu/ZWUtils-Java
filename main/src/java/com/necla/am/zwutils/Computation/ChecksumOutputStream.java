@@ -78,7 +78,7 @@ public class ChecksumOutputStream extends OutputStream implements Checksum {
 	}
 	
 	@Override
-	public void write(byte b[], int off, int len) {
+	public void write(byte[] b, int off, int len) {
 		update(b, off, len);
 	}
 	

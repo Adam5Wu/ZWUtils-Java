@@ -54,8 +54,12 @@ import com.necla.am.zwutils.Misc.Parsers;
  */
 public class Support {
 	
-	public static final String LogGroup = "ZWUtils.Logging.Support";
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	protected Support() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
+	
+	public static final String LOGGROUP = "ZWUtils.Logging.Support";
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	/**
 	 * String to log level parser
@@ -66,6 +70,8 @@ public class Support {
 		public Level parseOrFail(String From) {
 			if (From == null) {
 				Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				return null;
 			}
 			return Level.parse(From.toUpperCase());
 		}
@@ -81,11 +87,11 @@ public class Support {
 	public static class GroupLogFile {
 		public final String FileName;
 		
-		public static enum Feature {
-			Forward,
-			Append,
-			DailyRotate,
-			CompressRotated
+		public enum Feature {
+			FORWARD,
+			APPEND,
+			DAILYROTATE,
+			COMPRESSROTATED
 		}
 		
 		public final Set<Feature> Features;
@@ -111,6 +117,8 @@ public class Support {
 			public GroupLogFile parseOrFail(String From) {
 				if (From == null) {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+					// PERF: code analysis tool doesn't recognize custom throw functions
+					return null;
 				}
 				
 				EnumSet<GroupLogFile.Feature> Features = EnumSet.noneOf(GroupLogFile.Feature.class);
@@ -120,24 +128,25 @@ public class Support {
 					for (int i = 0; i < len; i++) {
 						switch (Tokens[1].charAt(i)) {
 							case GROUPFILE_FORWARD:
-								Features.add(GroupLogFile.Feature.Forward);
+								Features.add(GroupLogFile.Feature.FORWARD);
 								break;
 							case GROUPFILE_APPEND:
-								Features.add(GroupLogFile.Feature.Append);
+								Features.add(GroupLogFile.Feature.APPEND);
 								break;
 							case GROUPFILE_DAILYROTATE:
-								Features.add(GroupLogFile.Feature.DailyRotate);
+								Features.add(GroupLogFile.Feature.DAILYROTATE);
 								break;
 							case GROUPFILE_COMPRESSROTATED:
-								Features.add(GroupLogFile.Feature.CompressRotated);
+								Features.add(GroupLogFile.Feature.COMPRESSROTATED);
 								break;
 							default:
 								CLog.Warn("Ignored unrecognized modifier '%s' for log file '%s'",
 										Tokens[1].charAt(i), Tokens[0]);
 						}
 					}
-				} else
-					Features.add(GroupLogFile.Feature.Forward);
+				} else {
+					Features.add(GroupLogFile.Feature.FORWARD);
+				}
 				
 				return new GroupLogFile(Tokens[0], Features);
 			}
@@ -152,6 +161,8 @@ public class Support {
 			public String parseOrFail(GroupLogFile From) {
 				if (From == null) {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+					// PERF: code analysis tool doesn't recognize custom throw functions
+					return null;
 				}
 				
 				if (From.FileName.isEmpty())
@@ -162,8 +173,8 @@ public class Support {
 			
 		}
 		
-		public static final StringToGroupLogFile FromString = new StringToGroupLogFile();
-		public static final StringFromGroupLogFile ToString = new StringFromGroupLogFile();
+		public static final StringToGroupLogFile ParseFromString = new StringToGroupLogFile();
+		public static final StringFromGroupLogFile ParseToString = new StringFromGroupLogFile();
 	}
 	
 }

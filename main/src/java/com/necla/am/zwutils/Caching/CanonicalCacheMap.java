@@ -36,6 +36,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,7 +66,7 @@ import com.necla.am.zwutils.i18n.Messages;
  */
 public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	
-	public static final String LogGroup = "ZWUtils.Caching.CMap"; //$NON-NLS-1$
+	public static final String LOGGROUP = "ZWUtils.Caching.CMap"; //$NON-NLS-1$
 	protected final IGroupLogger ILog;
 	
 	public static final int DEF_MAPSIZE = 256;
@@ -162,7 +163,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	
 	public CanonicalCacheMap(String Name, int initmapsize, int cleaningcycles, int staledelay,
 			int bgdecaydelay) {
-		ILog = new GroupLogger.PerInst(LogGroup + '-' + Name);
+		ILog = new GroupLogger.PerInst(LOGGROUP + '-' + Name);
 		Cache = new ConcurrentHashMap<>(initmapsize);
 		CleanCycle = cleaningcycles;
 		ExpiredKeys = MakeKeyQueue();
@@ -219,6 +220,8 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	 */
 	protected abstract int CheckExpiredValues();
 	
+	// Just a simple statistics collection routing, looks complex but it is not
+	@SuppressWarnings("squid:S3776")
 	protected void CollectStats(long Now, int DecayCount) {
 		if (GlobalConfig.DEBUG_CHECK) {
 			if (DecayCount >= 0) {
@@ -241,7 +244,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 						}
 					}
 				}
-				double StrongRate = (StrongCnt * 100D) / (StrongCnt + WeakCnt);
+				double StrongRate = (StrongCnt == 0)? 0 : ((StrongCnt * 100D) / (StrongCnt + WeakCnt));
 				String StrongStatStr =
 						(StrongCnt == 0)? Messages.Localize("Caching.CanonicalCacheMap.NOT_APPLICABLE") : //$NON-NLS-1$
 								String.format("%.2f @%s", StrongHits / (double) StrongCnt, //$NON-NLS-1$
@@ -269,32 +272,36 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			V Ret = RefObj.Get();
 			// If object expired, clean the key from the map
 			if (Ret == null) {
-				//ILog.Warn("Value entry of key had expired (should be uncommon!)");
+				ILog.Fine("Value entry of key had expired (should be uncommon!)");
 				NearHitCounter.incrementAndGet();
 				// Force expire the key (Enqueue key for removal)
 				if (ExpireKeyRef(RefObj)) {
 					RushFreeCounter.incrementAndGet();
 				} else {
-					//ILog.Warn("Ineffective key expiration (should be extremely rare!)");
+					ILog.Fine("Ineffective key expiration (should be extremely rare!)");
 				}
 			} else {
-				if ((HitCounter.incrementAndGet() % CleanCycle) == 0) {
-					long Now = System.currentTimeMillis();
-					if ((Now - CleanTS.get()) > BGDecayDelay) {
-						// Decay scan of the rest of the cache
-						int DecayCount = LRUDecay(-1, -1, Now);
-						// Cleanup after whole cache decay
-						Cleanup();
-						
-						CollectStats(Now, DecayCount);
-					}
-				}
+				TickForCleanup();
 			}
 			return Ret;
 		} else {
 			MissCounter.incrementAndGet();
 		}
 		return null;
+	}
+	
+	private void TickForCleanup() {
+		if ((HitCounter.incrementAndGet() % CleanCycle) == 0) {
+			long Now = System.currentTimeMillis();
+			if ((Now - CleanTS.get()) > BGDecayDelay) {
+				// Decay scan of the rest of the cache
+				int DecayCount = LRUDecay(-1, -1, Now);
+				// Cleanup after whole cache decay
+				Cleanup();
+				
+				CollectStats(Now, DecayCount);
+			}
+		}
 	}
 	
 	/**
@@ -377,7 +384,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			
 			RushInsertCounter.incrementAndGet();
 			// Concurrently inserted
-			//ILog.Warn("New key concurrently inserted (should be uncommon!)");
+			ILog.Fine("New key concurrently inserted (should be uncommon!)");
 			// And has not expired
 			V Ret = iRet.Get();
 			if (Ret != null) {
@@ -386,11 +393,11 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			}
 			
 			// Concurrently inserted and then expired
-			//ILog.Warn("Concurrent inserted key had expired (should be rare!)");
+			ILog.Fine("Concurrent inserted key had expired (should be rare!)");
 			if (ExpireKeyRef(iRet)) {
 				RushFreeCounter.incrementAndGet();
 			} else {
-				//ILog.Warn("Ineffective key expiration (should be extremely rare!)");
+				ILog.Fine("Ineffective key expiration (should be extremely rare!)");
 			}
 		}
 	}
@@ -404,7 +411,9 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 		
 		@Override
 		public IValueRef<V> next() {
-			return null;
+			Misc.FAIL(NoSuchElementException.class, "Should not happen");
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			throw new NoSuchElementException("Should not reach");
 		}
 		
 	};
@@ -422,6 +431,12 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			if (!CleanTS.compareAndSet(LastClean, CurTS)) return -2;
 		}
 		
+		return ScanForDecay(scanlimit, decaylimit, CurTS);
+	}
+	
+	// Yes it is complex code, so is the problem, so suck it!
+	@SuppressWarnings("squid:S3776")
+	private int ScanForDecay(int scanlimit, int decaylimit, Long CurTS) {
 		int Decayed = 0;
 		Iterator<IValueRef<V>> LRUIter = GCIterator.getAndSet(NullIter);
 		if (LRUIter != NullIter) {
@@ -439,12 +454,10 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 				}
 				IKeyRef KRef = VRef.RefKey();
 				long RefAge = KRef.Age(CurTS);
-				if (RefAge >= StaleDelay) {
-					if (KRef.Decay(RefAge, CurTS)) {
-						VRef.Weaken();
-						if (++Decayed == decaylimit) {
-							break;
-						}
+				if ((RefAge >= StaleDelay) && KRef.Decay(RefAge, CurTS)) {
+					VRef.Weaken();
+					if (++Decayed == decaylimit) {
+						break;
 					}
 				}
 			}
@@ -571,6 +584,11 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 		@Override
 		public int hashCode() {
 			return _HashCache;
+		}
+		
+		@Override
+		public boolean equals(Object arg0) {
+			return super.equals(arg0);
 		}
 		
 	}
@@ -723,9 +741,16 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			}
 			
 			@Override
+			public int hashCode() {
+				return super.hashCode();
+			}
+			
+			@Override
 			@SuppressWarnings("unchecked")
 			public boolean equals(Object obj) {
 				if (super.equals(obj)) return true;
+				// PERF: The usage context determines obj is always a valid StrongRefKey instance
+				if (obj == null) return false;
 				StrongRefKey kRef = (StrongRefKey) obj;
 				if (_HashCache != kRef._HashCache) return false;
 				return kRef.CacheLookup(get());
@@ -775,7 +800,8 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 				
 				@Override
 				public V Get() {
-					return StrongRef = super.get();
+					StrongRef = super.get();
+					return StrongRef;
 				}
 				
 				@Override
@@ -951,9 +977,18 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			}
 			
 			@Override
+			public int hashCode() {
+				return super.hashCode();
+			}
+			
+			@Override
 			@SuppressWarnings("unchecked")
 			public boolean equals(Object obj) {
 				if (super.equals(obj)) return true;
+				// PERF: The usage context determines obj is always a valid WeakAutoRef instance
+				//if (obj == null) return false;
+				//if (WeakAutoRef.class.isAssignableFrom(obj.getClass())) return false;
+				
 				WeakAutoRef kRef = (WeakAutoRef) obj;
 				if (_HashCache != kRef._HashCache) return false;
 				return kRef.CacheLookup(get());
@@ -962,8 +997,8 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 			@Override
 			public String toString() {
 				StringBuilder StrBuf = new StringBuilder();
-				StrBuf.append("<AutoRef"); //$NON-NLS-1$
 				V xRef = get();
+				StrBuf.append("<AutoRef"); //$NON-NLS-1$
 				if (xRef != null) {
 					StrBuf.append(Messages.Localize("Caching.CanonicalCacheMap.TRANSIENT_STATE")) //$NON-NLS-1$
 							.append(xRef.toString());
@@ -1006,8 +1041,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 				VRef = new RefValue(get());
 			}
 			
-			public IValueRef<V> CreateValue(V val) {
-				// Misc.ASSERT(val == get());
+			public IValueRef<V> CreateValue() {
 				Init();
 				return this;
 			}
@@ -1040,7 +1074,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 		@Override
 		@SuppressWarnings("unchecked")
 		protected IValueRef<V> MakeRefValue(V Value, IKeyRef RKey) {
-			return ((WeakAutoRef) RKey).CreateValue(Value);
+			return ((WeakAutoRef) RKey).CreateValue();
 		}
 		
 	}

@@ -47,7 +47,7 @@ public class Null extends Base {
 	}
 	
 	@Override
-	protected int doTest() throws Throwable {
+	protected int doTest() throws Exception {
 		ILog.Info("Empty demo test, sleeping for 1 seconds...");
 		Sleep(1000);
 		return 0;

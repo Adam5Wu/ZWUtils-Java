@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Config;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -134,53 +135,17 @@ public class DataFile extends Properties {
 				JarDir = GlobalConfig.CONFFILE_JARDIR;
 			}
 			
-			InputStream Conf = null;
-			try {
-				ILog.Finer(Messages.Localize("Config.DataFile.CHECK_CURDIR")); //$NON-NLS-1$
-				
-				boolean ConfigRelAppRoot = INIFileName.startsWith("?");
-				
-				// First probe FSDir+INIFileName (local file override)
-				String ConfigFileName =
-						ConfigRelAppRoot? INIFileName.substring(1) : Misc.appendPathName(FSDir, INIFileName);
-				File ConfigFile = new File(ConfigFileName);
-				if (ConfigFile.exists() && ConfigFile.canRead()) {
-					INIFileName = ConfigFile.getPath();
-					lastModified = new ITimeStamp.Impl(ConfigFile.lastModified());
-					Conf = new FileInputStream(ConfigFile);
-				} else {
-					// If not exist, probe within Jar bundle
-					ConfigFileName = ConfigRelAppRoot? INIFileName.substring(1) : INIFileName;
-					String ResourceName = Misc.appendPathName(JarDir, INIFileName);
-					if (Misc.PATH_DELIMITER != File.separatorChar) {
-						ResourceName = ResourceName.replace(File.separatorChar, Misc.PATH_DELIMITER);
-					}
-					if (Loader != null) {
-						Conf = Loader.getResourceAsStream(ResourceName);
-					}
-					
-					if (Conf == null) {
-						Conf = getClass()
-								.getResourceAsStream(Misc.appendPathName(Misc.PATH_DELIMITER_STR, ResourceName));
-					}
-				}
-				
-				if (Conf != null) {
-					load(Conf);
-					ILog.Fine(Messages.Localize("Config.DataFile.OPEN_FILE"), INIFileName, //$NON-NLS-1$
-							(ConfigFile != null? "file" : "resource")); //$NON-NLS-1$ //$NON-NLS-2$
+			try (InputStream LoadStream = LoadConfigStream(INIFileName, FSDir, JarDir, Loader)) {
+				if (LoadStream != null) {
+					load(LoadStream);
 				} else {
 					if (ILog.isLoggable(Level.CONFIG)) {
 						ILog.Warn(Messages.Localize("Config.DataFile.OPEN_FILE_WARN"), INIFileName); //$NON-NLS-1$
 					}
 					lastModified = new ITimeStamp.Impl(0);
 				}
-			} finally {
-				if (Conf != null) {
-					Conf.close();
-				}
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			if (ILog.isLoggable(Level.FINE)) {
 				ILog.logExcept(e, Messages.Localize("Config.DataFile.OPEN_FILE_FAIL"), INIFileName); //$NON-NLS-1$
 			} else if (ILog.isLoggable(Level.CONFIG)) {
@@ -189,13 +154,43 @@ public class DataFile extends Properties {
 		}
 	}
 	
+	private InputStream LoadConfigStream(String INIFileName, String FSDir, String JarDir,
+			ClassLoader Loader) throws FileNotFoundException {
+		InputStream Conf = null;
+		boolean ConfigRelAppRoot = INIFileName.startsWith("?");
+		// First probe FSDir+INIFileName (local file override)
+		String ConfigFileName =
+				ConfigRelAppRoot? INIFileName.substring(1) : Misc.appendPathName(FSDir, INIFileName);
+		File ConfigFile = new File(ConfigFileName);
+		if (ConfigFile.exists() && ConfigFile.canRead()) {
+			lastModified = new ITimeStamp.Impl(ConfigFile.lastModified());
+			Conf = new FileInputStream(ConfigFile);
+			ILog.Fine(Messages.Localize("Config.DataFile.OPEN_FILE"), ConfigFileName, "file"); //$NON-NLS-1$ //$NON-NLS-2$
+		} else {
+			// If not exist, probe within Jar bundle
+			String ResourceName = Misc.appendPathName(JarDir, INIFileName);
+			if (Misc.PATH_DELIMITER != File.separatorChar) {
+				ResourceName = ResourceName.replace(File.separatorChar, Misc.PATH_DELIMITER);
+			}
+			if (Loader != null) {
+				Conf = Loader.getResourceAsStream(ResourceName);
+			}
+			if (Conf == null) {
+				Conf = getClass()
+						.getResourceAsStream(Misc.appendPathName(Misc.PATH_DELIMITER_STR, ResourceName));
+			}
+			ILog.Fine(Messages.Localize("Config.DataFile.OPEN_FILE"), ResourceName, "resource"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
+		return Conf;
+	}
+	
 	public DataFile(String Name, InputStream INIData) {
 		this(Name);
 		
 		try {
 			load(INIData);
 			ILog.Fine(Messages.Localize("Config.DataFile.LOADED_STREAM")); //$NON-NLS-1$
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			if (ILog.isLoggable(Level.FINE)) {
 				ILog.logExcept(e, Messages.Localize("Config.DataFile.LOAD_STREAM_FAIL")); //$NON-NLS-1$
 			} else if (ILog.isLoggable(Level.CONFIG)) {

@@ -118,6 +118,10 @@ public class ZabbixRequest {
 	
 	public static class Factory {
 		
+		protected Factory() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
+		
 		public static ZabbixRequest Logon(String name, String password) {
 			return ZabbixRequest.Builder.create("user.login").paramEntry("user", name)
 					.paramEntry("password", password).done();
@@ -125,7 +129,9 @@ public class ZabbixRequest {
 		
 		public static ZabbixRequest UserInfo(String name) {
 			Builder RetBuild = ZabbixRequest.Builder.create("user.get").paramEntry("output", "extend");
-			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("alias"), name));
+			if (name != null) {
+				RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("alias"), name));
+			}
 			return RetBuild.done();
 		}
 		
@@ -136,7 +142,9 @@ public class ZabbixRequest {
 		public static ZabbixRequest HostGroupInfo(String name) {
 			Builder RetBuild =
 					ZabbixRequest.Builder.create("hostgroup.get").paramEntry("output", "extend");
-			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), name));
+			if (name != null) {
+				RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), name));
+			}
 			return RetBuild.done();
 		}
 		
@@ -146,15 +154,18 @@ public class ZabbixRequest {
 		
 		public static ZabbixRequest HostInfo(String name) {
 			Builder RetBuild = ZabbixRequest.Builder.create("host.get").paramEntry("output", "extend");
-			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("host"), name));
+			if (name != null) {
+				RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("host"), name));
+			}
 			return RetBuild.done();
 		}
 		
 		public static ZabbixRequest HostCreate(String name, String... groupids) {
 			Builder RetBuild = ZabbixRequest.Builder.create("host.create").paramEntry("host", name);
 			List<Object> HostGroups = new ArrayList<>();
-			for (String groupid : groupids)
+			for (String groupid : groupids) {
 				HostGroups.add(Misc.StringMap(Misc.wrap("groupid"), groupid));
+			}
 			RetBuild.paramEntry("groups", HostGroups);
 			return RetBuild.done();
 		}
@@ -162,8 +173,12 @@ public class ZabbixRequest {
 		public static ZabbixRequest ApplicationInfo(String name, String HostID) {
 			Builder RetBuild =
 					ZabbixRequest.Builder.create("application.get").paramEntry("output", "extend");
-			if (name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), name));
-			if (HostID != null) RetBuild.paramEntry("hostids", HostID);
+			if (name != null) {
+				RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), name));
+			}
+			if (HostID != null) {
+				RetBuild.paramEntry("hostids", HostID);
+			}
 			return RetBuild.done();
 		}
 		
@@ -174,8 +189,12 @@ public class ZabbixRequest {
 		
 		public static ZabbixRequest ItemInfo(String Key, String HostID) {
 			Builder RetBuild = ZabbixRequest.Builder.create("item.get").paramEntry("output", "extend");
-			if (Key != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("key_"), Key));
-			if (HostID != null) RetBuild.paramEntry("hostids", HostID);
+			if (Key != null) {
+				RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("key_"), Key));
+			}
+			if (HostID != null) {
+				RetBuild.paramEntry("hostids", HostID);
+			}
 			return RetBuild.done();
 		}
 		
@@ -189,11 +208,14 @@ public class ZabbixRequest {
 					ZabbixRequest.Builder.create("mediatype.get").paramEntry("output", "extend");
 			if ((Desc != null) || (Type != null)) {
 				Map<String, Object> FilterMap = null;
-				if (Desc != null) FilterMap = Misc.StringMap(Misc.wrap("description"), Desc);
-				if (Type != null) if (FilterMap != null)
+				if (Desc != null) {
+					FilterMap = Misc.StringMap(Misc.wrap("description"), Desc);
+				}
+				if (Type != null) if (FilterMap != null) {
 					FilterMap.put("type", Type);
-				else
+				} else {
 					FilterMap = Misc.StringMap(Misc.wrap("type"), Type);
+				}
 				RetBuild.paramEntry("filter", FilterMap);
 			}
 			return RetBuild.done();
@@ -210,7 +232,9 @@ public class ZabbixRequest {
 		
 		public static ZabbixRequest ActionInfo(String Name) {
 			Builder RetBuild = ZabbixRequest.Builder.create("action.get").paramEntry("output", "extend");
-			if (Name != null) RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), Name));
+			if (Name != null) {
+				RetBuild.paramEntry("filter", Misc.StringMap(Misc.wrap("name"), Name));
+			}
 			return RetBuild.done();
 		}
 		
@@ -219,11 +243,19 @@ public class ZabbixRequest {
 			Builder RetBuild = ZabbixRequest.Builder.create("action.create").paramEntry("name", Name)
 					.paramEntry("esc_period", Math.max(EscPeriod, 60)).paramEntry("eventsource", Source);
 			
-			if (ProbSubj != null) RetBuild.paramEntry("def_shortdata", ProbSubj);
-			if (ProbBody != null) RetBuild.paramEntry("def_longdata", ProbBody);
+			if (ProbSubj != null) {
+				RetBuild.paramEntry("def_shortdata", ProbSubj);
+			}
+			if (ProbBody != null) {
+				RetBuild.paramEntry("def_longdata", ProbBody);
+			}
 			if ((RecSubj != null) || (RecBody != null)) {
-				if (RecSubj != null) RetBuild.paramEntry("r_shortdata", RecSubj);
-				if (RecBody != null) RetBuild.paramEntry("r_longdata", RecBody);
+				if (RecSubj != null) {
+					RetBuild.paramEntry("r_shortdata", RecSubj);
+				}
+				if (RecBody != null) {
+					RetBuild.paramEntry("r_longdata", RecBody);
+				}
 				RetBuild.paramEntry("recovery_msg", 1);
 			}
 			return RetBuild.done();

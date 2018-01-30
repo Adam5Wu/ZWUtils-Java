@@ -45,7 +45,7 @@ import com.necla.am.zwutils.Tasks.TaskCollection;
 
 public class TimedEvent extends Poller implements ITask.TaskDependency {
 	
-	public static final String LogGroup = ProcStats.class.getSimpleName();
+	public static final String LOGGROUP = ProcStats.class.getSimpleName();
 	
 	public static final String EVENT_TASK_TIMEOUT = "Task/Timeout";
 	
@@ -54,6 +54,9 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 	}
 	
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Poller.ConfigData.Mutable {
 			
@@ -82,7 +85,7 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 			protected class Validation extends Poller.ConfigData.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					super.validateFields();
 					
 					if (TimeOut != null) {
@@ -154,7 +157,7 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 	protected void doInit() {
 		super.doInit();
 		
-		TimeoutTasks = new TaskCollection<ITask>(getName() + ".Targets", this);
+		TimeoutTasks = new TaskCollection<>(getName() + ".Targets", this);
 	}
 	
 	@Override
@@ -230,7 +233,7 @@ public class TimedEvent extends Poller implements ITask.TaskDependency {
 				ILog.Fine("Signaling task '%s'...", TimeoutTask.getName());
 				try {
 					Notifiable.class.cast(TimeoutTask).onSubscription(TimeoutEvent);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					ILog.logExcept(e, "Exception while signaling task '%s'", TimeoutTask.getName());
 					// Eat exception
 				}

@@ -42,9 +42,7 @@ public class OverrideClassLoader extends ClassLoader {
 	}
 	
 	protected boolean isOverridenClass(String name) {
-		return OverridePackages.stream().anyMatch(pkgname -> {
-			return name.startsWith(pkgname);
-		});
+		return OverridePackages.stream().anyMatch(name::startsWith);
 	}
 	
 	protected Class<?> loadOverridenClass(String name, boolean resolve)

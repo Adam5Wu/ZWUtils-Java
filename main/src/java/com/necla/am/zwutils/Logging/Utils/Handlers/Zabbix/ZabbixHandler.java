@@ -104,10 +104,14 @@ tn9U3r+WzgAu8TyUHKVMYwABsAWHDQAACVUpabHEZ/sCAAAAAARZWg==
  */
 public class ZabbixHandler extends Handler implements AutoCloseable {
 	
-	public static final String LogGroup = "ZWUtils.Logging.Zabbix.Handler";
-	protected static final IGroupLogger CLog = new GroupLogger(LogGroup);
+	public static final String LOGGROUP = "ZWUtils.Logging.Zabbix.Handler";
+	protected static final IGroupLogger CLog = new GroupLogger(LOGGROUP);
 	
 	public static class ConfigData {
+		
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		protected static final String KEY_PREFIX = "ZabbixHandler.";
 		protected static final String KEY_PREFIX_RP = "RP.";
@@ -118,12 +122,12 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		protected static final int DEFPORT_REPORT = 10051;
 		
 		public static enum Severity {
-			Default(0, "not classified"),
-			Info(1, "information"),
-			Warn(2, "warning"),
-			Normal(3, "average"),
-			High(4, "high"),
-			Critical(5, "disaster");
+			DEFAULT(0, "not classified"),
+			INFO(1, "information"),
+			WARN(2, "warning"),
+			NORMAL(3, "average"),
+			HIGH(4, "high"),
+			CRITICAL(5, "disaster");
 			
 			public final int Priority;
 			public final String Description;
@@ -163,6 +167,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				public Severity parseOrFail(String From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					int Priority = Parsers.StringToInteger.parseOrDefault(From, -1);
@@ -182,6 +188,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				public String parseOrFail(Severity From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					return From.name();
@@ -189,8 +197,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				
 			}
 			
-			public static final StringToSeverity FromString = new StringToSeverity();
-			public static final StringFromSeverity ToString = new StringFromSeverity();
+			public static final StringToSeverity ParseFromString = new StringToSeverity();
+			public static final StringFromSeverity ParseToString = new StringFromSeverity();
 			
 		}
 		
@@ -238,6 +246,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				public SeveritySet parseOrFail(String From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					List<Severity> SeverityList = new ArrayList<>();
@@ -249,7 +259,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					}
 					
 					for (String StrSeverity : StrSeverities) {
-						SeverityList.add(Severity.FromString.parseOrFail(StrSeverity));
+						SeverityList.add(Severity.ParseFromString.parseOrFail(StrSeverity));
 					}
 					return new SeveritySet(SeverityList.toArray(new Severity[SeverityList.size()]));
 				}
@@ -264,6 +274,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				public String parseOrFail(SeveritySet From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
@@ -280,8 +292,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				
 			}
 			
-			public static final StringToSeveritySet FromString = new StringToSeveritySet();
-			public static final StringFromSeveritySet ToString = new StringFromSeveritySet();
+			public static final StringToSeveritySet ParseFromString = new StringToSeveritySet();
+			public static final StringFromSeveritySet ParseToString = new StringFromSeveritySet();
 			
 		}
 		
@@ -294,21 +306,23 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				Email = email;
 			}
 			
+			protected static final String RP_TOKDELIM = ";";
+			protected static final String RP_KVDELIM = "=";
+			protected static final String RP_EMAIL_KEY = "EMAIL";
+			
 			public static class StringToResponsiblePerson
 					extends Parsers.SimpleStringParse<ResponsiblePerson> {
-				
-				protected static final String RP_TOKDELIM = ";";
-				protected static final String RP_KVDELIM = "=";
-				protected static final String RP_EMAIL_KEY = "EMAIL";
 				
 				@Override
 				public ResponsiblePerson parseOrFail(String From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					String[] Tokens = From.split(RP_TOKDELIM);
-					SeveritySet Severities = SeveritySet.FromString.parseOrFail(Tokens[0]);
+					SeveritySet Severities = SeveritySet.ParseFromString.parseOrFail(Tokens[0]);
 					String Email = null;
 					for (int idx = 1; idx < Tokens.length; idx++) {
 						String[] KV = Tokens[idx].trim().split(RP_KVDELIM, 2);
@@ -332,18 +346,16 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			public static class StringFromResponsiblePerson
 					extends Parsers.SimpleParseString<ResponsiblePerson> {
 				
-				protected static final char RP_TOKDELIM = ';';
-				protected static final char RP_KVDELIM = '=';
-				protected static final String RP_EMAIL_KEY = "EMAIL";
-				
 				@Override
 				public String parseOrFail(ResponsiblePerson From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
-					StrBuf.append(SeveritySet.ToString.parseOrFail(From.Severities));
+					StrBuf.append(SeveritySet.ParseToString.parseOrFail(From.Severities));
 					if (From.Email != null) {
 						StrBuf.append(RP_TOKDELIM).append(RP_EMAIL_KEY).append(RP_KVDELIM).append(From.Email);
 					}
@@ -352,8 +364,10 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				
 			}
 			
-			public static final StringToResponsiblePerson FromString = new StringToResponsiblePerson();
-			public static final StringFromResponsiblePerson ToString = new StringFromResponsiblePerson();
+			public static final StringToResponsiblePerson ParseFromString =
+					new StringToResponsiblePerson();
+			public static final StringFromResponsiblePerson ParseToString =
+					new StringFromResponsiblePerson();
 		}
 		
 		public static class AutoTriggerInfo {
@@ -379,6 +393,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				public AutoTriggerInfo parseOrFail(String From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					String[] Tokens = From.split(TRG_TOKDELIM);
@@ -387,7 +403,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 								"Malformed auto-trigger info, found %d tokens", Tokens.length);
 					}
 					String PatternStr = Tokens[0];
-					Severity Severity = ConfigData.Severity.FromString.parseOrFail(Tokens[1]);
+					Severity Severity = ConfigData.Severity.ParseFromString.parseOrFail(Tokens[1]);
 					String Expression = Tokens[2];
 					String Comments = (Tokens.length > 3)? Tokens[3] : null;
 					
@@ -404,6 +420,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				public String parseOrFail(AutoTriggerInfo From) {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						return null;
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
@@ -418,8 +436,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				
 			}
 			
-			public static final StringToAutoTriggerInfo FromString = new StringToAutoTriggerInfo();
-			public static final StringFromAutoTriggerInfo ToString = new StringFromAutoTriggerInfo();
+			public static final StringToAutoTriggerInfo ParseFromString = new StringToAutoTriggerInfo();
+			public static final StringFromAutoTriggerInfo ParseToString = new StringFromAutoTriggerInfo();
 			
 		}
 		
@@ -457,8 +475,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				Map<String, ResponsiblePerson> xRPs = new HashMap<>();
 				DataMap RPMap = new DataMap("RP", confMap, KEY_PREFIX_RP);
 				for (String RPName : RPMap.getDataMap().keySet()) {
-					ResponsiblePerson RP =
-							RPMap.getObject(RPName, ResponsiblePerson.FromString, ResponsiblePerson.ToString);
+					ResponsiblePerson RP = RPMap.getObject(RPName, ResponsiblePerson.ParseFromString,
+							ResponsiblePerson.ParseToString);
 					if (RP.Email == null) {
 						ILog.Warn("Ignoring Resiponsible Persion '%s' without any means of contact", RPName);
 						RP = null;
@@ -471,8 +489,8 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				Map<String, AutoTriggerInfo> xTriggers = new HashMap<>();
 				DataMap TRGMap = new DataMap("TRG", confMap, KEY_PREFIX_TRG);
 				for (String TRGName : TRGMap.getDataMap().keySet()) {
-					AutoTriggerInfo TRG =
-							TRGMap.getObject(TRGName, AutoTriggerInfo.FromString, AutoTriggerInfo.ToString);
+					AutoTriggerInfo TRG = TRGMap.getObject(TRGName, AutoTriggerInfo.ParseFromString,
+							AutoTriggerInfo.ParseToString);
 					if (TRG != null) {
 						xTriggers.put(TRGName, TRG);
 					}
@@ -515,12 +533,14 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		
 		public static final File ConfigFile = DataFile.DeriveConfigFile("ZWUtils.");
 		
-		public static Container<Mutable, ReadOnly> Create(File xConfigFile) throws Throwable {
-			return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config", xConfigFile,
+		public static Container<Mutable, ReadOnly> Create(File xConfigFile) throws Exception {
+			return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP + ".Config", xConfigFile,
 					KEY_PREFIX);
 		}
 		
 	}
+	
+	private static final String STUB_IPADDR = "0.0.0.0";
 	
 	public final String Project;
 	public final String Component;
@@ -551,7 +571,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		
 		try {
 			Config = ConfigData.Create(ConfigFile != null? ConfigFile : ConfigData.ConfigFile).reflect();
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		
@@ -559,253 +579,55 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		RemoteInit();
 		
 		CLog.Fine("Starting Zabbix report daemon thread...");
-		DaemonTask = new Daemon(LogGroup + '.' + Daemon.class.getSimpleName());
+		DaemonTask = new Daemon(LOGGROUP + '.' + Daemon.class.getSimpleName());
 		ReportDaemon = DaemonRunner.LowPriorityTaskDaemon(DaemonTask);
 		try {
 			ReportDaemon.Start(-1);
 		} catch (InterruptedException e) {
 			Misc.CascadeThrow(e);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			Thread.currentThread().interrupt();
 		}
 	}
 	
 	public void RemoteInit() {
 		APIInit(ZAPI);
 		
-		String HostGroupID = null;
-		String HostID = null;
+		String _HostGroupID = null;
+		String _HostID = null;
 		
 		try {
 			if (ZAPI != null) {
 				CLog.Fine("Initializing Zabbix logging handler...");
-				ZabbixRequest HGQuery = ZabbixRequest.Factory.HostGroupInfo(Project);
-				HGQuery.putParam("output", Misc.wrap("groupid"));
-				JsonArray HostGroups = ZAPI.call(HGQuery).get("result").getAsJsonArray();
-				if (HostGroups.size() != 1) {
-					if (HostGroups.size() > 1) {
-						Misc.FAIL("Expect return of 1 entry, received %d", HostGroups.size());
-					}
-					
-					// Cannot create host group by ourselves
-					// (unless we are super-admin, not likely, and not safe!)
-					
-					CLog.Error("Please contact Zabbix administrator to create host group '%s'", Project);
-					CLog.Error("And / or please give user '%s' read/write access right to this host group",
-							ZAPI.user());
-					Misc.FAIL("Missing project (host group) '%s'", Project);
-				} else {
-					HostGroupID = HostGroups.get(0).getAsJsonObject().get("groupid").getAsString();
-					CLog.Config("Found project (host group) '%s' with ID #%s", Project, HostGroupID);
-				}
+				_HostGroupID = CheckHostGroup(_HostGroupID);
 				
 				ZabbixRequest HostQuery = ZabbixRequest.Factory.HostInfo(Component);
 				HostQuery.putParam("output", Misc.wrap("hostid"));
 				HostQuery.putParam("selectGroups", Misc.wrap("groupid"));
 				JsonArray Hosts = ZAPI.call(HostQuery).get("result").getAsJsonArray();
 				if (Hosts.size() != 1) {
-					if (Hosts.size() > 1) {
-						Misc.FAIL("Expect return of 1 entry, received %d", Hosts.size());
-					}
-					// Try to create the host on-the-fly
-					ZabbixRequest HCQuery = ZabbixRequest.Factory.HostCreate(Component, HostGroupID);
-					HCQuery.putParam("interfaces",
-							Misc.StringMap(Misc.wrap("type", "main", "useip", "ip", "dns", "port"),
-									(Object[]) Misc.wrap(1L, 1L, 1L, "0.0.0.0", "", "0")));
-					JsonObject Result = ZAPI.call(HCQuery);
-					if (Result.has("error")) {
-						Misc.FAIL("Failed to create project (host group) '%s': %s", Project,
-								Result.get("error"));
-					}
-					JsonObject HCreate = Result.get("result").getAsJsonObject();
-					HostID = HCreate.get("hostids").getAsJsonArray().get(0).getAsString();
-					CLog.Info("Created component (host) '%s' with ID #%s", Component, HostID);
+					_HostID = CreateNewHost(_HostGroupID, Hosts);
 				} else {
-					JsonObject Host = Hosts.get(0).getAsJsonObject();
-					// Host exists, check if it is in the right group
-					JsonArray RHostGroups = Host.get("groups").getAsJsonArray();
-					if (RHostGroups.size() != 1) {
-						Misc.FAIL("Expect return of 1 entry, received %d", RHostGroups.size());
-					}
-					String RHGID = RHostGroups.get(0).getAsJsonObject().get("groupid").getAsString();
-					if (!RHGID.equals(HostGroupID)) {
-						Misc.FAIL("Component already assigned to project '%s'",
-								RHostGroups.get(0).getAsJsonObject().get("name").getAsString());
-					}
-					// Everything check up, we are good to go!
-					HostID = Host.get("hostid").getAsString();
-					CLog.Config("Found component (host) '%s' with ID #%s", Component, HostID);
+					_HostID = ValidateHost(_HostGroupID, Hosts);
 				}
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.Warn("Unable to initialize Zabbix logging handler - %s", e);
 			ZAPI = null;
 		}
 		
-		this.HostGroupID = HostGroupID;
-		this.HostID = HostID;
+		HostGroupID = _HostGroupID;
+		HostID = _HostID;
 		
 		if (ZAPI != null) {
 			CLog.Fine("Configuring Contacts and Trigers...");
 			// Process RP and Trigger configurations
 			if (!Config.RPs.isEmpty()) {
 				try {
-					String MediaTypeID = null;
-					
-					// Check the medias (require email, others optional -- and not implemented)
-					String MediaTypeName = Project + "-Email";
-					{
-						ZabbixRequest MTQuery = ZabbixRequest.Factory.MediaTypeInfo(MediaTypeName, null);
-						MTQuery.putParam("output", "mediatypeid");
-						JsonArray MediaTypes = ZAPI.call(MTQuery).get("result").getAsJsonArray();
-						if (MediaTypes.size() != 1) {
-							if (MediaTypes.size() > 1) {
-								Misc.FAIL("Expect return of 1 entry, received %d", MediaTypes.size());
-							}
-							
-							// Cannot create media type by ourselves
-							// (unless we are super-admin, not likely, and not safe!)
-							
-							CLog.Error(
-									"Please contact Zabbix administrator to create and configure media type '%s'",
-									MediaTypeName);
-							Misc.FAIL("Missing email media type '%s'", MediaTypeName);
-						} else {
-							MediaTypeID = MediaTypes.get(0).getAsJsonObject().get("mediatypeid").getAsString();
-							CLog.Config("Found email media type '%s' with ID #%s", MediaTypeName, MediaTypeID);
-						}
-					}
-					
-					// Check if all RPs are recorded for current user, and update if necessary
-					String UserID = null;
-					{
-						ZabbixRequest UserQuery = ZabbixRequest.Factory.UserInfo(ZAPI.user());
-						UserQuery.putParam("output", Misc.wrap("userid"));
-						UserQuery.putParam("selectMedias",
-								Misc.wrap("mediaid", "mediatypeid", "active", "sendto", "severity"));
-						JsonArray Users = ZAPI.call(UserQuery).get("result").getAsJsonArray();
-						if (Users.size() != 1) {
-							Misc.FAIL("Expect return of 1 entry, received %d", Users.size());
-						}
-						JsonObject UserData = Users.get(0).getAsJsonObject();
-						UserID = UserData.get("userid").getAsString();
-						JsonArray UserMedias = UserData.get("medias").getAsJsonArray();
-						
-						Map<String, ConfigData.ResponsiblePerson> xRPs = new HashMap<>(Config.RPs);
-						for (JsonElement UserMedia : UserMedias) {
-							JsonObject UMInfo = UserMedia.getAsJsonObject();
-							String UMType = UMInfo.get("mediatypeid").getAsString();
-							if (UMType.equals(MediaTypeID)) {
-								String UMEmail = UMInfo.get("sendto").getAsString();
-								int UMSeverity = UMInfo.get("severity").getAsInt();
-								String UMID = UMInfo.get("mediaid").getAsString();
-								String UMState = (UMInfo.get("active").getAsInt() == 0)? "Enabled" : "Disabled";
-								for (Map.Entry<String, ConfigData.ResponsiblePerson> xRP : xRPs.entrySet()) {
-									ConfigData.ResponsiblePerson RP = xRP.getValue();
-									if (RP.Email.equalsIgnoreCase(UMEmail)) {
-										CLog.Config("Found responsible person (user media) '%s' "
-																+ "with Severity %d [%s], ID #%s, %s", //
-												UMEmail, UMSeverity, ConfigData.SeveritySet.ToString
-														.parseOrFail(new ConfigData.SeveritySet(UMSeverity)),
-												UMID, UMState);
-										xRPs.remove(xRP.getKey());
-										break;
-									}
-								}
-							}
-						}
-						if (!xRPs.isEmpty()) {
-							JsonArray NewUserMedias = new JsonArray();
-							for (Map.Entry<String, ConfigData.ResponsiblePerson> xRP : xRPs.entrySet()) {
-								ConfigData.ResponsiblePerson RP = xRP.getValue();
-								CLog.Info("Creating responsible person (user media) '%s' with Severity %d [%s]",
-										RP.Email, RP.Severities.Value(),
-										ConfigData.SeveritySet.ToString.parseOrFail(RP.Severities));
-								JsonObject NewUserMedia = new JsonObject();
-								NewUserMedia.addProperty("active", 0);
-								NewUserMedia.addProperty("mediatypeid", MediaTypeID);
-								NewUserMedia.addProperty("period", "1-7,00:00-24:00");
-								NewUserMedia.addProperty("sendto", RP.Email);
-								NewUserMedia.addProperty("severity", RP.Severities.Value());
-								NewUserMedias.add(NewUserMedia);
-							}
-							ZabbixRequest UMAddQuery = ZabbixRequest.Factory.UserAddMediaTemplate(UserID);
-							UMAddQuery.putParam("medias", NewUserMedias);
-							JsonObject UMAddRet = ZAPI.call(UMAddQuery);
-							if (!UMAddRet.has("result")) {
-								Misc.FAIL("Unable to create responsible persons (user medias) - %s", UMAddRet);
-							}
-							CLog.Info("Created responsible persons (user medias) with IDs %s",
-									UMAddRet.get("result").getAsJsonObject().get("mediaids"));
-						}
-					}
-					
-					// Check if notification action is configured, add if necessary
-					String ActionID = null;
-					String ActionName = Component + "-AutoNotify";
-					{
-						ZabbixRequest ActionQuery = ZabbixRequest.Factory.ActionInfo(ActionName);
-						ActionQuery.putParam("selectConditions", "extend");
-						ActionQuery.putParam("selectOperations", "extend");
-						// ActionQuery.putParam("output", Misc.wrap("actionid", "status"));
-						JsonArray Actions = ZAPI.call(ActionQuery).get("result").getAsJsonArray();
-						if (Actions.size() != 1) {
-							if (Actions.size() > 1) {
-								Misc.FAIL("Expect return of 1 entry, received %d", Actions.size());
-							}
-							
-							// Create default action
-							ZabbixRequest ActionCreateQuery = ZabbixRequest.Factory.ActionCreateTemplate(
-									ActionName, 0, 600, Config.ProblemSubject, Config.ProblemBody, null, null);
-							// Conditions
-							ActionCreateQuery.putParam("evaltype", 1); // AND
-							Gson gson = new Gson();
-							{
-								JsonArray ActionConds = new JsonArray();
-								ActionCreateQuery.putParam("conditions", ActionConds);
-								ActionConds.add(gson.toJsonTree(Misc.StringMap( // Host = <HostID>
-										Misc.wrap("conditiontype", "value"), 1, HostID)));
-								ActionConds.add(gson.toJsonTree(Misc.StringMap( // Trigger Value = Problem
-										Misc.wrap("conditiontype", "value"), 5, 1)));
-								ActionConds.add(gson.toJsonTree(Misc.StringMap( // Not in maintenance mode
-										Misc.wrap("conditiontype", "operator"), 16, 7)));
-							}
-							JsonArray ActionOps = new JsonArray();
-							ActionCreateQuery.putParam("operations", ActionOps);
-							{
-								JsonObject ActionOp1 = new JsonObject();
-								ActionOps.add(ActionOp1);
-								// Send message
-								ActionOp1.addProperty("operationtype", 0);
-								JsonArray OpUsers = new JsonArray();
-								// To responsible persons of this application
-								ActionOp1.add("opmessage_usr", OpUsers);
-								OpUsers.add(new Gson().toJsonTree(Misc.StringMap(Misc.wrap("userid"), UserID)));
-								// Default message content, sent with any media type
-								ActionOp1.add("opmessage",
-										new Gson().toJsonTree(Misc.StringMap(Misc.wrap("mediatypeid"), "0")));
-								// Conditions
-								JsonArray OpConds = new JsonArray();
-								ActionOp1.add("opconditions", OpConds);
-								// Event acknowledged = not acknowledged
-								OpConds.add(new Gson()
-										.toJsonTree(Misc.StringMap(Misc.wrap("conditiontype", "value"), 14, 0)));
-							}
-							JsonObject ActionCreateRet = ZAPI.call(ActionCreateQuery);
-							if (!ActionCreateRet.has("result")) {
-								Misc.FAIL("Unable to create notification action - %s", ActionCreateRet);
-							}
-							JsonObject ActionInfo = ActionCreateRet.get("result").getAsJsonObject();
-							ActionID = ActionInfo.get("actionids").getAsJsonArray().get(0).getAsString();
-							CLog.Info("Created notification action with IDs %s", ActionID);
-						} else {
-							JsonObject ActionInfo = Actions.get(0).getAsJsonObject();
-							ActionID = ActionInfo.get("actionid").getAsString();
-							String ActionState =
-									(ActionInfo.get("status").getAsInt() == 0)? "Enabled" : "Disabled";
-							CLog.Config("Found notification action '%s' with ID #%s, %s", ActionName, ActionID,
-									ActionState);
-						}
-					}
-				} catch (Throwable e) {
+					String MediaTypeID = CheckEmailMedia();
+					String UserID = UpdateRespPerson(MediaTypeID);
+					UpdateNotifAction(_HostID, UserID);
+				} catch (Exception e) {
 					CLog.Warn("Notification configuration error detected - %s", e);
 					CLog.Warn("You may not receive notification for your triggers");
 				}
@@ -816,11 +638,245 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		}
 	}
 	
+	private void UpdateNotifAction(String HostID, String UserID) {
+		// Check if notification action is configured, add if necessary
+		String ActionID = null;
+		String ActionName = Component + "-AutoNotify";
+		{
+			ZabbixRequest ActionQuery = ZabbixRequest.Factory.ActionInfo(ActionName);
+			ActionQuery.putParam("selectConditions", "extend");
+			ActionQuery.putParam("selectOperations", "extend");
+			JsonArray Actions = ZAPI.call(ActionQuery).get("result").getAsJsonArray();
+			if (Actions.size() != 1) {
+				if (Actions.size() > 1) {
+					Misc.FAIL("Expect return of 1 entry, received %d", Actions.size());
+				}
+				
+				// Create default action
+				ZabbixRequest ActionCreateQuery = ZabbixRequest.Factory.ActionCreateTemplate(ActionName, 0,
+						600, Config.ProblemSubject, Config.ProblemBody, null, null);
+				// Conditions
+				ActionCreateQuery.putParam("evaltype", 1); // AND
+				Gson gson = new Gson();
+				{
+					JsonArray ActionConds = new JsonArray();
+					ActionCreateQuery.putParam("conditions", ActionConds);
+					ActionConds.add(gson.toJsonTree(Misc.StringMap( // Host = <HostID>
+							Misc.wrap("conditiontype", "value"), 1, HostID)));
+					ActionConds.add(gson.toJsonTree(Misc.StringMap( // Trigger Value = Problem
+							Misc.wrap("conditiontype", "value"), 5, 1)));
+					ActionConds.add(gson.toJsonTree(Misc.StringMap( // Not in maintenance mode
+							Misc.wrap("conditiontype", "operator"), 16, 7)));
+				}
+				JsonArray ActionOps = new JsonArray();
+				ActionCreateQuery.putParam("operations", ActionOps);
+				{
+					JsonObject ActionOp1 = new JsonObject();
+					ActionOps.add(ActionOp1);
+					// Send message
+					ActionOp1.addProperty("operationtype", 0);
+					JsonArray OpUsers = new JsonArray();
+					// To responsible persons of this application
+					ActionOp1.add("opmessage_usr", OpUsers);
+					OpUsers.add(new Gson().toJsonTree(Misc.StringMap(Misc.wrap("userid"), UserID)));
+					// Default message content, sent with any media type
+					ActionOp1.add("opmessage",
+							new Gson().toJsonTree(Misc.StringMap(Misc.wrap("mediatypeid"), "0")));
+					// Conditions
+					JsonArray OpConds = new JsonArray();
+					ActionOp1.add("opconditions", OpConds);
+					// Event acknowledged = not acknowledged
+					OpConds.add(
+							new Gson().toJsonTree(Misc.StringMap(Misc.wrap("conditiontype", "value"), 14, 0)));
+				}
+				JsonObject ActionCreateRet = ZAPI.call(ActionCreateQuery);
+				if (!ActionCreateRet.has("result")) {
+					Misc.FAIL("Unable to create notification action - %s", ActionCreateRet);
+				}
+				JsonObject ActionInfo = ActionCreateRet.get("result").getAsJsonObject();
+				ActionID = ActionInfo.get("actionids").getAsJsonArray().get(0).getAsString();
+				CLog.Info("Created notification action with IDs %s", ActionID);
+			} else {
+				JsonObject ActionInfo = Actions.get(0).getAsJsonObject();
+				ActionID = ActionInfo.get("actionid").getAsString();
+				String ActionState = (ActionInfo.get("status").getAsInt() == 0)? "Enabled" : "Disabled";
+				CLog.Config("Found notification action '%s' with ID #%s, %s", ActionName, ActionID,
+						ActionState);
+			}
+		}
+	}
+	
+	private String UpdateRespPerson(String MediaTypeID) {
+		// Check if all RPs are recorded for current user, and update if necessary
+		String UserID = null;
+		{
+			ZabbixRequest UserQuery = ZabbixRequest.Factory.UserInfo(ZAPI.user());
+			UserQuery.putParam("output", Misc.wrap("userid"));
+			UserQuery.putParam("selectMedias",
+					Misc.wrap("mediaid", "mediatypeid", "active", "sendto", "severity"));
+			JsonArray Users = ZAPI.call(UserQuery).get("result").getAsJsonArray();
+			if (Users.size() != 1) {
+				Misc.FAIL("Expect return of 1 entry, received %d", Users.size());
+			}
+			JsonObject UserData = Users.get(0).getAsJsonObject();
+			UserID = UserData.get("userid").getAsString();
+			JsonArray UserMedias = UserData.get("medias").getAsJsonArray();
+			
+			Map<String, ConfigData.ResponsiblePerson> xRPs = new HashMap<>(Config.RPs);
+			for (JsonElement UserMedia : UserMedias) {
+				DiscoverRespPersonMedia(MediaTypeID, xRPs, UserMedia);
+			}
+			if (!xRPs.isEmpty()) {
+				CreateRespPersonMedia(MediaTypeID, UserID, xRPs);
+			}
+		}
+		return UserID;
+	}
+	
+	private void CreateRespPersonMedia(String MediaTypeID, String UserID,
+			Map<String, ConfigData.ResponsiblePerson> xRPs) {
+		JsonArray NewUserMedias = new JsonArray();
+		for (Map.Entry<String, ConfigData.ResponsiblePerson> xRP : xRPs.entrySet()) {
+			ConfigData.ResponsiblePerson RP = xRP.getValue();
+			CLog.Info("Creating responsible person (user media) '%s' with Severity %d [%s]", RP.Email,
+					RP.Severities.Value(), ConfigData.SeveritySet.ParseToString.parseOrFail(RP.Severities));
+			JsonObject NewUserMedia = new JsonObject();
+			NewUserMedia.addProperty("active", 0);
+			NewUserMedia.addProperty("mediatypeid", MediaTypeID);
+			NewUserMedia.addProperty("period", "1-7,00:00-24:00");
+			NewUserMedia.addProperty("sendto", RP.Email);
+			NewUserMedia.addProperty("severity", RP.Severities.Value());
+			NewUserMedias.add(NewUserMedia);
+		}
+		ZabbixRequest UMAddQuery = ZabbixRequest.Factory.UserAddMediaTemplate(UserID);
+		UMAddQuery.putParam("medias", NewUserMedias);
+		JsonObject UMAddRet = ZAPI.call(UMAddQuery);
+		if (!UMAddRet.has("result")) {
+			Misc.FAIL("Unable to create responsible persons (user medias) - %s", UMAddRet);
+		}
+		CLog.Info("Created responsible persons (user medias) with IDs %s",
+				UMAddRet.get("result").getAsJsonObject().get("mediaids"));
+	}
+	
+	private void DiscoverRespPersonMedia(String MediaTypeID,
+			Map<String, ConfigData.ResponsiblePerson> xRPs, JsonElement UserMedia) {
+		JsonObject UMInfo = UserMedia.getAsJsonObject();
+		String UMType = UMInfo.get("mediatypeid").getAsString();
+		if (UMType.equals(MediaTypeID)) {
+			String UMEmail = UMInfo.get("sendto").getAsString();
+			int UMSeverity = UMInfo.get("severity").getAsInt();
+			String UMID = UMInfo.get("mediaid").getAsString();
+			String UMState = (UMInfo.get("active").getAsInt() == 0)? "Enabled" : "Disabled";
+			for (Map.Entry<String, ConfigData.ResponsiblePerson> xRP : xRPs.entrySet()) {
+				ConfigData.ResponsiblePerson RP = xRP.getValue();
+				if (RP.Email.equalsIgnoreCase(UMEmail)) {
+					CLog.Config(
+							"Found responsible person (user media) '%s' " + "with Severity %d [%s], ID #%s, %s", //
+							UMEmail, UMSeverity, ConfigData.SeveritySet.ParseToString
+									.parseOrFail(new ConfigData.SeveritySet(UMSeverity)),
+							UMID, UMState);
+					xRPs.remove(xRP.getKey());
+					break;
+				}
+			}
+		}
+	}
+	
+	private String CheckEmailMedia() {
+		String MediaTypeID = null;
+		
+		// Check the medias (require email, others optional -- and not implemented)
+		String MediaTypeName = Project + "-Email";
+		{
+			ZabbixRequest MTQuery = ZabbixRequest.Factory.MediaTypeInfo(MediaTypeName, null);
+			MTQuery.putParam("output", "mediatypeid");
+			JsonArray MediaTypes = ZAPI.call(MTQuery).get("result").getAsJsonArray();
+			if (MediaTypes.size() != 1) {
+				if (MediaTypes.size() > 1) {
+					Misc.FAIL("Expect return of 1 entry, received %d", MediaTypes.size());
+				}
+				
+				// Cannot create media type by ourselves
+				// (unless we are super-admin, not likely, and not safe!)
+				
+				CLog.Error("Please contact Zabbix administrator to create and configure media type '%s'",
+						MediaTypeName);
+				Misc.FAIL("Missing email media type '%s'", MediaTypeName);
+			} else {
+				MediaTypeID = MediaTypes.get(0).getAsJsonObject().get("mediatypeid").getAsString();
+				CLog.Config("Found email media type '%s' with ID #%s", MediaTypeName, MediaTypeID);
+			}
+		}
+		return MediaTypeID;
+	}
+	
+	private String ValidateHost(String HostGroupID, JsonArray Hosts) {
+		String _HostID;
+		JsonObject Host = Hosts.get(0).getAsJsonObject();
+		// Host exists, check if it is in the right group
+		JsonArray RHostGroups = Host.get("groups").getAsJsonArray();
+		if (RHostGroups.size() != 1) {
+			Misc.FAIL("Expect return of 1 entry, received %d", RHostGroups.size());
+		}
+		String RHGID = RHostGroups.get(0).getAsJsonObject().get("groupid").getAsString();
+		if (!RHGID.equals(HostGroupID)) {
+			Misc.FAIL("Component already assigned to project '%s'",
+					RHostGroups.get(0).getAsJsonObject().get("name").getAsString());
+		}
+		// Everything check up, we are good to go!
+		_HostID = Host.get("hostid").getAsString();
+		CLog.Config("Found component (host) '%s' with ID #%s", Component, _HostID);
+		return _HostID;
+	}
+	
+	private String CreateNewHost(String HostGroupID, JsonArray Hosts) {
+		String _HostID;
+		if (Hosts.size() > 1) {
+			Misc.FAIL("Expect return of 1 entry, received %d", Hosts.size());
+		}
+		// Try to create the host on-the-fly
+		ZabbixRequest HCQuery = ZabbixRequest.Factory.HostCreate(Component, HostGroupID);
+		HCQuery.putParam("interfaces",
+				Misc.StringMap(Misc.wrap("type", "main", "useip", "ip", "dns", "port"),
+						(Object[]) Misc.wrap(1L, 1L, 1L, STUB_IPADDR, "", "0")));
+		JsonObject Result = ZAPI.call(HCQuery);
+		if (Result.has("error")) {
+			Misc.FAIL("Failed to create project (host group) '%s': %s", Project, Result.get("error"));
+		}
+		JsonObject HCreate = Result.get("result").getAsJsonObject();
+		_HostID = HCreate.get("hostids").getAsJsonArray().get(0).getAsString();
+		CLog.Info("Created component (host) '%s' with ID #%s", Component, _HostID);
+		return _HostID;
+	}
+	
+	private String CheckHostGroup(String HostGroupID) {
+		ZabbixRequest HGQuery = ZabbixRequest.Factory.HostGroupInfo(Project);
+		HGQuery.putParam("output", Misc.wrap("groupid"));
+		JsonArray HostGroups = ZAPI.call(HGQuery).get("result").getAsJsonArray();
+		if (HostGroups.size() != 1) {
+			if (HostGroups.size() > 1) {
+				Misc.FAIL("Expect return of 1 entry, received %d", HostGroups.size());
+			}
+			
+			// Cannot create host group by ourselves
+			// (unless we are super-admin, not likely, and not safe!)
+			
+			CLog.Error("Please contact Zabbix administrator to create host group '%s'", Project);
+			CLog.Error("And / or please give user '%s' read/write access right to this host group",
+					ZAPI.user());
+			Misc.FAIL("Missing project (host group) '%s'", Project);
+		} else {
+			HostGroupID = HostGroups.get(0).getAsJsonObject().get("groupid").getAsString();
+			CLog.Config("Found project (host group) '%s' with ID #%s", Project, HostGroupID);
+		}
+		return HostGroupID;
+	}
+	
 	public void APIInit(ZabbixAPI ZAPI) {
 		if (ZAPI == null) {
 			try {
 				ZAPI = new ZabbixAPI.Impl();
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				CLog.Warn("Unable to initialize Zabbix API - %s", e);
 			}
 		}
@@ -959,7 +1015,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 						return;
 					}
 					StringifySupport.put(Type, null);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					CLog.Warn("Unable to locate stringification implementation for class '%s'", Type);
 					StringifySupport.put(Type, null);
 				}
@@ -985,13 +1041,14 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				}
 			}
 			return Ret;
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Failed to parse metric '%s'", ItemKey);
-			return null;
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return new String[0];
 		}
 	}
 	
-	protected static final String ItemDispNameBase = "Metric '$1'";
+	protected static final String ITEM_DISPNAME_BASE = "Metric '$1'";
 	
 	protected String EnsureItem(String AppID, String AppKey, Class<?> Type) {
 		TItemInfo iRet = ItemMap.get(AppKey);
@@ -1002,55 +1059,9 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			ItemQuery.putParam("output", Misc.wrap("name", "type", "value_type", "itemid"));
 			JsonArray Items = ZAPI.call(ItemQuery).get("result").getAsJsonArray();
 			if (Items.size() != 1) {
-				if (Items.size() > 1) {
-					Misc.FAIL("Expect return of 1 entry, received %d", Items.size());
-				}
-				// Try to create the application on-the-fly
-				String ParamStr = AppKey.split("\\[")[1];
-				ParamStr = ParamStr.substring(0, ParamStr.length() - 1);
-				String[] ItemParams = ParseItemKey(ParamStr);
-				String DispName;
-				if (ItemParams.length > 1) {
-					StringBuilder StrBuf = new StringBuilder().append(ItemDispNameBase).append(" (");
-					for (int idx = 2; idx <= ItemParams.length; idx++) {
-						StrBuf.append('$').append(idx).append(',');
-					}
-					StrBuf.setCharAt(StrBuf.length() - 1, ')');
-					DispName = StrBuf.toString();
-				} else {
-					DispName = ItemDispNameBase;
-				}
-				
-				ZabbixRequest ICQuery = ZabbixRequest.Factory.ItemCreateTemplate(AppKey, DispName, HostID);
-				ICQuery.putParam("type", ZABBIX_TYPE_TRAPPER);
-				ICQuery.putParam("value_type", VType);
-				ICQuery.putParam("applications", Misc.wrap(AppID));
-				JsonObject Result = ZAPI.call(ICQuery);
-				if (Result.has("error")) {
-					Misc.FAIL("Failed to create metric (item) '%s': %s", AppKey, Result.get("error"));
-				}
-				JsonObject ICreate = Result.get("result").getAsJsonObject();
-				
-				String ItemID = ICreate.get("itemids").getAsJsonArray().get(0).getAsString();
-				iRet = TItemInfo.Create(ItemID, Type, VType);
-				CLog.Info("Created metric (item) '%s' with ID #%s", AppKey, iRet.ID);
+				iRet = CreateMetric(AppID, AppKey, Type, VType, Items);
 			} else {
-				// Item exists, validate type, value_type
-				JsonObject ItemInfo = Items.get(0).getAsJsonObject();
-				int RType = ItemInfo.get("type").getAsInt();
-				if (RType != ZABBIX_TYPE_TRAPPER) {
-					Misc.ERROR("Configured item '%s' has incompatble type %d, expect %d (Trapper)", AppKey,
-							RType, ZABBIX_TYPE_TRAPPER);
-				}
-				int RVType = ItemInfo.get("value_type").getAsInt();
-				if (RVType != VType) {
-					Misc.ERROR("Configured metric (item) '%s' has incompatble value_type %d, expect %d (%s)",
-							AppKey, RVType, VType, StrVType(VType));
-				}
-				// Everything check up, we are good to go!
-				iRet = TItemInfo.Create(ItemInfo.get("itemid").getAsString(), Type, VType);
-				String ItemName = ItemInfo.get("name").getAsString();
-				CLog.Config("Found metric (item) '%s'[%s] with ID #%s", AppKey, ItemName, iRet.ID);
+				iRet = ValidateMetric(AppKey, Type, VType, Items);
 			}
 			ItemMap.put(AppKey, iRet);
 		} else {
@@ -1063,6 +1074,65 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			}
 		}
 		return iRet.ID;
+	}
+	
+	private TItemInfo ValidateMetric(String AppKey, Class<?> Type, int VType, JsonArray Items) {
+		TItemInfo iRet;
+		// Item exists, validate type, value_type
+		JsonObject ItemInfo = Items.get(0).getAsJsonObject();
+		int RType = ItemInfo.get("type").getAsInt();
+		if (RType != ZABBIX_TYPE_TRAPPER) {
+			Misc.ERROR("Configured item '%s' has incompatble type %d, expect %d (Trapper)", AppKey, RType,
+					ZABBIX_TYPE_TRAPPER);
+		}
+		int RVType = ItemInfo.get("value_type").getAsInt();
+		if (RVType != VType) {
+			Misc.ERROR("Configured metric (item) '%s' has incompatble value_type %d, expect %d (%s)",
+					AppKey, RVType, VType, StrVType(VType));
+		}
+		// Everything check up, we are good to go!
+		iRet = TItemInfo.Create(ItemInfo.get("itemid").getAsString(), Type, VType);
+		String ItemName = ItemInfo.get("name").getAsString();
+		CLog.Config("Found metric (item) '%s'[%s] with ID #%s", AppKey, ItemName, iRet.ID);
+		return iRet;
+	}
+	
+	private TItemInfo CreateMetric(String AppID, String AppKey, Class<?> Type, int VType,
+			JsonArray Items) {
+		TItemInfo iRet;
+		if (Items.size() > 1) {
+			Misc.FAIL("Expect return of 1 entry, received %d", Items.size());
+		}
+		// Try to create the application on-the-fly
+		String ParamStr = AppKey.split("\\[")[1];
+		ParamStr = ParamStr.substring(0, ParamStr.length() - 1);
+		String[] ItemParams = ParseItemKey(ParamStr);
+		String DispName;
+		if (ItemParams.length > 1) {
+			StringBuilder StrBuf = new StringBuilder().append(ITEM_DISPNAME_BASE).append(" (");
+			for (int idx = 2; idx <= ItemParams.length; idx++) {
+				StrBuf.append('$').append(idx).append(',');
+			}
+			StrBuf.setCharAt(StrBuf.length() - 1, ')');
+			DispName = StrBuf.toString();
+		} else {
+			DispName = ITEM_DISPNAME_BASE;
+		}
+		
+		ZabbixRequest ICQuery = ZabbixRequest.Factory.ItemCreateTemplate(AppKey, DispName, HostID);
+		ICQuery.putParam("type", ZABBIX_TYPE_TRAPPER);
+		ICQuery.putParam("value_type", VType);
+		ICQuery.putParam("applications", Misc.wrap(AppID));
+		JsonObject Result = ZAPI.call(ICQuery);
+		if (Result.has("error")) {
+			Misc.FAIL("Failed to create metric (item) '%s': %s", AppKey, Result.get("error"));
+		}
+		JsonObject ICreate = Result.get("result").getAsJsonObject();
+		
+		String ItemID = ICreate.get("itemids").getAsJsonArray().get(0).getAsString();
+		iRet = TItemInfo.Create(ItemID, Type, VType);
+		CLog.Info("Created metric (item) '%s' with ID #%s", AppKey, iRet.ID);
+		return iRet;
 	}
 	
 	protected ITimeStamp LastSuccess;
@@ -1107,15 +1177,9 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				String AppKey = Application + '[' + ItemKey + ']';
 				Object ItemVal = LogRecords[Idx + 1];
 				Class<?> IType = ItemVal.getClass();
-				try {
-					EnsureItem(AppID, AppKey, IType);
-					Report.Add(Component, AppKey, ItemVal);
-				} catch (Throwable e) {
-					Misc.CascadeThrow(e, "Metric [%s] Value '%s'", ItemKey, IType.getName(),
-							String.valueOf(ItemVal));
-				}
+				AddReportItem(Report, AppID, ItemKey, AppKey, ItemVal, IType);
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.Warn("Report preparation failed, data not logged - %s", e.getLocalizedMessage());
 			if (e.getCause() != null) {
 				CLog.logExcept(e.getCause());
@@ -1127,6 +1191,17 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		}
 		
 		DaemonTask.Queue.publish(Report);
+	}
+	
+	private void AddReportItem(ZabbixReport Report, String AppID, String ItemKey, String AppKey,
+			Object ItemVal, Class<?> IType) {
+		try {
+			EnsureItem(AppID, AppKey, IType);
+			Report.Add(Component, AppKey, ItemVal);
+		} catch (Exception e) {
+			Misc.CascadeThrow(e, "Metric [%s] Value '%s'", ItemKey, IType.getName(),
+					String.valueOf(ItemVal));
+		}
 	}
 	
 	@Override
@@ -1142,7 +1217,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		
 		try {
 			ReportDaemon.Join(-1);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			CLog.logExcept(e, "Zabbix report daemon termination join failed");
 		}
 	}
@@ -1167,7 +1242,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 			private Queue<ZabbixReport> Container = new ConcurrentLinkedQueue<>();
 			
 			@Override
-			synchronized public void close() {
+			public synchronized void close() {
 				if (isClosed()) {
 					Misc.FAIL("Handler already closed");
 				}
@@ -1182,7 +1257,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				return Closed;
 			}
 			
-			synchronized public void flush() {
+			public synchronized void flush() {
 				if (isClosed()) {
 					Misc.FAIL("Handler already closed");
 				}
@@ -1190,12 +1265,16 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				_flush();
 			}
 			
-			protected void _flush() {
+			synchronized void _flush() {
 				LockSupport.unpark(ReportThread);
 				try {
-					wait();
+					while (!Container.isEmpty()) {
+						wait();
+					}
 				} catch (InterruptedException e) {
 					Misc.CascadeThrow(e);
+					// PERF: code analysis tool doesn't recognize custom throw functions
+					Thread.currentThread().interrupt();
 				}
 			}
 			
@@ -1259,10 +1338,10 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		}
 		
 		protected void doReport(ZabbixReport report) {
-			ZabbixAPI ZAPI = ZabbixHandler.this.ZAPI;
+			ZabbixAPI _ZAPI = ZAPI;
 			try {
-				if (ZAPI != null) {
-					JsonObject Reply = ZAPI.send(report);
+				if (_ZAPI != null) {
+					JsonObject Reply = _ZAPI.send(report);
 					if (Reply.get("response").getAsString().equals("success")) {
 						CLog.Fine("Successful report: %s", Reply.get("info").getAsString());
 						LastSuccess = ITimeStamp.Impl.Now();
@@ -1277,7 +1356,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				} else {
 					CLog.Warn("Zabbix API de-initialized, data not logged");
 				}
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				CLog.Warn("Failed report - %s", e);
 			}
 		}

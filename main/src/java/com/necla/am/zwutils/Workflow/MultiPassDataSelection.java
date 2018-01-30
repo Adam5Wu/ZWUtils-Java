@@ -56,21 +56,25 @@ public class MultiPassDataSelection<X> {
 			String MarkReason;
 			for (Filter<X> F : Filters) {
 				if ((MarkReason = F.Do(Item)) != null) {
-					PItem.Mark();
-					NewMarkCount.incrementAndGet();
-					Map<String, AtomicLong> _MarkReasons = MarkReasons.get();
-					AtomicLong MarkCount = _MarkReasons.get(MarkReason);
-					if (MarkCount == null) {
-						MarkCount = new AtomicLong(0);
-						AtomicLong _RaceCounter = _MarkReasons.putIfAbsent(MarkReason, MarkCount);
-						if (_RaceCounter != null) MarkCount = _RaceCounter;
-					}
-					MarkCount.incrementAndGet();
+					RecordFilterReason(PItem, MarkReason);
 					break;
 				}
 			}
 		}
 		return PItem;
+	}
+
+	private void RecordFilterReason(MultiPassItem PItem, String MarkReason) {
+		PItem.Mark();
+		NewMarkCount.incrementAndGet();
+		Map<String, AtomicLong> _MarkReasons = MarkReasons.get();
+		AtomicLong MarkCount = _MarkReasons.get(MarkReason);
+		if (MarkCount == null) {
+			MarkCount = new AtomicLong(0);
+			AtomicLong _RaceCounter = _MarkReasons.putIfAbsent(MarkReason, MarkCount);
+			if (_RaceCounter != null) MarkCount = _RaceCounter;
+		}
+		MarkCount.incrementAndGet();
 	}
 	
 	public void MakePass(Collection<X> Items) {

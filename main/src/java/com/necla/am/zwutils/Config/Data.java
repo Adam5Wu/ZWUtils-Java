@@ -32,7 +32,6 @@
 package com.necla.am.zwutils.Config;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import com.necla.am.zwutils.Logging.IGroupLogger;
@@ -52,6 +51,10 @@ import com.necla.am.zwutils.i18n.Messages;
  * @version 0.35 - Jan. 20 2016: Initial public release
  */
 public class Data {
+	
+	protected Data() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
 	
 	/**
 	 * Mutable copy of the configuration
@@ -122,9 +125,9 @@ public class Data {
 			/**
 			 * Validate configurable field values
 			 *
-			 * @throws Throwable
+			 * @throws Exception
 			 */
-			void validateFields() throws Throwable;
+			void validateFields() throws Exception;
 		}
 		
 		/**
@@ -200,7 +203,7 @@ public class Data {
 		/**
 		 * Fully validate and populate configuration fields
 		 */
-		protected final void Sanitize() throws Throwable {
+		protected final void Sanitize() throws Exception {
 			Validation Validation = needValidation();
 			if (Validation != null) {
 				ILog.Config(Messages.Localize("Config.Data.VALIDATING")); //$NON-NLS-1$
@@ -299,9 +302,7 @@ public class Data {
 			LogField.set(Ret, Logger);
 			Method LoadDefaults = Mutable.class.getDeclaredMethod("loadDefaults"); //$NON-NLS-1$
 			LoadDefaults.invoke(Ret);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
-				e = ((InvocationTargetException) e).getTargetException();
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		return Ret;
@@ -319,9 +320,7 @@ public class Data {
 		try {
 			Method LoadFields = Mutable.class.getDeclaredMethod("loadFields", DataMap.class); //$NON-NLS-1$
 			LoadFields.invoke(Ret, confMap);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
-				e = ((InvocationTargetException) e).getTargetException();
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		Logger.Config("*@<"); //$NON-NLS-1$
@@ -346,9 +345,7 @@ public class Data {
 			LogField.set(Ret, Logger);
 			Method CopyFields = Mutable.class.getDeclaredMethod("copyFields", Mutable.class); //$NON-NLS-1$
 			CopyFields.invoke(Ret, Source);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
-				e = ((InvocationTargetException) e).getTargetException();
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		return Ret;
@@ -365,15 +362,13 @@ public class Data {
 	 * @since 0.2
 	 */
 	public static <R extends ReadOnly, M extends Mutable> R reflect(M Source, Class<R> RClass,
-			IGroupLogger Logger) throws Throwable {
+			IGroupLogger Logger) throws Exception {
 		R Ret = null;
 		Source.Sanitize();
 		try {
 			Ret = RClass.getDeclaredConstructor(IGroupLogger.class, Source.getClass()).newInstance(Logger,
 					Source);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
-				e = ((InvocationTargetException) e).getTargetException();
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		return Ret;
@@ -399,9 +394,7 @@ public class Data {
 			LogField.set(Ret, Logger);
 			Method CopyFields = Mutable.class.getDeclaredMethod("copyFields", ReadOnly.class); //$NON-NLS-1$
 			CopyFields.invoke(Ret, Source);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
-				e = ((InvocationTargetException) e).getTargetException();
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		return Ret;
@@ -420,9 +413,7 @@ public class Data {
 		R Ret = null;
 		try {
 			Ret = RClass.getDeclaredConstructor(IGroupLogger.class, RClass).newInstance(Logger, Source);
-		} catch (Throwable e) {
-			if (e instanceof InvocationTargetException)
-				e = ((InvocationTargetException) e).getTargetException();
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		return Ret;

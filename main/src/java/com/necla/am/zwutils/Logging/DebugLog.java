@@ -105,15 +105,19 @@ import com.necla.am.zwutils.Tasks.Wrappers.DaemonRunner;
  */
 public final class DebugLog {
 	
-	// Fake the base logger as a group logger (for PushLog functions)
-	static private final Logger LogBase;
-	static public final IGroupLogger Logger;
+	protected DebugLog() {
+		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+	}
 	
-	static public final String LogGroup = "ZWUtils.Logging.DebugLog";
+	// Fake the base logger as a group logger (for PushLog functions)
+	private static final Logger LogBase;
+	public static final IGroupLogger Logger;
+	
+	public static final String LOGGROUP = "ZWUtils.Logging.DebugLog";
 	
 	// ------------ Log Level Operations ------------
 	
-	static private Level GlobalLevel = Level.CONFIG;
+	private static Level GlobalLevel = Level.CONFIG;
 	
 	/**
 	 * @since 0.7
@@ -140,7 +144,7 @@ public final class DebugLog {
 	 *
 	 * @since 0.8
 	 */
-	synchronized protected static void resetAllLogLevels() {
+	protected static synchronized void resetAllLogLevels() {
 		GroupLoggers.values().forEach(LogGroup -> LogGroup.setLevel(null));
 	}
 	
@@ -159,6 +163,9 @@ public final class DebugLog {
 	 * @since 0.8
 	 */
 	public static void setGrpLogLevel(Logger LogGroup, Level LogLevel) {
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		if (LogGroup == null) return;
+		
 		Level GroupLevel = LogGroup.getLevel();
 		if (((GroupLevel == null) && (LogLevel != null))
 				|| ((GroupLevel != null) && !GroupLevel.equals(LogLevel))) {
@@ -174,8 +181,8 @@ public final class DebugLog {
 	
 	// ------------ Log Daemon Operations ------------
 	
-	static private Daemon DaemonTask = null;
-	static private ITask.Run LogDaemon = null;
+	private static Daemon DaemonTask = null;
+	private static ITask.Run LogDaemon = null;
 	
 	/**
 	 * Enable the threaded logging daemon
@@ -186,7 +193,7 @@ public final class DebugLog {
 		}
 		if (DaemonTask == null) {
 			Logger.Config("Creating log daemon...");
-			DaemonTask = new Daemon(LogGroup + '.' + Daemon.class.getSimpleName());
+			DaemonTask = new Daemon(LOGGROUP + '.' + Daemon.class.getSimpleName());
 			for (Handler LogHandler : LogBase.getHandlers()) {
 				if (LogHandler != preConfigBuffer) {
 					LogBase.removeHandler(LogHandler);
@@ -201,7 +208,7 @@ public final class DebugLog {
 	
 	// ------------ Log Handler Operations ------------
 	
-	static private Handler ConsoleHandler = null;
+	private static Handler ConsoleHandler = null;
 	
 	/**
 	 * Create a console log handler
@@ -212,7 +219,7 @@ public final class DebugLog {
 		Logger.Config("Creating console log handler...");
 		Handler LogHandler = new ConsoleHandler();
 		LogHandler.setLevel(Level.ALL);
-		LogHandler.setFormatter(new LogFormatter.Delegator(LogHandler, LogGroup));
+		LogHandler.setFormatter(new LogFormatter.Delegator(LogHandler, LOGGROUP));
 		return LogHandler;
 	}
 	
@@ -224,30 +231,30 @@ public final class DebugLog {
 	public static Handler createFileHandler(Support.GroupLogFile logFile, String LogGroup) {
 		Handler Ret = null;
 		try {
-			if (!logFile.Features.contains(Feature.DailyRotate)) {
+			if (!logFile.Features.contains(Feature.DAILYROTATE)) {
 				Logger.Config("Creating file log handler '%s'...", logFile.FileName);
-				Ret = new FileHandler(logFile.FileName, logFile.Features.contains(Feature.Append));
+				Ret = new FileHandler(logFile.FileName, logFile.Features.contains(Feature.APPEND));
 			} else {
 				Logger.Config("Creating daily rotating file log handler '%s'...", logFile.FileName);
-				Ret = new DRCFileHandler(logFile.FileName, logFile.Features.contains(Feature.Append),
-						logFile.Features.contains(Feature.CompressRotated));
+				Ret = new DRCFileHandler(logFile.FileName, logFile.Features.contains(Feature.APPEND),
+						logFile.Features.contains(Feature.COMPRESSROTATED));
 			}
 			
 			LogFormatter Formatter;
 			if (LogGroup != null) {
 				Formatter = new LogFormatter.Delegator(null, LogGroup);
 			} else {
-				Formatter = new LogFormatter.Delegator(Ret, DebugLog.LogGroup);
+				Formatter = new LogFormatter.Delegator(Ret, DebugLog.LOGGROUP);
 			}
 			Ret.setFormatter(Formatter);
 			Ret.setEncoding("UTF-8");
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 		return Ret;
 	}
 	
-	static public final String ForwardRootLogger = "(LogRoot)";
+	public static final String FORWARD_ROOTLOGGER_NAME = "(LogRoot)";
 	
 	public static Handler createLog4JHandler(String LogGroup) {
 		return new SLF4JBridgeHandler() {
@@ -255,7 +262,7 @@ public final class DebugLog {
 			@Override
 			public void publish(LogRecord record) {
 				if (record.getLoggerName() == null) {
-					record.setLoggerName(ForwardRootLogger);
+					record.setLoggerName(FORWARD_ROOTLOGGER_NAME);
 				}
 				super.publish(record);
 			}
@@ -290,6 +297,9 @@ public final class DebugLog {
 	 */
 	public static void attachFileHandler(Support.GroupLogFile logFile) {
 		Handler FileHandler = createFileHandler(logFile, null);
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		if (FileHandler == null) return;
+		
 		if (DaemonTask == null) {
 			if (!isConfigured()) {
 				FileHandler.setLevel(Level.OFF);
@@ -305,7 +315,7 @@ public final class DebugLog {
 	 * Add a log4j forwarding logging target
 	 */
 	public static void attachLog4JHandler() {
-		Handler Log4jHandler = createLog4JHandler(LogGroup);
+		Handler Log4jHandler = createLog4JHandler(LOGGROUP);
 		if (DaemonTask == null) {
 			if (!isConfigured()) {
 				Log4jHandler.setLevel(Level.OFF);
@@ -329,6 +339,9 @@ public final class DebugLog {
 	 * @since 0.85
 	 */
 	public static void setLogHandler(Logger Logger, Handler LogHandler, boolean propagate) {
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		if (Logger == null) return;
+		
 		for (Handler logHandler : Logger.getHandlers()) {
 			Logger.removeHandler(logHandler);
 			logHandler.flush();
@@ -391,6 +404,7 @@ public final class DebugLog {
 	/**
 	 * Redirect StdErr to log
 	 */
+	@SuppressWarnings("squid:S106")
 	public static void logStdErr() {
 		if (StdErr == null) {
 			StdErr = System.err;
@@ -406,6 +420,7 @@ public final class DebugLog {
 	/**
 	 * Redirect StdOut to log
 	 */
+	@SuppressWarnings("squid:S106")
 	public static void logStdOut() {
 		if (StdOut == null) {
 			StdOut = System.out;
@@ -416,6 +431,7 @@ public final class DebugLog {
 		}
 	}
 	
+	@SuppressWarnings("squid:S106")
 	public static PrintStream DirectErrOut() {
 		return StdErr == null? System.err : StdErr;
 	}
@@ -428,6 +444,8 @@ public final class DebugLog {
 			Logger RootLogger = Manager.getLogger("");
 			
 			Logger ExternalGroup = getLogGroup("External");
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			if (ExternalGroup == null) return;
 			ExternalGroup.setFilter(null); // Disable the group filter
 			Handler ForwardHandler = new ForwardHandler(ExternalGroup);
 			ForwardHandler.setFilter(new CapturedLogFilter(ExternalGroup));
@@ -467,7 +485,7 @@ public final class DebugLog {
 	 *
 	 * @since 0.82
 	 */
-	synchronized static void close() {
+	static synchronized void close() {
 		// Close all group logger handlers
 		GroupLoggers.values().forEach(LogGroup -> {
 			for (Handler LogHandler : LogGroup.getHandlers()) {
@@ -491,6 +509,7 @@ public final class DebugLog {
 	static class Cleanup implements Runnable {
 		
 		@Override
+		@SuppressWarnings("squid:S106")
 		public void run() {
 			if (StdErr != null) {
 				PrintStream LogErr = System.err;
@@ -522,7 +541,7 @@ public final class DebugLog {
 				
 				try {
 					LogDaemon.Join(-1);
-				} catch (Throwable e) {
+				} catch (Exception e) {
 					Logger.logExcept(e, "Log daemon termination join failed");
 				}
 			}
@@ -560,6 +579,8 @@ public final class DebugLog {
 			String LogGrp = record.getLoggerName();
 			if (LogGrp != null) {
 				Logger LogGroup = DebugLog.getLogGroup(LogGrp);
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				if (LogGroup == null) return;
 				LogGroup.log(record);
 			} else {
 				LogBase.log(record);
@@ -580,7 +601,7 @@ public final class DebugLog {
 		return preConfigBuffer == null;
 	}
 	
-	static private Map<Logger, BufferedHandler> LogGroupBufferMap = null;
+	private static Map<Logger, BufferedHandler> LogGroupBufferMap = null;
 	
 	/**
 	 * Signal that logging configurations have been loaded
@@ -595,48 +616,18 @@ public final class DebugLog {
 					LogHandler.setLevel(Level.ALL);
 				}
 			} else {
-				Logger.Fine("Starting log daemon thread...");
-				LogDaemon = DaemonRunner.LowPriorityTaskDaemon(DaemonTask);
-				try {
-					LogDaemon.Start(-1);
-				} catch (InterruptedException e) {
-					Misc.CascadeThrow(e);
-				}
-				Logger.Fine("Log daemon thread started");
-				// Wait for the daemon to become idle
-				DaemonTask.Queue.flush();
-				// Perform the log handler switch
-				LogBase.removeHandler(preConfigBuffer);
-				LogBase.addHandler(DaemonTask.Queue);
+				StartLogDaemon();
 			}
-			if (LogGroupBufferMap != null) {
-				// Switch all logging group buffer handlers to file handlers
-				LogGroupBufferMap.forEach((LogGroup, LogBuffer) -> {
-					LogGroup.removeHandler(LogBuffer);
-					LogGroup.addHandler(LogBuffer.getHandler());
-				});
-			}
-			
-			preConfigBuffer.flush();
-			preConfigBuffer.close();
-			preConfigBuffer = null;
-			Logger.Fine("Flushed pre-configuration log buffer");
-			
-			if (LogGroupBufferMap != null) {
-				// Flush and close all logging group buffer handlers
-				LogGroupBufferMap.values().forEach(LogBuffer -> {
-					LogBuffer.flush();
-					LogBuffer.setHandler(null);
-					LogBuffer.close();
-				});
-				LogGroupBufferMap = null;
-			}
+			SwitchBufferedHandlers();
 			
 			// The LogBase handlers need to receive update from LogFormatter
 			// configurations
 			// Note: The '.' ensures normal group names could not collide on this
 			// special notifier
 			Logger FormatterConfig = CreateLogger(null, null);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			if (FormatterConfig == null) return;
+			
 			FormatterConfig.setLevel(Level.ALL);
 			for (Handler LogHandler : LogBase.getHandlers()) {
 				FormatterConfig.addHandler(LogHandler);
@@ -654,9 +645,56 @@ public final class DebugLog {
 		}
 	}
 	
+	private static void SwitchBufferedHandlers() {
+		if (LogGroupBufferMap != null) {
+			// Switch all logging group buffer handlers to file handlers
+			LogGroupBufferMap.forEach((LogGroup, LogBuffer) -> {
+				LogGroup.removeHandler(LogBuffer);
+				LogGroup.addHandler(LogBuffer.getHandler());
+			});
+		}
+		
+		preConfigBuffer.flush();
+		preConfigBuffer.close();
+		preConfigBuffer = null;
+		Logger.Fine("Flushed pre-configuration log buffer");
+		
+		if (LogGroupBufferMap != null) {
+			// Flush and close all logging group buffer handlers
+			LogGroupBufferMap.values().forEach(LogBuffer -> {
+				LogBuffer.flush();
+				LogBuffer.setHandler(null);
+				LogBuffer.close();
+			});
+			LogGroupBufferMap = null;
+		}
+	}
+	
+	private static void StartLogDaemon() {
+		Logger.Fine("Starting log daemon thread...");
+		LogDaemon = DaemonRunner.LowPriorityTaskDaemon(DaemonTask);
+		try {
+			LogDaemon.Start(-1);
+		} catch (InterruptedException e) {
+			Misc.CascadeThrow(e);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			Thread.currentThread().interrupt();
+		}
+		Logger.Fine("Log daemon thread started");
+		// Wait for the daemon to become idle
+		DaemonTask.Queue.flush();
+		// Perform the log handler switch
+		LogBase.removeHandler(preConfigBuffer);
+		LogBase.addHandler(DaemonTask.Queue);
+	}
+	
 	// ------------ Configuration Operations ------------
 	
-	protected static class ConfigData {
+	public static class ConfigData {
+		
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Data.Mutable {
 			
@@ -718,16 +756,16 @@ public final class DebugLog {
 			private static final String CONFIG_CAPROOT = "CapRoot";
 			private static final String CONFIG_ZBXSCOPE = "ZabbixScope";
 			
-			private static final String ConfigGroupLevelsKeyBase = "LevelOf.";
-			private static final String ConfigGroupFileKeyBase = "FileOf.";
+			private static final String CONFIG_GROUPLEVELS_KEYBASE = "LevelOf.";
+			private static final String CONFIG_GROUPFILE_KEYBASE = "FileOf.";
 			
 			@Override
 			public void loadFields(DataMap confMap) {
 				LogLevel = Level.parse(confMap.getTextDef(CONFIG_LOGLEVEL, LogLevel.getName()));
 				LogConsole = confMap.getBoolDef(CONFIG_CONSOLE, LogConsole);
 				if (confMap.containsKey(CONFIG_FILE)) {
-					LogFile = confMap.getObject(CONFIG_FILE, Support.GroupLogFile.FromString,
-							Support.GroupLogFile.ToString);
+					LogFile = confMap.getObject(CONFIG_FILE, Support.GroupLogFile.ParseFromString,
+							Support.GroupLogFile.ParseToString);
 				}
 				Log4J = confMap.getBoolDef(CONFIG_LOG4J, Log4J);
 				LogStdErr = confMap.getBoolDef(CONFIG_STDERR, LogStdErr);
@@ -736,21 +774,21 @@ public final class DebugLog {
 				CaptureRoot = confMap.getBoolDef(CONFIG_CAPROOT, CaptureRoot);
 				ZabbixScope = confMap.getText(CONFIG_ZBXSCOPE);
 				
-				confMap.keySet(ConfigGroupLevelsKeyBase).forEach(Key -> {
+				confMap.keySet(CONFIG_GROUPLEVELS_KEYBASE).forEach(Key -> {
 					String ConfigKey = String.class.cast(Key);
-					if (ConfigKey.startsWith(ConfigGroupLevelsKeyBase)) {
-						String SubKey = ConfigKey.substring(ConfigGroupLevelsKeyBase.length());
+					if (ConfigKey.startsWith(CONFIG_GROUPLEVELS_KEYBASE)) {
+						String SubKey = ConfigKey.substring(CONFIG_GROUPLEVELS_KEYBASE.length());
 						GroupLevels.put(SubKey,
 								confMap.getObject(ConfigKey, Support.StringToLevel, Support.StringFromLevel));
 					}
 				});
 				
-				confMap.keySet(ConfigGroupFileKeyBase).forEach(Key -> {
+				confMap.keySet(CONFIG_GROUPFILE_KEYBASE).forEach(Key -> {
 					String ConfigKey = String.class.cast(Key);
-					if (ConfigKey.startsWith(ConfigGroupFileKeyBase)) {
-						String SubKey = ConfigKey.substring(ConfigGroupFileKeyBase.length());
-						GroupFiles.put(SubKey, confMap.getObject(ConfigKey, Support.GroupLogFile.FromString,
-								Support.GroupLogFile.ToString));
+					if (ConfigKey.startsWith(CONFIG_GROUPFILE_KEYBASE)) {
+						String SubKey = ConfigKey.substring(CONFIG_GROUPFILE_KEYBASE.length());
+						GroupFiles.put(SubKey, confMap.getObject(ConfigKey,
+								Support.GroupLogFile.ParseFromString, Support.GroupLogFile.ParseToString));
 					}
 				});
 			}
@@ -766,8 +804,11 @@ public final class DebugLog {
 							if ((LogOutputDir != null) && LogOutputDir.mkdirs()) {
 								Logger.Fine("Created log directory '%s'", Misc.stripFileName(LogFileName));
 							}
-							LogOutputFile.createNewFile();
-						} catch (Throwable e) {
+							if (!LogOutputFile.createNewFile()) {
+								Logger.Warn("Log file '%s' was concurrently created",
+										Misc.stripFileName(LogFileName));
+							}
+						} catch (Exception e) {
 							Misc.FAIL("Failed to create log file '%s' - %s", LogFile, e.getLocalizedMessage());
 						}
 					}
@@ -777,7 +818,7 @@ public final class DebugLog {
 				}
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					if (ZabbixScope != null) {
 						if (ZabbixScope.isEmpty()) {
 							ZabbixScope = null;
@@ -823,10 +864,8 @@ public final class DebugLog {
 				if (Source.LogConsole) {
 					attachConsoleHandler();
 				}
-				if (Source.LogFile != null) {
-					if (!Source.LogFile.FileName.isEmpty()) {
-						attachFileHandler(Source.LogFile);
-					}
+				if ((Source.LogFile != null) && !Source.LogFile.FileName.isEmpty()) {
+					attachFileHandler(Source.LogFile);
 				}
 				if (Source.Log4J) {
 					attachLog4JHandler();
@@ -845,7 +884,7 @@ public final class DebugLog {
 				}
 				ZabbixScope = Source.ZabbixScope;
 				
-				Source.GroupLevels.forEach((LogGroup, V) -> setGrpLogLevel(LogGroup, V));
+				Source.GroupLevels.forEach(DebugLog::setGrpLogLevel);
 				
 				if (!Source.GroupFiles.isEmpty()) {
 					LogGroupBufferMap = new HashMap<>();
@@ -860,9 +899,9 @@ public final class DebugLog {
 							LogFormatter.SubscribeConfigChange(LogGroup, new GroupLogger(FormatterConfig));
 							
 							BufferedHandler GroupLogBuffer = new BufferedHandler(GroupLogHandler);
-							GroupLogBuffer.setEnabled(!GLogFile.Features.contains(Feature.Append));
+							GroupLogBuffer.setEnabled(!GLogFile.Features.contains(Feature.APPEND));
 							setGrpLogHandler(LogGroup, GroupLogBuffer,
-									GLogFile.Features.contains(Feature.Append));
+									GLogFile.Features.contains(Feature.APPEND));
 							LogGroupBufferMap.put(getLogGroup(LogGroup), GroupLogBuffer);
 							
 							Logger.Fine("Logging group '%s' to output file '%s'", LogGroup, GLogFile.FileName);
@@ -883,28 +922,27 @@ public final class DebugLog {
 		}
 		
 		public static final File ConfigFile = DataFile.DeriveConfigFile("ZWUtils.");
-		private static final String ConfigKeyBase = DebugLog.class.getSimpleName() + ".";
+		private static final String CONFIG_KEYBASE = DebugLog.class.getSimpleName() + ".";
 		
-		protected static Container<Mutable, ReadOnly> Create() throws Throwable {
-			return Container.Create(Mutable.class, ReadOnly.class, LogGroup + ".Config", ConfigFile,
-					ConfigKeyBase);
+		protected static Container<Mutable, ReadOnly> Create() throws Exception {
+			return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP + ".Config", ConfigFile,
+					CONFIG_KEYBASE);
 		}
 	}
 	
 	// ------------ Logger Management Operations ------------
 	
-	private final static Constructor<Logger> LoggerConstructor;
-	private final static Field LoggerManagerField;
-	private final static Field LoggerAnonymousField;
-	private final static Field LoggerLevelValueField;
-	private final static Field LoggerKidsField;
-	private final static Method LoggerUpdateEffectiveLevelMethod;
+	private static final Constructor<Logger> LoggerConstructor;
+	private static final Field LoggerManagerField;
+	private static final Field LoggerAnonymousField;
+	private static final Field LoggerLevelValueField;
+	private static final Field LoggerKidsField;
+	private static final Method LoggerUpdateEffectiveLevelMethod;
 	/**
 	 * Note: we actually need "strong" references to the named loggers, because they are used as
 	 * logging groups, which may have custom filtering and logging settings applied to them
 	 */
-	// private final static Map<String, WeakReference<Logger>> Loggers;
-	private final static Map<String, Logger> GroupLoggers;
+	private static final Map<String, Logger> GroupLoggers;
 	
 	/**
 	 * Find named logger instance
@@ -914,11 +952,8 @@ public final class DebugLog {
 	 * @return Existing named logger instance or null
 	 * @since 0.9
 	 */
-	synchronized public static Logger FindLogger(String LoggerName) {
+	public static synchronized Logger FindLogger(String LoggerName) {
 		if ((LoggerName != null) && (LoggerName.isEmpty())) return null;
-		// WeakReference<Logger> RefRet = Loggers.get(LoggerName);
-		// if (RefRet != null)
-		// return RefRet.get();
 		return GroupLoggers.get(LoggerName);
 	}
 	
@@ -930,11 +965,15 @@ public final class DebugLog {
 	 * @return New named logger instance
 	 * @since 0.9
 	 */
-	synchronized protected static Logger CreateLogger(String LoggerName, Logger ParentLogger) {
-		if ((LoggerName != null) && (LoggerName.isEmpty())) {
-			LoggerName = null;
-		} else if (GroupLoggers.containsKey(LoggerName)) {
-			Misc.ERROR("Logger '%s' already exists", LoggerName);
+	protected static synchronized Logger CreateLogger(String LoggerName, Logger ParentLogger) {
+		if (LoggerName != null) {
+			if (LoggerName.isEmpty()) {
+				LoggerName = null;
+			} else {
+				if (GroupLoggers.containsKey(LoggerName)) {
+					Misc.ERROR("Logger '%s' already exists", LoggerName);
+				}
+			}
 		}
 		
 		Logger Ret = null;
@@ -945,11 +984,11 @@ public final class DebugLog {
 			if (ParentLogger != null) {
 				Ret.setParent(ParentLogger);
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
+		
 		if (LoggerName != null) {
-			// Loggers.put(LoggerName, new WeakReference<Logger>(Ret));
 			GroupLoggers.put(LoggerName, Ret);
 		}
 		return Ret;
@@ -969,7 +1008,7 @@ public final class DebugLog {
 					}
 				}
 			}
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 		}
 	}
@@ -1004,10 +1043,14 @@ public final class DebugLog {
 	 * @return Group logger instance of the specified logging group
 	 * @since 0.9
 	 */
-	synchronized protected static Logger getLogGroup(String LogGrp, Logger ParentGroup) {
+	protected static synchronized Logger getLogGroup(String LogGrp, Logger ParentGroup) {
 		if (LogGrp == null) {
 			Misc.ERROR("Log group must be named");
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return null;
 		}
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		if (ParentGroup == null) return null;
 		
 		String[] GroupTokens = LOGGROUP_SEPARATOR.split(LogGrp);
 		String GroupName = ParentGroup.getName();
@@ -1017,6 +1060,8 @@ public final class DebugLog {
 			Logger LogGroup = FindLogger(GroupName);
 			if (LogGroup == null) {
 				LogGroup = createLogGroup(GroupName, ParentGroup);
+				// PERF: code analysis tool doesn't recognize custom throw functions
+				if (LogGroup == null) return null;
 			}
 			ParentGroup = LogGroup;
 		}
@@ -1032,11 +1077,16 @@ public final class DebugLog {
 	 * @since 0.9
 	 */
 	protected static Logger createLogGroup(String LogGrp, Logger ParentGroup) {
-		if (LogGrp.isEmpty()) {
+		if ((LogGrp == null) || LogGrp.isEmpty()) {
 			Misc.ERROR("Log group must be named");
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			return null;
 		}
 		
 		Logger LogGroup = CreateLogger(LogGrp, ParentGroup);
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		if (LogGroup == null) return null;
+		
 		LogGroup.setFilter(new GroupFilter(LogGroup));
 		
 		if (isConfigured()) {
@@ -1055,7 +1105,12 @@ public final class DebugLog {
 	 */
 	protected static Logger newGroupLogger(Logger LogGroup) {
 		Logger Ret = CreateLogger(null, LogGroup);
-		Ret.setFilter(LogGroup.getFilter());
+		// PERF: code analysis tool doesn't recognize custom throw functions
+		if (Ret == null) return null;
+		
+		if (LogGroup != null) {
+			Ret.setFilter(LogGroup.getFilter());
+		}
 		return Ret;
 	}
 	
@@ -1067,9 +1122,9 @@ public final class DebugLog {
 	 * @return Unique logger instance of the specified logging group
 	 * @since 0.2
 	 */
-	static public Logger newLogger(String LogGrp) {
+	public static Logger newLogger(String LogGrp) {
 		if ((LogGrp == null) || (LogGrp.isEmpty())) {
-			LogGrp = LogGroup;
+			LogGrp = LOGGROUP;
 		}
 		
 		return newGroupLogger(getLogGroup(LogGrp));
@@ -1086,9 +1141,9 @@ public final class DebugLog {
 	 * @return Unique logger instance of the specified logging group
 	 * @since 0.2
 	 */
-	static protected Logger newLogger(String LogGrp, String ParentGroup) {
+	protected static Logger newLogger(String LogGrp, String ParentGroup) {
 		if ((LogGrp == null) || (LogGrp.isEmpty())) {
-			LogGrp = LogGroup;
+			LogGrp = LOGGROUP;
 		}
 		
 		return newGroupLogger(getLogGroup(LogGrp, getLogGroup(ParentGroup)));
@@ -1114,7 +1169,6 @@ public final class DebugLog {
 	
 	static {
 		{
-			// Map<String, WeakReference<Logger>> _Loggers = null;
 			Map<String, Logger> _GroupLoggers = null;
 			Constructor<Logger> _LoggerConstructor = null;
 			Field _LoggerManagerField = null;
@@ -1123,7 +1177,6 @@ public final class DebugLog {
 			Field _LoggerKidsField = null;
 			Method _LoggerUpdateEffectiveLevelMethod = null;
 			try {
-				// _Loggers = new HashMap<String, WeakReference<Logger>>();
 				_GroupLoggers = new HashMap<>();
 				_LoggerConstructor = Logger.class.getDeclaredConstructor(String.class);
 				_LoggerConstructor.setAccessible(true);
@@ -1137,7 +1190,7 @@ public final class DebugLog {
 				_LoggerKidsField.setAccessible(true);
 				_LoggerUpdateEffectiveLevelMethod = Logger.class.getDeclaredMethod("updateEffectiveLevel");
 				_LoggerUpdateEffectiveLevelMethod.setAccessible(true);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				DirectErrOut().println(String.format(
 						"Failed first stage pre-initialization for %s: %s, program will terminate.",
 						DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
@@ -1165,7 +1218,7 @@ public final class DebugLog {
 				
 				// Craft the very first log message
 				_LogBase.log(new LogRecord(Level.OFF, "@$Logging started"));
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				DirectErrOut().println(String.format(
 						"Failed second stage pre-initialization for %s: %s, program will terminate.",
 						DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
@@ -1178,9 +1231,9 @@ public final class DebugLog {
 		{
 			GroupLogger _Log = null;
 			try {
-				_Log = new GroupLogger(LogGroup);
+				_Log = new GroupLogger(LOGGROUP);
 				_Log.AddFrameDepth(1);
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				DirectErrOut().println(String.format(
 						"Failed third stage pre-initialization for %s: %s, program will terminate.",
 						DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
@@ -1193,7 +1246,7 @@ public final class DebugLog {
 		ConfigData.ReadOnly Config = null;
 		try {
 			Config = ConfigData.Create().reflect();
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DirectErrOut()
 					.println(String.format("Failed to load configrations for %s: %s, program will terminate.",
 							DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
@@ -1205,7 +1258,7 @@ public final class DebugLog {
 		try {
 			// Now we are configured
 			setConfigured(Config);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			DirectErrOut().println(String.format("Failed to initialize %s: %s, program will terminate.",
 					DebugLog.class.getSimpleName(), e.getLocalizedMessage()));
 			e.printStackTrace(DirectErrOut());
@@ -1234,7 +1287,7 @@ public final class DebugLog {
 			private Queue<LogRecord> Container = new ConcurrentLinkedQueue<>();
 			
 			@Override
-			synchronized public void close() {
+			public synchronized void close() {
 				if (isClosed()) {
 					Misc.FAIL("Handler already closed");
 				}
@@ -1250,7 +1303,7 @@ public final class DebugLog {
 			}
 			
 			@Override
-			synchronized public void flush() {
+			public synchronized void flush() {
 				if (isClosed()) {
 					Misc.FAIL("Handler already closed");
 				}
@@ -1258,12 +1311,16 @@ public final class DebugLog {
 				_flush();
 			}
 			
-			protected void _flush() {
+			synchronized void _flush() {
 				LockSupport.unpark(LogThread);
 				try {
-					wait();
+					while (!Container.isEmpty()) {
+						wait();
+					}
 				} catch (InterruptedException e) {
 					Misc.CascadeThrow(e);
+					// PERF: code analysis tool doesn't recognize custom throw functions
+					Thread.currentThread().interrupt();
 				}
 			}
 			
@@ -1274,7 +1331,7 @@ public final class DebugLog {
 				}
 				
 				Container.add(record);
-				if (LogThread != null) if (Waiting) {
+				if ((LogThread != null) && Waiting) {
 					Waiting = false;
 					LockSupport.unpark(LogThread);
 				}
@@ -1326,14 +1383,7 @@ public final class DebugLog {
 						Sink.log(record);
 					}
 				}
-			} catch (Throwable e) {
-				// If we are having problem logging, try not to do more logging
-				// Sink.log(Level.SEVERE, "Unhandled log daemon exception - " + e.getLocalizedMessage());
-				// OutputStream StackTrace = new ByteArrayOutputStream();
-				// PrintStream STStream = new PrintStream(StackTrace);
-				// e.printStackTrace(STStream);
-				// STStream.flush();
-				// Sink.log(Level.SEVERE, StackTrace.toString());
+			} catch (Exception e) {
 				DebugLog.StdErr.println("Unhandled log daemon exception - " + e.getLocalizedMessage());
 				e.printStackTrace(DebugLog.StdErr);
 			}

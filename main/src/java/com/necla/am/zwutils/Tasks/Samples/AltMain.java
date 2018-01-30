@@ -1,7 +1,6 @@
 
 package com.necla.am.zwutils.Tasks.Samples;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
@@ -17,9 +16,12 @@ import com.necla.am.zwutils.Tasks.ConfigurableTask;
 public class AltMain
 		extends ConfigurableTask<AltMain.ConfigData.Mutable, AltMain.ConfigData.ReadOnly> {
 	
-	public static final String LogGroup = Poller.class.getSimpleName();
+	public static final String LOGGROUP = Poller.class.getSimpleName();
 	
 	public static class ConfigData {
+		protected ConfigData() {
+			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		}
 		
 		public static class Mutable extends Data.Mutable {
 			
@@ -57,7 +59,7 @@ public class AltMain
 			protected class Validation implements Data.Mutable.Validation {
 				
 				@Override
-				public void validateFields() throws Throwable {
+				public void validateFields() throws Exception {
 					ILog.Fine("Checking main class...");
 					if (MainClassName == null) {
 						Misc.ERROR("Missing main class specification");
@@ -71,7 +73,7 @@ public class AltMain
 							Misc.ERROR("Entry method must be static");
 						}
 						MainEntry = ENT;
-					} catch (Throwable e) {
+					} catch (Exception e) {
 						Misc.CascadeThrow(e, "Unable to load main class");
 					}
 				}
@@ -128,10 +130,8 @@ public class AltMain
 		if (!tellState().isTerminating()) {
 			try {
 				Config.MainEntry.invoke(null, (Object) Config.MainArgs);
-			} catch (InvocationTargetException e) {
-				Misc.CascadeThrow(e.getTargetException(), "Unhandled exception in main entry");
-			} catch (Throwable e) {
-				Misc.CascadeThrow(e, "Failed to invoke main entry");
+			} catch (Exception e) {
+				Misc.CascadeThrow(e, "Unhandled exception in main entry");
 			}
 		}
 	}
