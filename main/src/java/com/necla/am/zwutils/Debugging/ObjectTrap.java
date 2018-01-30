@@ -775,6 +775,35 @@ public class ObjectTrap {
 				}
 			}
 			
+			public static Collection<String> InputHelp_BasicTypes(String typename) {
+				Collection<String> HelpStr = new ArrayList<>();
+				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<%s>", LatchOp.EQUALTO.OpSym, typename)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<%s>", LatchOp.GREATERTHAN.OpSym, typename)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<%s>", LatchOp.LESSTHAN.OpSym, typename)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<%s>,<%s2>", LatchOp.INRANGE.OpSym, typename, typename)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c<%s>[,<%s2>,...]", LatchOp.ONEOF.OpSym, typename, typename)); //$NON-NLS-1$
+				return HelpStr;
+			}
+			
+			protected static void ParseNoArgOperand(String condval) {
+				if (!condval.trim().isEmpty()) {
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
+				}
+			}
+			
+			@SuppressWarnings("unchecked")
+			protected static void ParseSetList(String condval, Pattern ListSep, IParse<String, ?> Parser,
+					Set<?> CompSet) {
+				String[] CondVals = ListSep.split(condval.trim());
+				for (String Val : CondVals) {
+					if (!((Set<Object>) CompSet).add(Parser.parseOrFail(Val))) {
+						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
+					}
+				}
+			}
+			
 			protected abstract void ParseValue(String condval);
 			
 			protected boolean StateFilter(boolean opRet, Object value) {
@@ -794,23 +823,15 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Integer> Parser = Parsers.StringToInteger;
-			protected static Pattern ListSep = Pattern.compile(","); //$NON-NLS-1$
+			protected static IParse<String, Integer> IntParser = Parsers.StringToInteger;
+			protected static Pattern IntListSep = Pattern.compile(","); //$NON-NLS-1$
 			
-			protected Integer CompValA;
-			protected Integer CompValB;
-			protected Set<Integer> CompSet;
+			protected Integer CompIntA;
+			protected Integer CompIntB;
+			protected Set<Integer> CompIntSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int1>,<int2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<int1>[,<int2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(int.class.getSimpleName());
 			}
 			
 			@Override
@@ -818,38 +839,30 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompIntA = IntParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = IntListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompIntA = IntParser.parseOrFail(CondVals[0].trim());
+						CompIntB = IntParser.parseOrFail(CondVals[1].trim());
+						if (CompIntA > CompIntB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompIntA, //$NON-NLS-1$
+									CompIntB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-						}
+					case ONEOF:
+						CompIntSet = new HashSet<>();
+						ParseSetList(condval, IntListSep, IntParser, CompIntSet);
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -867,15 +880,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompIntA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompIntA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompIntA);
 					case ONEOF:
-						return (value != null) && CompSet.contains(value);
+						return (value != null) && CompIntSet.contains(value);
 					case INRANGE:
-						return (value != null) && (value >= CompValA) && (value <= CompValB);
+						return (value != null) && (value >= CompIntA) && (value <= CompIntB);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"),  //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -900,17 +913,17 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompIntA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompIntA).append(',').append(CompIntB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Integer I : CompSet) {
+						for (Integer I : CompIntSet) {
 							StrBuf.append(I).append(',');
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompIntSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
@@ -929,23 +942,15 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Long> Parser = Parsers.StringToLong;
-			protected static Pattern ListSep = Pattern.compile(",");//$NON-NLS-1$
+			protected static IParse<String, Long> LongParser = Parsers.StringToLong;
+			protected static Pattern LongListSep = Pattern.compile(",");//$NON-NLS-1$
 			
-			protected Long CompValA;
-			protected Long CompValB;
-			protected Set<Long> CompSet;
+			protected Long CompLongA;
+			protected Long CompLongB;
+			protected Set<Long> CompLongSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long1>,<long2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<long1>[,<long2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(long.class.getSimpleName());
 			}
 			
 			@Override
@@ -953,40 +958,31 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval);//$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompLongA = LongParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = LongListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
 						
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompLongA = LongParser.parseOrFail(CondVals[0].trim());
+						CompLongB = LongParser.parseOrFail(CondVals[1].trim());
+						if (CompLongA > CompLongB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompLongA, //$NON-NLS-1$
+									CompLongB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-							
-						}
+					case ONEOF:
+						CompLongSet = new HashSet<>();
+						ParseSetList(condval, LongListSep, LongParser, CompLongSet);
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1004,15 +1000,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompLongA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompLongA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompLongA);
 					case INRANGE:
-						return (value != null) && (value >= CompValA) && (value <= CompValB);
+						return (value != null) && (value >= CompLongA) && (value <= CompLongB);
 					case ONEOF:
-						return CompSet.contains(value);
+						return CompLongSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1037,17 +1033,17 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompLongA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompLongA).append(',').append(CompLongB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Long I : CompSet) {
+						for (Long I : CompLongSet) {
 							StrBuf.append(I).append(',');
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompLongSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
@@ -1066,23 +1062,15 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Byte> Parser = Parsers.StringToByte;
-			protected static Pattern ListSep = Pattern.compile(",");//$NON-NLS-1$
+			protected static IParse<String, Byte> ByteParser = Parsers.StringToByte;
+			protected static Pattern ByteListSep = Pattern.compile(",");//$NON-NLS-1$
 			
-			protected Byte CompValA;
-			protected Byte CompValB;
-			protected Set<Byte> CompSet;
+			protected Byte CompByteA;
+			protected Byte CompByteB;
+			protected Set<Byte> CompByteSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte1>,<byte2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<byte1>[,<byte2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(byte.class.getSimpleName());
 			}
 			
 			@Override
@@ -1090,39 +1078,31 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompByteA = ByteParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = ByteListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim());//$NON-NLS-1$
 						}
 						
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompByteA = ByteParser.parseOrFail(CondVals[0].trim());
+						CompByteB = ByteParser.parseOrFail(CondVals[1].trim());
+						if (CompByteA > CompByteB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompByteA, //$NON-NLS-1$
+									CompByteB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-						}
+					case ONEOF:
+						CompByteSet = new HashSet<>();
+						ParseSetList(condval, ByteListSep, ByteParser, CompByteSet);
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1140,15 +1120,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompByteA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompByteA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompByteA);
 					case INRANGE:
-						return (value != null) && (value >= CompValA) && (value <= CompValB);
+						return (value != null) && (value >= CompByteA) && (value <= CompByteB);
 					case ONEOF:
-						return CompSet.contains(value);
+						return CompByteSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1173,17 +1153,17 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompByteA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompByteA).append(',').append(CompByteB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Byte I : CompSet) {
+						for (Byte I : CompByteSet) {
 							StrBuf.append(I).append(',');
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompByteSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
@@ -1202,23 +1182,15 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Short> Parser = Parsers.StringToShort;
-			protected static Pattern ListSep = Pattern.compile(",");//$NON-NLS-1$
+			protected static IParse<String, Short> ShortParser = Parsers.StringToShort;
+			protected static Pattern ShortListSep = Pattern.compile(",");//$NON-NLS-1$
 			
-			protected Short CompValA;
-			protected Short CompValB;
-			protected Set<Short> CompSet;
+			protected Short CompShortA;
+			protected Short CompShortB;
+			protected Set<Short> CompShortSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short1>,<short2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<short1>[,<short2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(short.class.getSimpleName());
 			}
 			
 			@Override
@@ -1226,38 +1198,30 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompShortA = ShortParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = ShortListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompShortA = ShortParser.parseOrFail(CondVals[0].trim());
+						CompShortB = ShortParser.parseOrFail(CondVals[1].trim());
+						if (CompShortA > CompShortB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompShortA, //$NON-NLS-1$
+									CompShortB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-						}
+					case ONEOF:
+						CompShortSet = new HashSet<>();
+						ParseSetList(condval, ShortListSep, ShortParser, CompShortSet);
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1275,15 +1239,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompShortA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompShortA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompShortA);
 					case INRANGE:
-						return (value != null) && (value >= CompValA) && (value <= CompValB);
+						return (value != null) && (value >= CompShortA) && (value <= CompShortB);
 					case ONEOF:
-						return CompSet.contains(value);
+						return CompShortSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1308,17 +1272,17 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompShortA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompShortA).append(',').append(CompShortB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Short I : CompSet) {
+						for (Short I : CompShortSet) {
 							StrBuf.append(I).append(',');
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompShortSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
@@ -1337,23 +1301,15 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Float> Parser = Parsers.StringToFloat;
-			protected static Pattern ListSep = Pattern.compile(",");//$NON-NLS-1$
+			protected static IParse<String, Float> FloatParser = Parsers.StringToFloat;
+			protected static Pattern FloatListSep = Pattern.compile(",");//$NON-NLS-1$
 			
-			protected Float CompValA;
-			protected Float CompValB;
-			protected Set<Float> CompSet;
+			protected Float CompFloatA;
+			protected Float CompFloatB;
+			protected Set<Float> CompFloatSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float1>,<float2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<float1>[,<float2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(float.class.getSimpleName());
 			}
 			
 			@Override
@@ -1361,38 +1317,30 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompFloatA = FloatParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = FloatListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompFloatA = FloatParser.parseOrFail(CondVals[0].trim());
+						CompFloatB = FloatParser.parseOrFail(CondVals[1].trim());
+						if (CompFloatA > CompFloatB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompFloatA, //$NON-NLS-1$
+									CompFloatB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-						}
+					case ONEOF:
+						CompFloatSet = new HashSet<>();
+						ParseSetList(condval, FloatListSep, FloatParser, CompFloatSet);
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1410,15 +1358,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompFloatA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompFloatA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompFloatA);
 					case INRANGE:
-						return (value >= CompValA) && (value <= CompValB);
+						return (value >= CompFloatA) && (value <= CompFloatB);
 					case ONEOF:
-						return CompSet.contains(value);
+						return CompFloatSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1443,17 +1391,17 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompFloatA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompFloatA).append(',').append(CompFloatB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Float I : CompSet) {
+						for (Float I : CompFloatSet) {
 							StrBuf.append(I).append(',');
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompFloatSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
@@ -1472,23 +1420,15 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Double> Parser = Parsers.StringToDouble;
-			protected static Pattern ListSep = Pattern.compile(",");//$NON-NLS-1$
+			protected static IParse<String, Double> DoubleParser = Parsers.StringToDouble;
+			protected static Pattern DoubleListSep = Pattern.compile(",");//$NON-NLS-1$
 			
-			protected Double CompValA;
-			protected Double CompValB;
-			protected Set<Double> CompSet;
+			protected Double CompDoubleA;
+			protected Double CompDoubleB;
+			protected Set<Double> CompDoubleSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double1>,<double2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<double1>[,<double2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(double.class.getSimpleName());
 			}
 			
 			@Override
@@ -1496,38 +1436,30 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompDoubleA = DoubleParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = DoubleListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompDoubleA = DoubleParser.parseOrFail(CondVals[0].trim());
+						CompDoubleB = DoubleParser.parseOrFail(CondVals[1].trim());
+						if (CompDoubleA > CompDoubleB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompDoubleA, //$NON-NLS-1$
+									CompDoubleB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-						}
+					case ONEOF:
+						CompDoubleSet = new HashSet<>();
+						ParseSetList(condval, DoubleListSep, DoubleParser, CompDoubleSet);
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1545,15 +1477,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompDoubleA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompDoubleA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompDoubleA);
 					case INRANGE:
-						return (value != null) && (value >= CompValA) && (value <= CompValB);
+						return (value != null) && (value >= CompDoubleA) && (value <= CompDoubleB);
 					case ONEOF:
-						return CompSet.contains(value);
+						return CompDoubleSet.contains(value);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1578,17 +1510,17 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompDoubleA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompDoubleA).append(',').append(CompDoubleB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Double I : CompSet) {
+						for (Double I : CompDoubleSet) {
 							StrBuf.append(I).append(',');
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompDoubleSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
@@ -1607,24 +1539,16 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Character> Parser = Parsers.StringToChar;
-			protected static IParse<String, String> SetParser = Parsers.StringToString;
-			protected static Pattern ListSep = Pattern.compile(",");//$NON-NLS-1$
+			protected static IParse<String, Character> CharParser = Parsers.StringToChar;
+			protected static IParse<String, String> CharSetParser = Parsers.StringToString;
+			protected static Pattern CharListSep = Pattern.compile(",");//$NON-NLS-1$
 			
-			protected Character CompValA;
-			protected Character CompValB;
-			protected String CompSet;
+			protected Character CompCharA;
+			protected Character CompCharB;
+			protected String CompCharSet;
 			
 			public static Collection<String> InputHelp() {
-				Collection<String> HelpStr = new ArrayList<>();
-				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char>", LatchOp.EQUALTO.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char>", LatchOp.GREATERTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char>", LatchOp.LESSTHAN.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char1>,<char2>", LatchOp.INRANGE.OpSym)); //$NON-NLS-1$
-				HelpStr.add(String.format("%c<char1>[,<char2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
-				return HelpStr;
+				return InputHelp_BasicTypes(char.class.getSimpleName());
 			}
 			
 			@Override
@@ -1632,30 +1556,28 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompCharA = CharParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = CharListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA > CompValB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompValA, //$NON-NLS-1$
-									CompValB);
+						CompCharA = CharParser.parseOrFail(CondVals[0].trim());
+						CompCharB = CharParser.parseOrFail(CondVals[1].trim());
+						if (CompCharA > CompCharB) {
+							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompCharA, //$NON-NLS-1$
+									CompCharB);
 						}
 						break;
 					}
 					case ONEOF: {
-						CompSet = SetParser.parseOrFail(condval.trim());
+						CompCharSet = CharSetParser.parseOrFail(condval.trim());
 						break;
 					}
 					case REGMATCH:
@@ -1675,15 +1597,15 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && value.equals(CompValA);
+						return (value != null) && value.equals(CompCharA);
 					case GREATERTHAN:
-						return (value != null) && (value > CompValA);
+						return (value != null) && (value > CompCharA);
 					case LESSTHAN:
-						return (value != null) && (value < CompValA);
+						return (value != null) && (value < CompCharA);
 					case INRANGE:
-						return (value != null) && (value >= CompValA) && (value <= CompValB);
+						return (value != null) && (value >= CompCharA) && (value <= CompCharB);
 					case ONEOF:
-						return CompSet.indexOf(value) >= 0;
+						return CompCharSet.indexOf(value) >= 0;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1708,13 +1630,13 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(' ').append(CompValA);
+						StrBuf.append(' ').append(CompCharA);
 						break;
 					case INRANGE:
-						StrBuf.append(" [").append(CompValA).append(',').append(CompValB).append(']'); //$NON-NLS-1$
+						StrBuf.append(" [").append(CompCharA).append(',').append(CompCharB).append(']'); //$NON-NLS-1$
 						break;
 					case ONEOF:
-						StrBuf.append(" \"").append(CompSet).append('"'); //$NON-NLS-1$
+						StrBuf.append(" \"").append(CompCharSet).append('"'); //$NON-NLS-1$
 						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1731,9 +1653,9 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, Boolean> Parser = Parsers.StringToBoolean;
+			protected static IParse<String, Boolean> BoolParser = Parsers.StringToBoolean;
 			
-			protected Boolean CompVal;
+			protected Boolean CompBoolVal;
 			
 			public static Collection<String> InputHelp() {
 				Collection<String> HelpStr = new ArrayList<>();
@@ -1748,13 +1670,10 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
-						
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
-						CompVal = Parser.parseOrFail(condval.trim());
+						CompBoolVal = BoolParser.parseOrFail(condval.trim());
 						break;
 					case GREATERTHAN:
 					case LESSTHAN:
@@ -1777,7 +1696,7 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && (value == CompVal);
+						return (value != null) && (value == CompBoolVal);
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1800,7 +1719,7 @@ public class ObjectTrap {
 					case ISNULL:
 						break;
 					case EQUALTO:
-						StrBuf.append(' ').append(CompVal);
+						StrBuf.append(' ').append(CompBoolVal);
 						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1817,13 +1736,13 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static IParse<String, String> Parser = Parsers.StringToString;
-			protected static Pattern ListSep = Pattern.compile(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); //$NON-NLS-1$
+			protected static IParse<String, String> StrParser = Parsers.StringToString;
+			protected static Pattern StrListSep = Pattern.compile(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); //$NON-NLS-1$
 			
-			protected String CompValA;
-			protected String CompValB;
-			protected Set<String> CompSet;
-			protected Pattern RegComp;
+			protected String CompStrA;
+			protected String CompStrB;
+			protected Set<String> CompStrSet;
+			protected Pattern RegStrPtn;
 			
 			public static Collection<String> InputHelp() {
 				Collection<String> HelpStr = new ArrayList<>();
@@ -1843,40 +1762,32 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						CompValA = Parser.parseOrFail(condval.trim());
+						CompStrA = StrParser.parseOrFail(condval.trim());
 						break;
 					case INRANGE: {
-						String[] CondVals = ListSep.split(condval.trim());
+						String[] CondVals = StrListSep.split(condval.trim());
 						if (CondVals.length != 2) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
 						}
-						CompValA = Parser.parseOrFail(CondVals[0].trim());
-						CompValB = Parser.parseOrFail(CondVals[1].trim());
-						if (CompValA.compareTo(CompValB) > 0) {
+						CompStrA = StrParser.parseOrFail(CondVals[0].trim());
+						CompStrB = StrParser.parseOrFail(CondVals[1].trim());
+						if (CompStrA.compareTo(CompStrB) > 0) {
 							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE_STR"), //$NON-NLS-1$
-									CompValA, CompValB);
+									CompStrA, CompStrB);
 						}
 						break;
 					}
-					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CompSet = new HashSet<>();
-						for (String Val : CondVals) {
-							if (!CompSet.add(Parser.parseOrFail(Val))) {
-								Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-							}
-						}
+					case ONEOF:
+						CompStrSet = new HashSet<>();
+						ParseSetList(condval, StrListSep, StrParser, CompStrSet);
 						break;
-					}
 					case REGMATCH:
-						RegComp = Pattern.compile(Parser.parseOrFail(condval.trim()));
+						RegStrPtn = Pattern.compile(StrParser.parseOrFail(condval.trim()));
 						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1891,18 +1802,18 @@ public class ObjectTrap {
 					case ISNULL:
 						return value == null;
 					case EQUALTO:
-						return (value != null) && (value.compareTo(CompValA) == 0);
+						return (value != null) && (value.compareTo(CompStrA) == 0);
 					case GREATERTHAN:
-						return (value != null) && (value.compareTo(CompValA) > 0);
+						return (value != null) && (value.compareTo(CompStrA) > 0);
 					case LESSTHAN:
-						return (value != null) && (value.compareTo(CompValA) < 0);
+						return (value != null) && (value.compareTo(CompStrA) < 0);
 					case INRANGE:
-						return (value != null)&& (value.compareTo(CompValA) >= 0)
-										&& (value.compareTo(CompValB) <= 0);
+						return (value != null)&& (value.compareTo(CompStrA) >= 0)
+										&& (value.compareTo(CompStrB) <= 0);
 					case ONEOF:
-						return (value != null) && CompSet.contains(value);
+						return (value != null) && CompStrSet.contains(value);
 					case REGMATCH:
-						return (value != null) && RegComp.matcher(value).find();
+						return (value != null) && RegStrPtn.matcher(value).find();
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), Op.OpSym, //$NON-NLS-1$
 								Op.name());
@@ -1927,22 +1838,22 @@ public class ObjectTrap {
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:
-						StrBuf.append(" \"").append(CompValA).append('"'); //$NON-NLS-1$
+						StrBuf.append(" \"").append(CompStrA).append('"'); //$NON-NLS-1$
 						break;
 					case INRANGE:
-						StrBuf.append(" [\"").append(CompValA).append("\",\"").append(CompValB).append("\"]"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+						StrBuf.append(" [\"").append(CompStrA).append("\",\"").append(CompStrB).append("\"]"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (String I : CompSet) {
+						for (String I : CompStrSet) {
 							StrBuf.append('"').append(I).append("\","); //$NON-NLS-1$
 						}
-						if (!CompSet.isEmpty()) {
+						if (!CompStrSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
 					case REGMATCH:
-						StrBuf.append(" /").append(RegComp).append('/'); //$NON-NLS-1$
+						StrBuf.append(" /").append(RegStrPtn).append('/'); //$NON-NLS-1$
 						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -1959,15 +1870,18 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
-			protected static Pattern ListSep = Pattern.compile(","); //$NON-NLS-1$
+			protected static IParse<String, String> StrParser = Parsers.StringToString;
+			protected static Pattern ClsListSep = Pattern.compile(","); //$NON-NLS-1$
 			
-			protected Set<Class<?>> CastSet;
+			protected Set<Class<?>> CastClsSet;
+			protected Pattern RegClsPtn;
 			
 			public static Collection<String> InputHelp() {
 				Collection<String> HelpStr = new ArrayList<>();
 				HelpStr.add(String.format("%c", LatchOp.ACCEPT.OpSym)); //$NON-NLS-1$
 				HelpStr.add(String.format("%c", LatchOp.ISNULL.OpSym)); //$NON-NLS-1$
 				HelpStr.add(String.format("%c<class1>[,<class2>,...]", LatchOp.ONEOF.OpSym)); //$NON-NLS-1$
+				HelpStr.add(String.format("%c\"regexp\"", LatchOp.REGMATCH.OpSym)); //$NON-NLS-1$
 				return HelpStr;
 			}
 			
@@ -1976,16 +1890,14 @@ public class ObjectTrap {
 				switch (Op) {
 					case ACCEPT:
 					case ISNULL:
-						if (!condval.trim().isEmpty()) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERAND"), condval); //$NON-NLS-1$
-						}
+						ParseNoArgOperand(condval);
 						break;
 					case ONEOF: {
-						String[] CondVals = ListSep.split(condval.trim());
-						CastSet = new HashSet<>();
+						String[] CondVals = ClsListSep.split(condval.trim());
+						CastClsSet = new HashSet<>();
 						for (String Val : CondVals) {
 							try {
-								if (!CastSet.add(Dict.Get(Val).toClass())) {
+								if (!CastClsSet.add(Dict.Get(Val).toClass())) {
 									Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
 								}
 							} catch (ClassNotFoundException e) {
@@ -1998,9 +1910,11 @@ public class ObjectTrap {
 					case GREATERTHAN:
 					case LESSTHAN:
 					case INRANGE:
-					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
+						break;
+					case REGMATCH:
+						RegClsPtn = Pattern.compile(StrParser.parseOrFail(condval.trim()));
 						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
@@ -2016,10 +1930,12 @@ public class ObjectTrap {
 						return value == null;
 					case ONEOF:
 						if (value != null) {
-							for (Class<?> Cast : CastSet)
+							for (Class<?> Cast : CastClsSet)
 								if (Cast.isAssignableFrom(value.getClass())) return true;
 						}
 						return false;
+					case REGMATCH:
+						return (value != null) && RegClsPtn.matcher(value.getClass().getName()).find();
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -2043,14 +1959,16 @@ public class ObjectTrap {
 						break;
 					case ONEOF:
 						StrBuf.append(" {"); //$NON-NLS-1$
-						for (Class<?> Cast : CastSet) {
+						for (Class<?> Cast : CastClsSet) {
 							StrBuf.append(Cast.getName()).append(',');
 						}
-						if (!CastSet.isEmpty()) {
+						if (!CastClsSet.isEmpty()) {
 							StrBuf.setCharAt(StrBuf.length() - 1, '}');
 						}
 						break;
-					
+					case REGMATCH:
+						StrBuf.append(" /").append(RegClsPtn).append('/'); //$NON-NLS-1$
+						break;
 					default:
 						Misc.FAIL(Messages.Localize("Debugging.ObjectTrap.UNKNOWN_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
