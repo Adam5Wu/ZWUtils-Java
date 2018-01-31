@@ -172,7 +172,7 @@ public class PackageClassIterable implements Iterable<String> {
 		return DelegateIterable.iterator();
 	}
 	
-	protected static abstract class _ClassNameIterator implements Iterator<String> {
+	protected abstract static class _ClassNameIterator implements Iterator<String> {
 		
 		protected String next = null;
 		

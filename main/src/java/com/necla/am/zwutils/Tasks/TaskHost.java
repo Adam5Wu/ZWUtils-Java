@@ -56,7 +56,6 @@ import com.googlecode.mobilityrpc.network.ConnectionId;
 import com.googlecode.mobilityrpc.quickstart.EmbeddedMobilityServer;
 import com.googlecode.mobilityrpc.session.MobilityContext;
 import com.googlecode.mobilityrpc.session.MobilitySession;
-import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Config.DataFile;
 import com.necla.am.zwutils.Config.DataMap;
 import com.necla.am.zwutils.Logging.GroupLogger;
@@ -261,7 +260,7 @@ public class TaskHost extends Poller {
 					ILog.Warn("Unused bundled configuration found for tasks: %s", BundleConfigTasks);
 				}
 			}
-
+			
 			private void LoadTaskConfigLine(DataMap confMap, Set<String> BundleConfigTasks,
 					Set<String> TasksWithBundledConfig, String Key, HostedTaskRec.TType TaskType) {
 				String[] TaskTok = KeyToken.split(Key.substring(1), 2);
@@ -290,8 +289,8 @@ public class TaskHost extends Poller {
 								TasksWithBundledConfig.add(TaskTok[0]);
 								return;
 							}
-							ILog.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0],
-									TaskTok[1], confMap.getText(Key));
+							ILog.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0], TaskTok[1],
+									confMap.getText(Key));
 					}
 				} else {
 					HostedTask.ClassDesc = confMap.getText(Key);
@@ -539,7 +538,6 @@ public class TaskHost extends Poller {
 					
 					HostedTaskRecs.forEach((TaskName, HostedTask) -> {
 						ILog.Finer("+Checking task '%s'..", TaskName);
-						
 						ValidateTaskClass(TaskName, HostedTask);
 						ILog.Finer("*@<");
 					});
@@ -1014,20 +1012,17 @@ public class TaskHost extends Poller {
 			Collection<TaskRun> Reached = TaskCollection.FilterTasksByState(JoinTasks, State.TERMINATED);
 			Reached.forEach(Task -> {
 				ILog.Finest("Task '%s' has reached state %s", Task.getName(), State.TERMINATED);
-				while (true) {
-					try {
+				try {
+					while (true) {
 						// Since it is already in terminated state, the thread will finish very soon
 						if (Task.Join(-1)) {
 							break;
 						}
 						Thread.yield();
-					} catch (InterruptedException e) {
-						if (GlobalConfig.DEBUG_CHECK) {
-							ILog.Warn("Join interrupted: %s", e.getLocalizedMessage());
-						}
-						Thread.currentThread().interrupt();
-						break;
 					}
+				} catch (InterruptedException e) {
+					ILog.Warn("Join interrupted: %s", e.getLocalizedMessage());
+					Thread.currentThread().interrupt();
 				}
 			});
 			JoinTasks.removeAll(Reached);

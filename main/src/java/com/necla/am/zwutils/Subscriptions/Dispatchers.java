@@ -660,32 +660,18 @@ public class Dispatchers {
 		}
 		
 		protected final void Dispatch(C Category, X NewPayload, boolean Unlock) {
-			while (Category != null) {
-				try {
-					synchronized (this) {
-						if (CategorizedSubscriptions == null) {
-							break;
-						}
-					}
-					
-					SubscriptionDispatchRec<X> CategorySubscriptions;
-					synchronized (CategorizedSubscriptions) {
-						CategorySubscriptions = CategorizedSubscriptions.get(Category);
-						if (CategorySubscriptions == null) {
-							break;
-						}
-					}
-					
-					CategorySubscriptions.LockUpdatePayload(NewPayload);
-					if (!Unlock) {
-						CategorySubscriptions.UnlockPayload();
-					}
-					
-					Dispatch(CategorySubscriptions, NewPayload, Unlock);
-					break;
-				} finally {
-					ILog.Finer("*@<");
+			if ((Category != null) && (CategorizedSubscriptions != null)) {
+				SubscriptionDispatchRec<X> CategorySubscriptions;
+				synchronized (CategorizedSubscriptions) {
+					CategorySubscriptions = CategorizedSubscriptions.get(Category);
 				}
+				
+				CategorySubscriptions.LockUpdatePayload(NewPayload);
+				if (!Unlock) {
+					CategorySubscriptions.UnlockPayload();
+				}
+				
+				Dispatch(CategorySubscriptions, NewPayload, Unlock);
 			}
 			
 			Dispatch(CommonSubscriptions, NewPayload, Unlock);

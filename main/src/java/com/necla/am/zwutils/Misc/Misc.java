@@ -859,7 +859,7 @@ public class Misc {
 	 * @note Currently only supports linear conversion units
 	 * @since 0.8
 	 */
-	public static enum TimeUnit implements ConvUnit {
+	public enum TimeUnit implements ConvUnit {
 		NSEC(1, "ns", "nanosecond"),
 		HNSEC(100 * NSEC._FACTOR, "hns", "hundred-nanosecond", false),
 		USEC(1000 * NSEC._FACTOR, "us", "microsecond"),
@@ -956,9 +956,8 @@ public class Misc {
 	
 	// SimpleDateFormat is not threadsafe
 	// Ref: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
-	protected static ThreadLocal<DateFormat> DateFormatter = ThreadLocal.withInitial(() -> {
-		return new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS");
-	});
+	protected static ThreadLocal<DateFormat> DateFormatter =
+			ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS"));
 	
 	/**
 	 * Format a time stamp of given system and unit into built-in date format
@@ -1097,7 +1096,7 @@ public class Misc {
 	 * @note Currently only supports linear conversion units
 	 * @since 0.8
 	 */
-	public static enum SizeUnit implements ConvUnit {
+	public enum SizeUnit implements ConvUnit {
 		BYTE(1, "B", "byte"),
 		KB(1024 * BYTE._FACTOR, "KB", "kilo-byte"),
 		MB(1024 * KB._FACTOR, "MB", "mega-byte"),

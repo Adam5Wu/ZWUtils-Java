@@ -33,7 +33,6 @@ package com.necla.am.zwutils.Servers;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -869,8 +868,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				return SendDataFile(RelPath, GetFile);
 			}
 			
-			private int SendDataFile(String RelPath, File GetFile)
-					throws IOException, ParseException, FileNotFoundException {
+			private int SendDataFile(String RelPath, File GetFile) throws IOException, ParseException {
 				if (!GetFile.canRead()) {
 					ILog.Warn("Resource '%s' unreadable", RelPath);
 					return HttpURLConnection.HTTP_FORBIDDEN;
