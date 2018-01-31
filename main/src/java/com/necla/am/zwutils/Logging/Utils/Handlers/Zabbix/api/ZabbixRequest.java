@@ -119,7 +119,7 @@ public class ZabbixRequest {
 	public static class Factory {
 		
 		protected Factory() {
-			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 		}
 		
 		public static ZabbixRequest Logon(String name, String password) {

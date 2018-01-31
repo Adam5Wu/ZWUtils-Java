@@ -9,7 +9,7 @@ import com.necla.am.zwutils.Misc.Versioning;
 public class _Namespace {
 	
 	protected _Namespace() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public static final String PRODUCT = "ZWUtils - Jack of All Trades Utility Libraries";

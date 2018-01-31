@@ -24,7 +24,7 @@ import com.necla.am.zwutils.Misc.Misc;
 public class RemoteClassLoaders {
 	
 	protected RemoteClassLoaders() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public static class viaMobilityRPC extends ClassLoader {

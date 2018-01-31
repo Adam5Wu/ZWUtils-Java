@@ -55,7 +55,7 @@ import com.necla.am.zwutils.Misc.Parsers;
 public class Support {
 	
 	protected Support() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public static final String LOGGROUP = "ZWUtils.Logging.Support";

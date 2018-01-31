@@ -13,7 +13,7 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 public class Versioning {
 	
 	protected Versioning() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	protected static Field _Modifiers;

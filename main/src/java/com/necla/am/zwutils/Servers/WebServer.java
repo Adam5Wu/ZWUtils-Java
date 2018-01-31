@@ -134,7 +134,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	public static class ConfigData extends Poller.ConfigData {
 		
 		protected ConfigData() {
-			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 		}
 		
 		protected static final String HANDLER_PREFIX = "Handler/";
@@ -724,7 +724,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		
 		public static class ConfigData {
 			protected ConfigData() {
-				Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+				Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 			}
 			
 			protected static final String KEY_PREFIX = "WebHandler.Resources.";
@@ -991,7 +991,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	public static class Patch1 {
 		
 		protected Patch1() {
-			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 		}
 		
 		public static class HTTPServer_Exchange extends ClassVisitor {
@@ -1064,7 +1064,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	public static class Patch2 {
 		
 		protected Patch2() {
-			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 		}
 		
 		public static class SSLStreams_InputStream extends ClassVisitor {

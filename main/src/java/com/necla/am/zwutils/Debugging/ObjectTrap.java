@@ -720,7 +720,7 @@ public class ObjectTrap {
 	public static class BasicHooks {
 		
 		protected BasicHooks() {
-			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 		}
 		
 		public static enum LatchOp {

@@ -58,7 +58,7 @@ import com.necla.am.zwutils.i18n.Messages;
 public class GlobalConfig {
 	
 	protected GlobalConfig() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	private static final String LOGGROUP = "ZWUtils.GlobalConfig"; //$NON-NLS-1$

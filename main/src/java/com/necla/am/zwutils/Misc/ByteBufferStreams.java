@@ -48,7 +48,7 @@ import java.nio.ByteBuffer;
 public class ByteBufferStreams {
 	
 	protected ByteBufferStreams() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public static class Input extends InputStream {

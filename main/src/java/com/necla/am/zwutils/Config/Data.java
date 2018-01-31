@@ -53,7 +53,7 @@ import com.necla.am.zwutils.i18n.Messages;
 public class Data {
 	
 	protected Data() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	/**

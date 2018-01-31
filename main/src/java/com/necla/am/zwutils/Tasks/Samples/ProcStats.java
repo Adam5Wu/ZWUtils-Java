@@ -77,7 +77,7 @@ public class ProcStats extends Companion {
 	
 	public static class ConfigData {
 		protected ConfigData() {
-			Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+			Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 		}
 		
 		public static enum StatType {

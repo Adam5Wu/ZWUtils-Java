@@ -46,7 +46,7 @@ import java.util.NoSuchElementException;
 public class Iterables {
 	
 	protected Iterables() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public abstract static class ROIterator<T> implements Iterator<T> {

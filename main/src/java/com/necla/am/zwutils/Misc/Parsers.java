@@ -49,7 +49,7 @@ import com.necla.am.zwutils.Logging.IGroupLogger;
 public final class Parsers {
 	
 	protected Parsers() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public static final String LOGGROUP = "ZWUtils.Parsers";

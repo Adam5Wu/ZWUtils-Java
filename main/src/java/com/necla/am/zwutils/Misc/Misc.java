@@ -63,7 +63,7 @@ import com.necla.am.zwutils.Modeling.ITimeStamp;
 public class Misc {
 	
 	protected Misc() {
-		Misc.FAIL(IllegalStateException.class, "Do not instantiate!");
+		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
 	public static final ITimeStamp ProgramStartTS = ITimeStamp.Impl.Now();
@@ -252,7 +252,8 @@ public class Misc {
 		}
 	}
 	
-	public static final String MSG_SHOULD_NOT_REACH = "Should not reach";
+	public static final String MSG_SHOULD_NOT_REACH = "Should not reach!";
+	public static final String MSG_DO_NOT_INSTANTIATE = "Do not instantiate!";
 	
 	/**
 	 * Internal method for creating and throwing a custom RuntimeException with cause, modified stack
