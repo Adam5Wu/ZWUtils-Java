@@ -53,19 +53,10 @@ public class Implementations {
 		public static final String LogGroup = "ZWUtils.Addon.ObjectTrap.PyScript";
 		static final IGroupLogger CLog = new GroupLogger(LogGroup);
 		
-		protected ThreadLocal<PySystemState> _Py_ScriptSystemStates = new ThreadLocal<PySystemState>() {
-			@Override
-			protected PySystemState initialValue() {
-				return new PySystemState();
-			}
-		};
+		protected ThreadLocal<PySystemState> _Py_ScriptSystemStates =
+				ThreadLocal.withInitial(PySystemState::new);
 		protected PyObject _Py_ScriptGlobals = Py.newStringMap();
-		protected ThreadLocal<PyObject> _Py_ScriptLocals = new ThreadLocal<PyObject>() {
-			@Override
-			protected PyObject initialValue() {
-				return Py.newStringMap();
-			}
-		};
+		protected ThreadLocal<PyObject> _Py_ScriptLocals = ThreadLocal.withInitial(Py::newStringMap);
 		protected CompilerFlags _Py_ScriptCFlags = new CompilerFlags();
 		
 		protected PyCode _Py_ScriptCompile(String Name, InputStream CodeStr) {
@@ -87,7 +78,7 @@ public class Implementations {
 			final Set<IFork.Result> Filter;
 			
 			public PythonForkScript(PyCode code) {
-				this(code, EnumSet.of(IFork.Result.Match));
+				this(code, EnumSet.of(IFork.Result.MATCH));
 			}
 			
 			public PythonForkScript(PyCode code, Set<IFork.Result> filter) {
@@ -102,7 +93,7 @@ public class Implementations {
 					PyObject ScriptLocals = _Py_ScriptPrep(Local -> {
 						Local.__setitem__("TAP_RESULT", Py.java2py(R.name())); //$NON-NLS-1$
 						Local.__setitem__("TAP_OBJECT", Py.java2py(O)); //$NON-NLS-1$
-						if (R == IFork.Result.Match) {
+						if (R == IFork.Result.MATCH) {
 							Local.__setitem__("TAP_SCOPED", Py.java2py(S)); //$NON-NLS-1$
 						} else {
 							Local.__setitem__("TAP_SCOPED", null); //$NON-NLS-1$
@@ -140,9 +131,7 @@ public class Implementations {
 		@Override
 		public void ExecEnvPrep(Map<String, Object> Envs) {
 			_Py_ScriptPrep(Local -> {
-				Envs.forEach((Key, Val) -> {
-					Local.__setitem__(Key, Py.java2py(Val));
-				});
+				Envs.forEach((Key, Val) -> Local.__setitem__(Key, Py.java2py(Val)));
 				return Local;
 			});
 		}

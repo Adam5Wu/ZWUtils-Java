@@ -221,7 +221,6 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	protected abstract int CheckExpiredValues();
 	
 	// Just a simple statistics collection routing, looks complex but it is not
-	@SuppressWarnings("squid:S3776")
 	protected void CollectStats(long Now, int DecayCount) {
 		if (GlobalConfig.DEBUG_CHECK) {
 			if (DecayCount >= 0) {
@@ -435,7 +434,6 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 	}
 	
 	// Yes it is complex code, so is the problem, so suck it!
-	@SuppressWarnings("squid:S3776")
 	private int ScanForDecay(int scanlimit, int decaylimit, Long CurTS) {
 		int Decayed = 0;
 		Iterator<IValueRef<V>> LRUIter = GCIterator.getAndSet(NullIter);

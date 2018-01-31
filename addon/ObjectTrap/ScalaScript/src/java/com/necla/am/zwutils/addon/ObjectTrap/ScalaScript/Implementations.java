@@ -46,12 +46,7 @@ public class Implementations {
 		
 		protected ConcurrentMap<String, Object> _N_ScriptGlobals = new ConcurrentHashMap<>();
 		protected ThreadLocal<Map<String, Object>> _N_ScriptLocals =
-				new ThreadLocal<Map<String, Object>>() {
-					@Override
-					protected Map<String, Object> initialValue() {
-						return new HashMap<>();
-					}
-				};
+				ThreadLocal.withInitial(HashMap::new);
 		
 		@FunctionalInterface
 		protected static interface _N_IScriptExecPrep {
@@ -68,7 +63,7 @@ public class Implementations {
 			final Set<IFork.Result> Filter;
 			
 			public NativeForkScript(INativeForkScript code) {
-				this(code, EnumSet.of(IFork.Result.Match));
+				this(code, EnumSet.of(IFork.Result.MATCH));
 			}
 			
 			public NativeForkScript(INativeForkScript code, Set<IFork.Result> filter) {

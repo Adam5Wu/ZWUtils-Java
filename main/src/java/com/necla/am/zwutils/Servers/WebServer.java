@@ -649,7 +649,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		
 		private void SendRespBody(HttpExchange HE, RequestProcessor RP) throws IOException {
 			try (OutputStream RBODY = HE.getResponseBody()) {
-				@SuppressWarnings("squid:S2095")
 				// We CANNOT use try-with-resource here because it is not our place to close the channel!
 				WritableByteChannel WChannel = Channels.newChannel(RBODY);
 				while (RP.RBODY.remaining() > 0) {

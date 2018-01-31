@@ -152,7 +152,6 @@ public class Dispatchers {
 		 * Remove a subscription from a given dispatch record (internal use ONLY)
 		 */
 		// Yes it is complex code, so is the problem, so suck it!
-		@SuppressWarnings("squid:S3776")
 		protected final void _UnregisterSubscription(SubscriptionDispatchRec<X> Subscriptions,
 				ISubscription<X> Subscriber) {
 			Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();
@@ -423,7 +422,6 @@ public class Dispatchers {
 		 * Remove a subscription from a given dispatch record (internal use ONLY)
 		 */
 		// Yes it is complex code, so is the problem, so suck it!
-		@SuppressWarnings("squid:S3776")
 		protected final void _UnregisterSubscription(SubscriptionDispatchRec<X> Subscriptions,
 				ISubscription<X> Subscriber) {
 			Collection<WeakReference<ISubscription<X>>> Subscribers = Subscriptions.TellSubscribers();

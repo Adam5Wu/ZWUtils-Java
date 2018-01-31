@@ -404,7 +404,6 @@ public final class DebugLog {
 	/**
 	 * Redirect StdErr to log
 	 */
-	@SuppressWarnings("squid:S106")
 	public static void logStdErr() {
 		if (StdErr == null) {
 			StdErr = System.err;
@@ -420,7 +419,6 @@ public final class DebugLog {
 	/**
 	 * Redirect StdOut to log
 	 */
-	@SuppressWarnings("squid:S106")
 	public static void logStdOut() {
 		if (StdOut == null) {
 			StdOut = System.out;
@@ -431,7 +429,6 @@ public final class DebugLog {
 		}
 	}
 	
-	@SuppressWarnings("squid:S106")
 	public static PrintStream DirectErrOut() {
 		return StdErr == null? System.err : StdErr;
 	}
@@ -509,7 +506,6 @@ public final class DebugLog {
 	static class Cleanup implements Runnable {
 		
 		@Override
-		@SuppressWarnings("squid:S106")
 		public void run() {
 			if (StdErr != null) {
 				PrintStream LogErr = System.err;

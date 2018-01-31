@@ -112,14 +112,13 @@ public interface ZabbixAPI {
 				protected InetSocketAddress ReportAddr;
 				
 				@Override
-				// No, it is not a hard-coded password
-				@SuppressWarnings("squid:S2068")
 				public void loadDefaults() {
 					SecureHTTP = false;
 					ServerAddr = "LocalHost";
 					APIPort = DEFPORT_HTTP;
 					ReportPort = DEFPORT_REPORT;
 					UserName = "ZWUtils";
+					// No, it is not a hard-coded password
 					Password = "<need password>";
 					RPCPath = "/api_jsonrpc.php";
 					NetTimeout = (int) TimeUnit.SEC.Convert(10, TimeUnit.MSEC);

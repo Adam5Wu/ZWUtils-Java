@@ -282,7 +282,6 @@ public class DataMap {
 	private static final Matcher EnvMatcher = EnvToken.matcher(""); //$NON-NLS-1$
 	
 	// Yes it is complex code, so is the problem, so suck it!
-	@SuppressWarnings("squid:S3776")
 	protected String GetValue(String Key) {
 		String Value = DM.get(Key);
 		

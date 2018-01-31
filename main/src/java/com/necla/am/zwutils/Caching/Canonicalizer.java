@@ -342,7 +342,6 @@ public class Canonicalizer {
 	
 	protected final Map<Class<?>, AutoMagic<?>> MagicStore = new HashMap<>();
 	
-	@SuppressWarnings("squid:S1452")
 	protected AutoMagic<?> Lookup(Class<?> C) {
 		AutoMagic<?> GMagic;
 		synchronized (MagicStore) {

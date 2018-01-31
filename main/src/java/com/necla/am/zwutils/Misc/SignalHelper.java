@@ -78,7 +78,6 @@ public class SignalHelper implements SignalHandler {
 	}
 	
 	@Override
-	@SuppressWarnings("squid:S128")
 	public void handle(Signal signal) {
 		if (!Bypass) {
 			ILog.Info("Received signal '%s'", signal);
@@ -94,7 +93,7 @@ public class SignalHelper implements SignalHandler {
 						if (Cascade == SIG_DFL) {
 							break;
 						}
-						// Execution continues
+						// Yes, execution continues
 					case CASCADE:
 						ILog.Info("Cascading signal '%s'", signal);
 						Cascade.handle(signal);

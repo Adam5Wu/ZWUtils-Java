@@ -135,7 +135,6 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 	 * @see java.lang.Runnable#run()
 	 */
 	@Override
-	@SuppressWarnings("squid:S128")
 	public final void run() {
 		try {
 			EnterState(State.STARTING);
@@ -145,7 +144,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 			switch (CurState) {
 				case STARTING:
 					tryEnterState(State.RUNNING);
-					// Execution continues
+					// Yes, execution continues
 				case RUNNING:
 					try {
 						doTask();

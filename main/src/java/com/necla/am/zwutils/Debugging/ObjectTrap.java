@@ -449,7 +449,6 @@ public class ObjectTrap {
 	}
 	
 	// Yes it is complex code, so is the problem, so suck it!
-	@SuppressWarnings("squid:S3776")
 	public static Method AccessibleGetter(Class<?> c, String name) throws SecurityException {
 		while (c != null) {
 			try {
@@ -529,7 +528,6 @@ public class ObjectTrap {
 		public final int MI;
 		
 		// Yes it is complex code, so is the problem, so suck it!
-		@SuppressWarnings("squid:S3776")
 		public ASMGetterScope(Class<?> c, String cname, String method)
 				throws SecurityException, ClassNotFoundException {
 			super(c, cname);
