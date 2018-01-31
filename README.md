@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.org/Adam5Wu/ZWUtils-Java.svg?branch=master)](https://travis-ci.org/Adam5Wu/ZWUtils-Java)
 [![SonarCloud-Stat](https://sonarcloud.io/api/badges/gate?key=ZWUtils-Java)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 
-[![SonarCloud-SLoC](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=lines)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-SLoC](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=ncloc)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-Bugs](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=bugs)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-Vuls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-Smls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=code_smells)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
