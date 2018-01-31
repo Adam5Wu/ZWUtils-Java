@@ -870,7 +870,8 @@ public class Misc {
 		DAY(24 * HR._FACTOR, "d", "day");
 		
 		final long _FACTOR;
-		final String _UNAME_ABBRV, _UNAME_FULL;
+		final String _UNAME_ABBRV;
+		final String _UNAME_FULL;
 		final boolean _IMPLICIT_ENUM;
 		
 		TimeUnit(long divisor, String name_abbrv, String name_full) {
@@ -1043,7 +1044,7 @@ public class Misc {
 			case MSEC:
 				return "";
 			default:
-				Misc.FAIL(IllegalStateException.class, "Should not reach!");
+				Misc.FAIL(IllegalStateException.class, Misc.MSG_SHOULD_NOT_REACH);
 				// PERF: code analysis tool doesn't recognize custom throw functions
 				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
@@ -1104,8 +1105,9 @@ public class Misc {
 		TB(1024 * GB._FACTOR, "TB", "tera-byte"),
 		PB(1024 * TB._FACTOR, "PB", "peta-byte");
 		
-		public final long _FACTOR;
-		final String _UNAME_ABBRV, _UNAME_FULL;
+		final long _FACTOR;
+		final String _UNAME_ABBRV;
+		final String _UNAME_FULL;
 		final boolean _IMPLICIT_ENUM;
 		
 		SizeUnit(long divisor, String name_abbrv, String name_full) {
@@ -1241,7 +1243,7 @@ public class Misc {
 			case PB:
 				return "P";
 			default:
-				Misc.FAIL(IllegalStateException.class, "Should not reach!");
+				Misc.FAIL(IllegalStateException.class, Misc.MSG_SHOULD_NOT_REACH);
 				// PERF: code analysis tool doesn't recognize custom throw functions
 				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
