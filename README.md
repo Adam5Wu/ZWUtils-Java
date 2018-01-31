@@ -5,8 +5,8 @@
 [![SonarCloud-SLoC](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=ncloc)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-RCmt](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=comment_lines_density)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![Build Status](https://travis-ci.org/Adam5Wu/ZWUtils-Java.svg?branch=master)](https://travis-ci.org/Adam5Wu/ZWUtils-Java)
-[![SonarCloud-Stat](https://sonarcloud.io/api/badges/gate?key=ZWUtils-Java)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 
+[![SonarCloud-Stat](https://sonarcloud.io/api/badges/gate?key=ZWUtils-Java)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-Bugs](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=bugs&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-Vuls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=vulnerabilities&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-RCov](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=coverage&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
