@@ -5,13 +5,13 @@
 [![SonarCloud-SLoC](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=ncloc)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![SonarCloud-RCmt](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=comment_lines_density)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![Build Status](https://travis-ci.org/Adam5Wu/ZWUtils-Java.svg?branch=master)](https://travis-ci.org/Adam5Wu/ZWUtils-Java)
-[![SonarCloud-Stat](https://sonarcloud.io/api/badges/gate?key=ZWUtils-Java)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 
-[![SonarCloud-Bugs](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=bugs&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
-[![SonarCloud-Vuls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=vulnerabilities&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
-[![SonarCloud-RCov](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=coverage&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-Stat](https://sonarcloud.io/api/badges/gate?key=ZWUtils-Java)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-Bugs](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=bugs&blinking=true)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=bugs)
+[![SonarCloud-Vuls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=vulnerabilities&blinking=true)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=vulnerabilities)
+[![SonarCloud-RCov](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=coverage&blinking=true)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=coverage)
 [![SonarCloud-RTFa](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=test_failures&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
-[![SonarCloud-RDeb](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=sqale_debt_ratio&blinking=true)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-RDeb](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=sqale_debt_ratio&blinking=true)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=sqale_debt_ratio)
 
 This utility library provides basic run-time services, such as log management, configuration loading and saving, thread management, debugging support, etc. to Java applications.
 
