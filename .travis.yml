@@ -9,11 +9,8 @@ addons:
 
 jdk:
   - oraclejdk8
-before_install: 
-  - pwd
-  - ls -la
 script:
-  - /.gradlew sonarqube
+  - gradle sonarqube
 cache:
   directories:
     - '$HOME/.m2/repository'
