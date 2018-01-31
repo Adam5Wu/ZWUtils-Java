@@ -1,0 +1,19 @@
+language: java
+sudo: false
+install: true
+addons:
+  sonarcloud:
+    organization: "adam5wu-github"
+    token:
+      secure: "MR68h0EIzrFqwhkNtJ4OiXy2u3q2JBt7f2qDYzr393PbsYWuXz3Qqw2iGgTMe+kS7otmQkUo58G2x4nNiXhV5nOKjT64u7pk6SqJWmslw5FHjK046XoDBYhQvp59DMwQ9KWmJycSdGEZFacskayGUE9Dpd21HnQnMeCnneuHf2tOLLKDhOeK8wTzZ3/UsgCGAAmHmlJY524k0yj6mheRjK39BuFtkxz6BAcp6JyB7f/YA+ptFAeM6MWVRSquLyRcN5NcmY6u6122eNFfy0b8B34ROSjdhWctF7plbxusqpCW4Gtj/VUkn7dFcRwYWyMfblpiUAOGUvbTnFFkswwJ3UiUcnj339KJetxnHP1j3IdFkV+ZocxlDr3WKxwCVyggIE3RJCJZm3a/eXrnLVSEDASZE+OYFxKVd9QpjsYem1WtRFGAElhbA3ga9OO75qvlL2pXLBuQOoWuadskZBfUbVKtzsccAq/ZBDs3EoyWcAHTySL/UBtiogfPTb7HMgGwh1vJl8EjEutBoxD0Db5xYLLG4bbRuexYilJQO9bG7oYwBw3CdvFX4gHVbigjGPDMXK7p9bn3SC1VRpjnOKZwIDwS9L219PZAQU0Zh/ZH0HsyrMoeWzV5UPedJzxl6pPxIlVYkqJVUgMfSlrbi8kY49FTm36OZY/RqOw+tJuqlk8="
+
+jdk:
+  - oraclejdk8
+script:
+  - ./gradlew sonarqube
+cache:
+  directories:
+    - '$HOME/.m2/repository'
+    - '$HOME/.sonar/cache'
+    - '$HOME/.gradle'
+    - '.gradle'
