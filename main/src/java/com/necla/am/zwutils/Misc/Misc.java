@@ -1043,7 +1043,7 @@ public class Misc {
 			default:
 				Misc.FAIL(IllegalStateException.class, "Should not reach!");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return "?";
+				throw new IllegalStateException("Should not reach");
 		}
 	};
 	
@@ -1241,7 +1241,7 @@ public class Misc {
 			default:
 				Misc.FAIL(IllegalStateException.class, "Should not reach!");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return "?";
+				throw new IllegalStateException("Should not reach");
 		}
 	};
 	

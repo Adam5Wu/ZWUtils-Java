@@ -169,7 +169,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						return null;
+						throw new IllegalStateException("Should not reach");
 					}
 					
 					String[] Tokens = HANDLERCONFIG_DELIM.split(From.trim(), 2);
@@ -226,7 +226,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						return null;
+						throw new IllegalStateException("Should not reach");
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
@@ -1402,7 +1402,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	public Collection<ITask> GetDependencies() {
 		Misc.ERROR("Feature not avaliable");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		return Collections.emptyList();
+		throw new IllegalStateException("Should not reach");
 	}
 	
 }

@@ -136,7 +136,7 @@ public class TaskHost extends Poller {
 				if (From == null) {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 					// PERF: code analysis tool doesn't recognize custom throw functions
-					return null;
+					throw new IllegalStateException("Should not reach");
 				}
 				
 				return From.getHostString() + ':' + From.getPort();
@@ -252,38 +252,39 @@ public class TaskHost extends Poller {
 				Set<String> TasksWithBundledConfig = new HashSet<>();
 				for (String Key : confMap.keySet()) {
 					HostedTaskRec.TType TaskType = SenseTaskType(confMap, Key);
-					
-					String[] TaskTok = KeyToken.split(Key.substring(1), 2);
-					HostedTaskRec HostedTask = ObtainTaskEntry(TaskType, TaskTok);
-					
-					if (TaskTok.length > 1) {
-						switch (TaskTok[1]) {
-							case CONFIG_TASK_CONFIG:
-								LoadTaskConfiguration(confMap, BundleConfigTasks, Key, TaskTok, HostedTask);
-								break;
-							case CONFIG_TASK_DEPENDS:
-								LoadTaskDependencies(confMap, Key, TaskTok, HostedTask);
-								break;
-							case CONFIG_TASK_WAITFOR:
-								LoadTaskJoinRequest(confMap, Key, TaskTok);
-								break;
-							case CONFIG_TASK_TERMSIG:
-								LoadTaskTermSigRequest(confMap, Key, TaskTok);
-								break;
-							case CONFIG_TASK_PRIORITY:
-								LoadTaskPriority(confMap, Key, TaskTok, HostedTask);
-								break;
-							default:
-								// Ignore bundled configuration keys
-								if (TaskTok[1].startsWith(CONFIG_TASK_CONFIG + CONFIG_TASK_CONFIG_BUNDLEDELIM)) {
-									TasksWithBundledConfig.add(TaskTok[0]);
-									continue;
-								}
-								ILog.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0],
-										TaskTok[1], confMap.getText(Key));
+					if (TaskType != null) {
+						String[] TaskTok = KeyToken.split(Key.substring(1), 2);
+						HostedTaskRec HostedTask = ObtainTaskEntry(TaskType, TaskTok);
+						
+						if (TaskTok.length > 1) {
+							switch (TaskTok[1]) {
+								case CONFIG_TASK_CONFIG:
+									LoadTaskConfiguration(confMap, BundleConfigTasks, Key, TaskTok, HostedTask);
+									break;
+								case CONFIG_TASK_DEPENDS:
+									LoadTaskDependencies(confMap, Key, TaskTok, HostedTask);
+									break;
+								case CONFIG_TASK_WAITFOR:
+									LoadTaskJoinRequest(confMap, Key, TaskTok);
+									break;
+								case CONFIG_TASK_TERMSIG:
+									LoadTaskTermSigRequest(confMap, Key, TaskTok);
+									break;
+								case CONFIG_TASK_PRIORITY:
+									LoadTaskPriority(confMap, Key, TaskTok, HostedTask);
+									break;
+								default:
+									// Ignore bundled configuration keys
+									if (TaskTok[1].startsWith(CONFIG_TASK_CONFIG + CONFIG_TASK_CONFIG_BUNDLEDELIM)) {
+										TasksWithBundledConfig.add(TaskTok[0]);
+										continue;
+									}
+									ILog.Warn("Unrecognized task '%s' configuration '%s' = '%s'", TaskTok[0],
+											TaskTok[1], confMap.getText(Key));
+							}
+						} else {
+							HostedTask.ClassDesc = confMap.getText(Key);
 						}
-					} else {
-						HostedTask.ClassDesc = confMap.getText(Key);
 					}
 				}
 				TasksWithBundledConfig.removeAll(BundleConfigTasks);
@@ -394,7 +395,7 @@ public class TaskHost extends Poller {
 						Misc.FAIL(IllegalArgumentException.class, "Unrecognized task configuration: %s",
 								ConfigType);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalArgumentException();
+						throw new IllegalStateException("Should not reach");
 					}
 					
 					if (ILog.isLoggable(Level.FINER)) {
@@ -469,7 +470,7 @@ public class TaskHost extends Poller {
 					HostedTask.TaskType = TaskType;
 					ILog.Config("Created %s task entry '%s'", TaskType, TaskTok[0]);
 					// Normal tasks will be joined implicitly
-					if (TaskType.equals(HostedTaskRec.TType.NORMAL)) {
+					if (TaskType == HostedTaskRec.TType.NORMAL) {
 						JoinTaskNames.add(TaskTok[0]);
 					}
 				} else {
@@ -493,10 +494,9 @@ public class TaskHost extends Poller {
 						TaskType = HostedTaskRec.TType.GRACEDAEMON;
 						break;
 					case CONFIG_TASK_SETUP:
-						return TaskType;
+						break;
 					default:
 						ILog.Warn("Unrecognized configuration '%s' = '%s'", Key, confMap.getText(Key));
-						return TaskType;
 				}
 				return TaskType;
 			}
@@ -558,7 +558,7 @@ public class TaskHost extends Poller {
 							Misc.FAIL(NoSuchElementException.class, "Return task '%s' not defined",
 									ReturnTaskName);
 							// PERF: code analysis tool doesn't recognize custom throw functions
-							throw new NoSuchElementException();
+							throw new IllegalStateException("Should not reach");
 						}
 						if (HostedTask.TaskType.equals(HostedTaskRec.TType.DAEMON)) {
 							Misc.FAIL(UnsupportedOperationException.class,
@@ -774,7 +774,7 @@ public class TaskHost extends Poller {
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			return null;
+			throw new IllegalStateException("Should not reach");
 		}
 		
 		// Send configurations (if applicable)
@@ -824,7 +824,7 @@ public class TaskHost extends Poller {
 		if (RemoteAddress == null) {
 			Misc.FAIL("Undefined remote server '%s'", RemoteName);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			return null;
+			throw new IllegalStateException("Should not reach");
 		}
 		
 		// Lookup task class on remote server

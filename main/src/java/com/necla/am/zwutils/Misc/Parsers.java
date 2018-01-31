@@ -181,7 +181,7 @@ public final class Parsers {
 			if (From == null) {
 				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return null;
+				throw new IllegalStateException("Should not reach");
 			}
 			
 			if (From.length() > 1) {
@@ -291,7 +291,7 @@ public final class Parsers {
 			if (From == null) {
 				Misc.FAIL(NullPointerException.class, ERROR_NULL_POINTER);
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return null;
+				throw new IllegalStateException("Should not reach");
 			}
 			if (From.length() != 1) {
 				Misc.FAIL(IllegalArgumentException.class, From);

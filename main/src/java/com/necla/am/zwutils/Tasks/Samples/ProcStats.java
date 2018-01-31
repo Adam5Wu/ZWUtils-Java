@@ -110,7 +110,7 @@ public class ProcStats extends Companion {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						return null;
+						throw new IllegalStateException("Should not reach");
 					}
 					return StatType.parse(From.toUpperCase());
 				}

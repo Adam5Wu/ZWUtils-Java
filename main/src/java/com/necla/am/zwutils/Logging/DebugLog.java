@@ -163,9 +163,6 @@ public final class DebugLog {
 	 * @since 0.8
 	 */
 	public static void setGrpLogLevel(Logger LogGroup, Level LogLevel) {
-		// PERF: code analysis tool doesn't recognize custom throw functions
-		if (LogGroup == null) return;
-		
 		Level GroupLevel = LogGroup.getLevel();
 		if (((GroupLevel == null) && (LogLevel != null))
 				|| ((GroupLevel != null) && !GroupLevel.equals(LogLevel))) {
@@ -250,6 +247,8 @@ public final class DebugLog {
 			Ret.setEncoding("UTF-8");
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			throw new IllegalStateException("Should not reach");
 		}
 		return Ret;
 	}
@@ -297,8 +296,6 @@ public final class DebugLog {
 	 */
 	public static void attachFileHandler(Support.GroupLogFile logFile) {
 		Handler FileHandler = createFileHandler(logFile, null);
-		// PERF: code analysis tool doesn't recognize custom throw functions
-		if (FileHandler == null) return;
 		
 		if (DaemonTask == null) {
 			if (!isConfigured()) {
@@ -339,9 +336,6 @@ public final class DebugLog {
 	 * @since 0.85
 	 */
 	public static void setLogHandler(Logger Logger, Handler LogHandler, boolean propagate) {
-		// PERF: code analysis tool doesn't recognize custom throw functions
-		if (Logger == null) return;
-		
 		for (Handler logHandler : Logger.getHandlers()) {
 			Logger.removeHandler(logHandler);
 			logHandler.flush();
@@ -441,8 +435,6 @@ public final class DebugLog {
 			Logger RootLogger = Manager.getLogger("");
 			
 			Logger ExternalGroup = getLogGroup("External");
-			// PERF: code analysis tool doesn't recognize custom throw functions
-			if (ExternalGroup == null) return;
 			ExternalGroup.setFilter(null); // Disable the group filter
 			Handler ForwardHandler = new ForwardHandler(ExternalGroup);
 			ForwardHandler.setFilter(new CapturedLogFilter(ExternalGroup));
@@ -575,8 +567,6 @@ public final class DebugLog {
 			String LogGrp = record.getLoggerName();
 			if (LogGrp != null) {
 				Logger LogGroup = DebugLog.getLogGroup(LogGrp);
-				// PERF: code analysis tool doesn't recognize custom throw functions
-				if (LogGroup == null) return;
 				LogGroup.log(record);
 			} else {
 				LogBase.log(record);
@@ -616,14 +606,9 @@ public final class DebugLog {
 			}
 			SwitchBufferedHandlers();
 			
-			// The LogBase handlers need to receive update from LogFormatter
-			// configurations
-			// Note: The '.' ensures normal group names could not collide on this
-			// special notifier
+			// The LogBase handlers need to receive update from LogFormatter configurations
+			// Note: The '.' ensures normal group names could not collide on this special notifier
 			Logger FormatterConfig = CreateLogger(null, null);
-			// PERF: code analysis tool doesn't recognize custom throw functions
-			if (FormatterConfig == null) return;
-			
 			FormatterConfig.setLevel(Level.ALL);
 			for (Handler LogHandler : LogBase.getHandlers()) {
 				FormatterConfig.addHandler(LogHandler);
@@ -672,9 +657,8 @@ public final class DebugLog {
 		try {
 			LogDaemon.Start(-1);
 		} catch (InterruptedException e) {
-			Misc.CascadeThrow(e);
-			// PERF: code analysis tool doesn't recognize custom throw functions
 			Thread.currentThread().interrupt();
+			Misc.CascadeThrow(e);
 		}
 		Logger.Fine("Log daemon thread started");
 		// Wait for the daemon to become idle
@@ -982,6 +966,8 @@ public final class DebugLog {
 			}
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
+			// PERF: code analysis tool doesn't recognize custom throw functions
+			throw new IllegalStateException("Should not reach");
 		}
 		
 		if (LoggerName != null) {
@@ -1043,11 +1029,8 @@ public final class DebugLog {
 		if (LogGrp == null) {
 			Misc.ERROR("Log group must be named");
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			return null;
+			throw new IllegalStateException("Should not reach");
 		}
-		// PERF: code analysis tool doesn't recognize custom throw functions
-		if (ParentGroup == null) return null;
-		
 		String[] GroupTokens = LOGGROUP_SEPARATOR.split(LogGrp);
 		String GroupName = ParentGroup.getName();
 		
@@ -1056,8 +1039,6 @@ public final class DebugLog {
 			Logger LogGroup = FindLogger(GroupName);
 			if (LogGroup == null) {
 				LogGroup = createLogGroup(GroupName, ParentGroup);
-				// PERF: code analysis tool doesn't recognize custom throw functions
-				if (LogGroup == null) return null;
 			}
 			ParentGroup = LogGroup;
 		}
@@ -1076,13 +1057,10 @@ public final class DebugLog {
 		if ((LogGrp == null) || LogGrp.isEmpty()) {
 			Misc.ERROR("Log group must be named");
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			return null;
+			throw new IllegalStateException("Should not reach");
 		}
 		
 		Logger LogGroup = CreateLogger(LogGrp, ParentGroup);
-		// PERF: code analysis tool doesn't recognize custom throw functions
-		if (LogGroup == null) return null;
-		
 		LogGroup.setFilter(new GroupFilter(LogGroup));
 		
 		if (isConfigured()) {
@@ -1101,9 +1079,6 @@ public final class DebugLog {
 	 */
 	protected static Logger newGroupLogger(Logger LogGroup) {
 		Logger Ret = CreateLogger(null, LogGroup);
-		// PERF: code analysis tool doesn't recognize custom throw functions
-		if (Ret == null) return null;
-		
 		if (LogGroup != null) {
 			Ret.setFilter(LogGroup.getFilter());
 		}
@@ -1314,9 +1289,8 @@ public final class DebugLog {
 						wait();
 					}
 				} catch (InterruptedException e) {
-					Misc.CascadeThrow(e);
-					// PERF: code analysis tool doesn't recognize custom throw functions
 					Thread.currentThread().interrupt();
+					Misc.CascadeThrow(e);
 				}
 			}
 			

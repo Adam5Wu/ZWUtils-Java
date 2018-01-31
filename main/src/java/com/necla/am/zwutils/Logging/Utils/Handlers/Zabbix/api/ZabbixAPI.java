@@ -340,7 +340,7 @@ public interface ZabbixAPI {
 			} catch (Exception e) {
 				Misc.CascadeThrow(e, "Request preparation failed");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return null;
+				throw new IllegalStateException("Should not reach");
 			}
 			
 			try (DataOutputStream PostOut = new DataOutputStream(Request.getOutputStream())) {

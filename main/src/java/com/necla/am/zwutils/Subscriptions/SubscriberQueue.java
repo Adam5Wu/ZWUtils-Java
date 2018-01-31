@@ -298,13 +298,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			Collection<X> LeftOver = Lane.MultiGet(0);
 			InsertionLock.lock();
 			try {
-				while (InsertWorker.get() != InsertWaiter.get()) {
-					InsertionLock.unlock();
-					Lane.MultiGet(LeftOver, 0);
-					Thread.yield();
-					InsertionLock.lock();
-				}
-				Lane.MultiGet(LeftOver, 0);
+				ClearConcurrentInserters(Lane, LeftOver);
 				
 				SubscriberQueue<X> NewLane =
 						new SubscriberQueue<>(Name + '.' + QueueIndex++, HighQueueLen, BatchQueueLen);
@@ -321,6 +315,16 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			}
 			ILog.Fine("Lane splitting finished, re-queued %d entries", LeftOver.size());
 		}
+
+		private void ClearConcurrentInserters(SubscriberQueue<X> Lane, Collection<X> LeftOver) {
+			while (InsertWorker.get() != InsertWaiter.get()) {
+				InsertionLock.unlock();
+				Lane.MultiGet(LeftOver, 0);
+				Thread.yield();
+				InsertionLock.lock();
+			}
+			Lane.MultiGet(LeftOver, 0);
+		}
 		
 		public void LaneMerge(SubscriberQueue<X> Lane, LaneEvent<X> LaneRemove,
 				SplitMergeNonCritical<X> NonCritical) {
@@ -330,13 +334,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			Collection<X> LeftOver = Lane.MultiGet(0);
 			InsertionLock.lock();
 			try {
-				while (InsertWorker.get() != InsertWaiter.get()) {
-					InsertionLock.unlock();
-					Lane.MultiGet(LeftOver, 0);
-					Thread.yield();
-					InsertionLock.lock();
-				}
-				Lane.MultiGet(LeftOver, 0);
+				ClearConcurrentInserters(Lane, LeftOver);
 				
 				LaneRemove.Signal(Lane);
 				Queues.remove(Lane);

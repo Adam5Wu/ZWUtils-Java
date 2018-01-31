@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiPredicate;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
@@ -73,6 +74,7 @@ import com.necla.am.zwutils.Misc.Misc;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Misc.Parsers.IParse;
+import com.necla.am.zwutils.Misc.Parsers.SimpleStringParse;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
 import com.necla.am.zwutils.Reflection.PackageClassIterable;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
@@ -500,7 +502,7 @@ public class ObjectTrap {
 			} catch (InvocationTargetException e) {
 				Misc.CascadeThrow(e);
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return null;
+				throw new IllegalStateException("Should not reach");
 			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), M.getName()); //$NON-NLS-1$
@@ -689,7 +691,7 @@ public class ObjectTrap {
 			} catch (Exception e) {
 				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.HOOK_CREATE_FAILED")); //$NON-NLS-1$
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				return null;
+				throw new IllegalStateException("Should not reach");
 			}
 		}
 		
@@ -792,6 +794,20 @@ public class ObjectTrap {
 			}
 			
 			@SuppressWarnings("unchecked")
+			protected static void ParseRange(String condval, Pattern ListSep, IParse<String, ?> Parser,
+					BiPredicate<?, ?> Validator) {
+				String[] CondVals = ListSep.split(condval.trim());
+				if (CondVals.length != 2) {
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
+				}
+				Object First = Parser.parseOrFail(CondVals[0].trim());
+				Object Second = Parser.parseOrFail(CondVals[1].trim());
+				if (((BiPredicate<Object, Object>) Validator).test(First, Second)) {
+					Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), First, Second); //$NON-NLS-1$
+				}
+			}
+			
+			@SuppressWarnings("unchecked")
 			protected static void ParseSetList(String condval, Pattern ListSep, IParse<String, ?> Parser,
 					Set<?> CompSet) {
 				String[] CondVals = ListSep.split(condval.trim());
@@ -844,19 +860,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompIntA = IntParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = IntListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						CompIntA = IntParser.parseOrFail(CondVals[0].trim());
-						CompIntB = IntParser.parseOrFail(CondVals[1].trim());
-						if (CompIntA > CompIntB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompIntA, //$NON-NLS-1$
-									CompIntB);
-						}
+					case INRANGE:
+						BiPredicate<Integer, Integer> RangeCheck = (First, Second) -> {
+							CompIntA = First;
+							CompIntB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, IntListSep, IntParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompIntSet = new HashSet<>();
 						ParseSetList(condval, IntListSep, IntParser, CompIntSet);
@@ -963,20 +974,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompLongA = LongParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = LongListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						
-						CompLongA = LongParser.parseOrFail(CondVals[0].trim());
-						CompLongB = LongParser.parseOrFail(CondVals[1].trim());
-						if (CompLongA > CompLongB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompLongA, //$NON-NLS-1$
-									CompLongB);
-						}
+					case INRANGE:
+						BiPredicate<Long, Long> RangeCheck = (First, Second) -> {
+							CompLongA = First;
+							CompLongB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, LongListSep, LongParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompLongSet = new HashSet<>();
 						ParseSetList(condval, LongListSep, LongParser, CompLongSet);
@@ -1083,20 +1088,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompByteA = ByteParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = ByteListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim());//$NON-NLS-1$
-						}
-						
-						CompByteA = ByteParser.parseOrFail(CondVals[0].trim());
-						CompByteB = ByteParser.parseOrFail(CondVals[1].trim());
-						if (CompByteA > CompByteB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompByteA, //$NON-NLS-1$
-									CompByteB);
-						}
+					case INRANGE:
+						BiPredicate<Byte, Byte> RangeCheck = (First, Second) -> {
+							CompByteA = First;
+							CompByteB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, ByteListSep, ByteParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompByteSet = new HashSet<>();
 						ParseSetList(condval, ByteListSep, ByteParser, CompByteSet);
@@ -1203,19 +1202,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompShortA = ShortParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = ShortListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						CompShortA = ShortParser.parseOrFail(CondVals[0].trim());
-						CompShortB = ShortParser.parseOrFail(CondVals[1].trim());
-						if (CompShortA > CompShortB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompShortA, //$NON-NLS-1$
-									CompShortB);
-						}
+					case INRANGE:
+						BiPredicate<Short, Short> RangeCheck = (First, Second) -> {
+							CompShortA = First;
+							CompShortB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, ShortListSep, ShortParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompShortSet = new HashSet<>();
 						ParseSetList(condval, ShortListSep, ShortParser, CompShortSet);
@@ -1322,19 +1316,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompFloatA = FloatParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = FloatListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						CompFloatA = FloatParser.parseOrFail(CondVals[0].trim());
-						CompFloatB = FloatParser.parseOrFail(CondVals[1].trim());
-						if (CompFloatA > CompFloatB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompFloatA, //$NON-NLS-1$
-									CompFloatB);
-						}
+					case INRANGE:
+						BiPredicate<Float, Float> RangeCheck = (First, Second) -> {
+							CompFloatA = First;
+							CompFloatB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, FloatListSep, FloatParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompFloatSet = new HashSet<>();
 						ParseSetList(condval, FloatListSep, FloatParser, CompFloatSet);
@@ -1441,19 +1430,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompDoubleA = DoubleParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = DoubleListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						CompDoubleA = DoubleParser.parseOrFail(CondVals[0].trim());
-						CompDoubleB = DoubleParser.parseOrFail(CondVals[1].trim());
-						if (CompDoubleA > CompDoubleB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompDoubleA, //$NON-NLS-1$
-									CompDoubleB);
-						}
+					case INRANGE:
+						BiPredicate<Double, Double> RangeCheck = (First, Second) -> {
+							CompDoubleA = First;
+							CompDoubleB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, DoubleListSep, DoubleParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompDoubleSet = new HashSet<>();
 						ParseSetList(condval, DoubleListSep, DoubleParser, CompDoubleSet);
@@ -1561,23 +1545,17 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompCharA = CharParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = CharListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						CompCharA = CharParser.parseOrFail(CondVals[0].trim());
-						CompCharB = CharParser.parseOrFail(CondVals[1].trim());
-						if (CompCharA > CompCharB) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE"), CompCharA, //$NON-NLS-1$
-									CompCharB);
-						}
+					case INRANGE:
+						BiPredicate<Character, Character> RangeCheck = (First, Second) -> {
+							CompCharA = First;
+							CompCharB = Second;
+							return First > Second;
+						};
+						ParseRange(condval, CharListSep, CharParser, RangeCheck);
 						break;
-					}
-					case ONEOF: {
+					case ONEOF:
 						CompCharSet = CharSetParser.parseOrFail(condval.trim());
 						break;
-					}
 					case REGMATCH:
 						Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.UNSUPPORT_OPERATOR"), //$NON-NLS-1$
 								Op.OpSym, Op.name());
@@ -1767,19 +1745,14 @@ public class ObjectTrap {
 					case LESSTHAN:
 						CompStrA = StrParser.parseOrFail(condval.trim());
 						break;
-					case INRANGE: {
-						String[] CondVals = StrListSep.split(condval.trim());
-						if (CondVals.length != 2) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.BAD_PARAM_COUNT"), condval.trim()); //$NON-NLS-1$
-						}
-						CompStrA = StrParser.parseOrFail(CondVals[0].trim());
-						CompStrB = StrParser.parseOrFail(CondVals[1].trim());
-						if (CompStrA.compareTo(CompStrB) > 0) {
-							Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.INVALID_RANGE_STR"), //$NON-NLS-1$
-									CompStrA, CompStrB);
-						}
+					case INRANGE:
+						BiPredicate<String, String> RangeCheck = (First, Second) -> {
+							CompStrA = First;
+							CompStrB = Second;
+							return First.compareTo(Second) > 0;
+						};
+						ParseRange(condval, StrListSep, StrParser, RangeCheck);
 						break;
-					}
 					case ONEOF:
 						CompStrSet = new HashSet<>();
 						ParseSetList(condval, StrListSep, StrParser, CompStrSet);
@@ -1868,6 +1841,25 @@ public class ObjectTrap {
 				super(condition, dict);
 			}
 			
+			protected class StringToClass extends SimpleStringParse<Class<?>> {
+				
+				@Override
+				public Class<?> parseOrFail(String From) {
+					if (From == null) {
+						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
+					}
+					
+					try {
+						return Dict.Get(From).toClass();
+					} catch (ClassNotFoundException e) {
+						Misc.CascadeThrow(e);
+						// PERF: code analysis tool doesn't recognize custom throw functions
+						throw new IllegalStateException("Should not reach");
+					}
+				}
+				
+			}
+			
 			protected static IParse<String, String> StrParser = Parsers.StringToString;
 			protected static Pattern ClsListSep = Pattern.compile(","); //$NON-NLS-1$
 			
@@ -1890,20 +1882,10 @@ public class ObjectTrap {
 					case ISNULL:
 						ParseNoArgOperand(condval);
 						break;
-					case ONEOF: {
-						String[] CondVals = ClsListSep.split(condval.trim());
+					case ONEOF:
 						CastClsSet = new HashSet<>();
-						for (String Val : CondVals) {
-							try {
-								if (!CastClsSet.add(Dict.Get(Val).toClass())) {
-									Misc.ERROR(Messages.Localize("Debugging.ObjectTrap.DUPLICATE_PARAM"), Val); //$NON-NLS-1$
-								}
-							} catch (ClassNotFoundException e) {
-								Misc.CascadeThrow(e);
-							}
-						}
+						ParseSetList(condval, ClsListSep, new StringToClass(), CastClsSet);
 						break;
-					}
 					case EQUALTO:
 					case GREATERTHAN:
 					case LESSTHAN:

@@ -5,7 +5,6 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,7 +90,7 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	public V put(K key, V value) {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		return null;
+		throw new IllegalStateException("Should not reach");
 	}
 	
 	@Override
@@ -124,21 +123,21 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	public Set<K> keySet() {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		return Collections.emptySet();
+		throw new IllegalStateException("Should not reach");
 	}
 	
 	@Override
 	public Collection<V> values() {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		return Collections.emptyList();
+		throw new IllegalStateException("Should not reach");
 	}
 	
 	@Override
 	public Set<Entry<K, V>> entrySet() {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		return Collections.emptySet();
+		throw new IllegalStateException("Should not reach");
 	}
 	
 }
