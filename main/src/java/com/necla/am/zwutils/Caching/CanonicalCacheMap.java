@@ -412,7 +412,7 @@ public abstract class CanonicalCacheMap<K, V> implements ICacheMetrics {
 		public IValueRef<V> next() {
 			Misc.FAIL(NoSuchElementException.class, "Should not happen");
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new NoSuchElementException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		
 	};

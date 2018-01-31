@@ -71,7 +71,7 @@ public class Support {
 			if (From == null) {
 				Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new IllegalStateException("Should not reach");
+				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 			}
 			return Level.parse(From.toUpperCase());
 		}
@@ -118,7 +118,7 @@ public class Support {
 				if (From == null) {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 					// PERF: code analysis tool doesn't recognize custom throw functions
-					throw new IllegalStateException("Should not reach");
+					throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 				}
 				
 				EnumSet<GroupLogFile.Feature> Features = EnumSet.noneOf(GroupLogFile.Feature.class);
@@ -162,7 +162,7 @@ public class Support {
 				if (From == null) {
 					Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 					// PERF: code analysis tool doesn't recognize custom throw functions
-					throw new IllegalStateException("Should not reach");
+					throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 				}
 				
 				if (From.FileName.isEmpty())

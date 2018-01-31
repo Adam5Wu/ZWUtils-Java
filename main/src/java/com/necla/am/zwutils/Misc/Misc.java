@@ -252,6 +252,8 @@ public class Misc {
 		}
 	}
 	
+	public static final String MSG_SHOULD_NOT_REACH = "Should not reach";
+	
 	/**
 	 * Internal method for creating and throwing a custom RuntimeException with cause, modified stack
 	 * trace and specific message
@@ -297,7 +299,7 @@ public class Misc {
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		throw Failure;
 	}
@@ -1043,7 +1045,7 @@ public class Misc {
 			default:
 				Misc.FAIL(IllegalStateException.class, "Should not reach!");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new IllegalStateException("Should not reach");
+				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 	};
 	
@@ -1241,7 +1243,7 @@ public class Misc {
 			default:
 				Misc.FAIL(IllegalStateException.class, "Should not reach!");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new IllegalStateException("Should not reach");
+				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 	};
 	

@@ -132,7 +132,7 @@ public class OutStream extends OutputStream {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		
 		int NewLine = StrBuffer.indexOf(LINESEP, CheckPtr);
@@ -175,7 +175,7 @@ public class OutStream extends OutputStream {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		
 		StrBuffer.append(new String(b, off, len));
@@ -192,7 +192,7 @@ public class OutStream extends OutputStream {
 		if (StrBuffer == null) {
 			Misc.FAIL("%s: Output stream already closed", Name);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		
 		StrBuffer.append((char) b);

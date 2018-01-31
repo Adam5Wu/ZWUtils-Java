@@ -502,7 +502,7 @@ public class ObjectTrap {
 			} catch (InvocationTargetException e) {
 				Misc.CascadeThrow(e);
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new IllegalStateException("Should not reach");
+				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 			} catch (Exception e) {
 				if (GlobalConfig.DEBUG_CHECK) {
 					ILog.Fine(Messages.Localize("Debugging.ObjectTrap.GETTER_EVAL_FAILED"), M.getName()); //$NON-NLS-1$
@@ -691,7 +691,7 @@ public class ObjectTrap {
 			} catch (Exception e) {
 				Misc.CascadeThrow(e, Messages.Localize("Debugging.ObjectTrap.HOOK_CREATE_FAILED")); //$NON-NLS-1$
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new IllegalStateException("Should not reach");
+				throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 			}
 		}
 		
@@ -1854,7 +1854,7 @@ public class ObjectTrap {
 					} catch (ClassNotFoundException e) {
 						Misc.CascadeThrow(e);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 				}
 				

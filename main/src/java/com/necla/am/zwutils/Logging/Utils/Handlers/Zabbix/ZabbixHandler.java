@@ -168,7 +168,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					int Priority = Parsers.StringToInteger.parseOrDefault(From, -1);
@@ -189,7 +189,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					return From.name();
@@ -247,7 +247,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					List<Severity> SeverityList = new ArrayList<>();
@@ -318,7 +318,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					String[] Tokens = From.split(RP_TOKDELIM);
@@ -351,7 +351,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
@@ -394,7 +394,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					String[] Tokens = From.split(TRG_TOKDELIM);
@@ -421,7 +421,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 					if (From == null) {
 						Misc.FAIL(NullPointerException.class, Parsers.ERROR_NULL_POINTER);
 						// PERF: code analysis tool doesn't recognize custom throw functions
-						throw new IllegalStateException("Should not reach");
+						throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 					}
 					
 					StringBuilder StrBuf = new StringBuilder();
@@ -1043,7 +1043,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 		} catch (Exception e) {
 			Misc.CascadeThrow(e, "Failed to parse metric '%s'", ItemKey);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 	}
 	

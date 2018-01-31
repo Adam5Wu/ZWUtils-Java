@@ -90,7 +90,7 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	public V put(K key, V value) {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		throw new IllegalStateException("Should not reach");
+		throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 	}
 	
 	@Override
@@ -123,21 +123,21 @@ public class ConcurrentWeakIdentityHashMap<K, V> implements Map<K, V> {
 	public Set<K> keySet() {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		throw new IllegalStateException("Should not reach");
+		throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 	}
 	
 	@Override
 	public Collection<V> values() {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		throw new IllegalStateException("Should not reach");
+		throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 	}
 	
 	@Override
 	public Set<Entry<K, V>> entrySet() {
 		Misc.FAIL("Unsupported operation");
 		// PERF: code analysis tool doesn't recognize custom throw functions
-		throw new IllegalStateException("Should not reach");
+		throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 	}
 	
 }

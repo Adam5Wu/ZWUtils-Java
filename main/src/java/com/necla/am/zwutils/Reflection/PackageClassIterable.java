@@ -191,7 +191,7 @@ public class PackageClassIterable implements Iterable<String> {
 			if (!hasNext()) {
 				Misc.FAIL(NoSuchElementException.class, "Iteration terminal has been reached");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new NoSuchElementException("Should not reach");
+				throw new NoSuchElementException(Misc.MSG_SHOULD_NOT_REACH);
 			}
 			
 			String Ret = next;

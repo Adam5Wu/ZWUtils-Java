@@ -248,7 +248,7 @@ public final class DebugLog {
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		return Ret;
 	}
@@ -967,7 +967,7 @@ public final class DebugLog {
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		
 		if (LoggerName != null) {
@@ -1029,7 +1029,7 @@ public final class DebugLog {
 		if (LogGrp == null) {
 			Misc.ERROR("Log group must be named");
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		String[] GroupTokens = LOGGROUP_SEPARATOR.split(LogGrp);
 		String GroupName = ParentGroup.getName();
@@ -1057,7 +1057,7 @@ public final class DebugLog {
 		if ((LogGrp == null) || LogGrp.isEmpty()) {
 			Misc.ERROR("Log group must be named");
 			// PERF: code analysis tool doesn't recognize custom throw functions
-			throw new IllegalStateException("Should not reach");
+			throw new IllegalStateException(Misc.MSG_SHOULD_NOT_REACH);
 		}
 		
 		Logger LogGroup = CreateLogger(LogGrp, ParentGroup);

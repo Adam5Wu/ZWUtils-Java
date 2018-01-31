@@ -56,7 +56,7 @@ public class Iterables {
 			if (!hasNext()) {
 				Misc.FAIL(NoSuchElementException.class, "Iteration terminal has been reached");
 				// PERF: code analysis tool doesn't recognize custom throw functions
-				throw new NoSuchElementException("Should not reach");
+				throw new NoSuchElementException(Misc.MSG_SHOULD_NOT_REACH);
 			}
 			return getNext();
 		}
@@ -79,7 +79,7 @@ public class Iterables {
 		
 		@Override
 		protected T getNext() {
-			Misc.FAIL(UnsupportedOperationException.class, "Should not reach");
+			Misc.FAIL(UnsupportedOperationException.class, Misc.MSG_SHOULD_NOT_REACH);
 			return null;
 		}
 		
