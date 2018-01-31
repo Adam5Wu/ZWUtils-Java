@@ -1,4 +1,16 @@
 # ZWUtils-Java
+[![License](https://img.shields.io/github/license/Adam5Wu/ZWUtils-Java.svg)](./LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/Adam5Wu/ZWUtils-Java.svg)](https://github.com/Adam5Wu/ZWUtils-Java/issues)
+[![GitHub forks](https://img.shields.io/github/forks/Adam5Wu/ZWUtils-Java.svg)](https://github.com/Adam5Wu/ZWUtils-Java/network)
+[![Build Status](https://travis-ci.org/Adam5Wu/ZWUtils-Java.svg?branch=master)](https://travis-ci.org/Adam5Wu/ZWUtils-Java)
+[![SonarCloud-Stat](https://sonarcloud.io/api/badges/gate?key=ZWUtils-Java)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+
+[![SonarCloud-SLoC](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=lines)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-Bugs](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=bugs)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-Vuls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-Smls](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=code_smells)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-Cvge](https://sonarcloud.io/api/badges/measure?key=ZWUtils-Java&metric=coverage)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+
 This utility library provides basic run-time services, such as log management, configuration loading and saving, thread management, debugging support, etc. to Java applications.
 
 It does not want to be the "master piece" of any of the services it provides. Instead, it aims at providing essential functionalities with least effort to use -- so that **your code is the master piece of your application**.
