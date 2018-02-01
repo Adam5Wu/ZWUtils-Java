@@ -30,6 +30,7 @@ apply plugin: "com.zoltu.git-versioning"
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
+apply plugin: 'jacoco'
 
 compileJava {
 	sourceCompatibility = '1.8'
@@ -129,6 +130,15 @@ allprojects {
 		options.addStringOption('tag', 'note:a:"Note:"')
 	}
 }
+
+jacocoTestReport {
+	reports {
+		xml.enabled = true
+		html.enabled = false
+	}
+}
+
+check.dependsOn jacocoTestReport
 
 javadoc {
 	source = sourceSets.main.allJava

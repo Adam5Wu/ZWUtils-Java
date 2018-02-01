@@ -1220,12 +1220,12 @@ public class Misc {
 	 *          - whether to omit the plus sign
 	 * @return Formated string
 	 */
-	public static String FormatSize_English(long DeltaMS, boolean OmitPlusSign) {
-		return Stringify(DeltaMS, SizeUnit.BYTE, UVP_English, OmitPlusSign, SizeUnit.PB, SizeUnit.BYTE);
+	public static String FormatSize_English(long Size, boolean OmitPlusSign) {
+		return Stringify(Size, SizeUnit.BYTE, UVP_English, OmitPlusSign, SizeUnit.PB, SizeUnit.BYTE);
 	}
 	
-	public static String FormatSize_English(long DeltaMS) {
-		return FormatSize_English(DeltaMS, true);
+	public static String FormatSize_English(long Size) {
+		return FormatSize_English(Size, true);
 	}
 	
 	public static final UnitNameGenerator UNG_SlimSize = (Value, Unit, LastUnit) -> {
