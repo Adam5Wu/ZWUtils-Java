@@ -138,7 +138,7 @@ jacocoTestReport {
 	}
 }
 
-check.dependsOn jacocoTestReport
+project.tasks["sonarqube"].dependsOn jacocoTestReport
 
 javadoc {
 	source = sourceSets.main.allJava
