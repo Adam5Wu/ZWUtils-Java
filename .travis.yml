@@ -10,7 +10,7 @@ addons:
 jdk:
   - oraclejdk8
 before_script:
-  - git fetch -- unshallow
+  - git fetch --unshallow
 script:
   - gradle sonarqube
 cache:
