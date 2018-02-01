@@ -100,4 +100,19 @@ public class TestMisc {
 		}
 	}
 	
+	@Test
+	public void CascadeFAIL_UsingFormattedMessage() {
+		final String TestMsg = "Inner Exception";
+		final String TestFormatMsg = "ERROR() from '%s'";
+		try {
+			try {
+				Misc.FAIL(TestMsg);
+			} catch (RuntimeException e) {
+				Misc.CascadeThrow(e, TestFormatMsg, this.getClass());
+			}
+		} catch (RuntimeException e) {
+			Assert.assertEquals(String.format(TestFormatMsg, this.getClass()), e.getMessage());
+		}
+	}
+	
 }
