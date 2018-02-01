@@ -66,15 +66,50 @@ public class Misc {
 		Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
 	}
 	
-	public static final ITimeStamp ProgramStartTS = ITimeStamp.Impl.Now();
-	
-	// ============================
-	// Stack Frame
-	// ============================
+	public static final ITimeStamp ProgramStartTS;
 	
 	protected static final StackTraceElement StubStackFrame =
 			new StackTraceElement("<unknown>", "<unknown>", "<unknown>", 0);
 	protected static final StackTraceElement[] StubStackTrace = wrap(StubStackFrame);
+	
+	protected static final String MSG_ERROR = "Critical error";
+	protected static final String MSG_FAIL = "Fatal failure";
+	protected static final String MSG_ASSERT = "Assertion failure";
+	
+	public static final String MSG_SHOULD_NOT_REACH = "Should not reach!";
+	public static final String MSG_DO_NOT_INSTANTIATE = "Do not instantiate!";
+	
+	public static final char PACKAGE_DELIMITER = '.';
+	public static final String PACKAGE_DELIMITER_STR = String.valueOf(PACKAGE_DELIMITER);
+	
+	public static final char PATH_DELIMITER = '/';
+	public static final String PATH_DELIMITER_STR = String.valueOf(PATH_DELIMITER);
+	public static final char EXT_DELIMITER = '.';
+	
+	protected static final Method _JVM_DumpThread;
+	
+	// SimpleDateFormat is not threadsafe
+	// Ref: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
+	protected static final ThreadLocal<DateFormat> DateFormatter =
+			ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS"));
+	
+	static {
+		// Order is important
+		Method method = null;
+		try {
+			method = Thread.class.getDeclaredMethod("dumpThreads", Thread[].class);
+			method.setAccessible(true);
+		} catch (Exception e) {
+			CascadeThrow(e, "Unable to acquire stack trace method");
+		}
+		_JVM_DumpThread = method;
+		
+		ProgramStartTS = ITimeStamp.Impl.Now();
+	}
+	
+	// ============================
+	// Stack Frame
+	// ============================
 	
 	/**
 	 * Get a stack frame of the caller function
@@ -89,6 +124,28 @@ public class Misc {
 	}
 	
 	/**
+	 * Get a stack trace of the caller function
+	 *
+	 * @param PopFrame
+	 *          - Addition stack frames to pop
+	 * @return A stack frame array instance
+	 * @since 0.62
+	 */
+	public static StackTraceElement[] getCallerStackTrace(int PopFrame) {
+		try {
+			StackTraceElement[] Ret = ((StackTraceElement[][]) _JVM_DumpThread.invoke(null,
+					(Object) wrap(Thread.currentThread())))[0];
+			for (int i = 4; i < Ret.length; i++)
+				if (Ret[i].getClassName().equals(Misc.class.getName()))
+					return popStackTrace(Ret, i + PopFrame + 1);
+			// Unable to locate marker in stack trace
+		} catch (Exception e) {
+			// Eat any exception
+		}
+		return StubStackTrace;
+	}
+	
+	/**
 	 * Removes top layer stack frames from a stack trace
 	 *
 	 * @param PopFrame
@@ -96,10 +153,8 @@ public class Misc {
 	 * @return A stack frame array instance
 	 * @since 0.7
 	 */
-	protected static StackTraceElement[] popCallerStackTrace(StackTraceElement[] Stack,
-			int PopFrame) {
-		if ((Stack == null) || (Stack.length <= PopFrame)) return StubStackTrace;
-		return PopFrame > 0? Arrays.copyOfRange(Stack, PopFrame, Stack.length) : Stack;
+	public static StackTraceElement[] popStackTrace(StackTraceElement[] Stack, int PopFrame) {
+		return sliceStackTrace(Stack, PopFrame, 0);
 	}
 	
 	/**
@@ -112,46 +167,12 @@ public class Misc {
 	 * @return A stack frame array instance
 	 * @since 0.75
 	 */
-	protected static StackTraceElement[] sliceCallerStackTrace(StackTraceElement[] Stack,
-			int PopFrame, int FrameCnt) {
+	public static StackTraceElement[] sliceStackTrace(StackTraceElement[] Stack, int PopFrame,
+			int FrameCnt) {
 		if (PopFrame >= Stack.length) return StubStackTrace;
+		if ((PopFrame == 0) && (FrameCnt == 0)) return Stack;
 		return Arrays.copyOfRange(Stack, PopFrame,
 				FrameCnt > 0? Math.min(PopFrame + FrameCnt, Stack.length) : Stack.length);
-	}
-	
-	protected static final Method JVMDumpThread;
-	
-	static {
-		Method _JVMDumpThread = null;
-		try {
-			_JVMDumpThread = Thread.class.getDeclaredMethod("dumpThreads", Thread[].class);
-			_JVMDumpThread.setAccessible(true);
-		} catch (Exception e) {
-			CascadeThrow(e, "Unable to acquire stack trace method");
-		}
-		JVMDumpThread = _JVMDumpThread;
-	}
-	
-	/**
-	 * Get a stack trace of the caller function
-	 *
-	 * @param PopFrame
-	 *          - Addition stack frames to pop
-	 * @return A stack frame array instance
-	 * @since 0.62
-	 */
-	public static StackTraceElement[] getCallerStackTrace(int PopFrame) {
-		try {
-			StackTraceElement[] Ret = ((StackTraceElement[][]) JVMDumpThread.invoke(null,
-					(Object) wrap(Thread.currentThread())))[0];
-			for (int i = 4; i < Ret.length; i++)
-				if (Ret[i].getClassName().equals(Misc.class.getName()))
-					return popCallerStackTrace(Ret, i + PopFrame + 1);
-			// Unable to locate marker in stack trace
-		} catch (Exception e) {
-			// Eat any exception
-		}
-		return StubStackTrace;
 	}
 	
 	// ============================
@@ -171,7 +192,7 @@ public class Misc {
 	 */
 	protected static void throwError(Error Error, Throwable Cause, int PopFrame) {
 		StackTraceElement[] Stack = Error.getStackTrace();
-		Error.setStackTrace(popCallerStackTrace(Stack, PopFrame));
+		Error.setStackTrace(popStackTrace(Stack, PopFrame));
 		Error.initCause(Cause);
 		throw Error;
 	}
@@ -191,7 +212,7 @@ public class Misc {
 	 */
 	protected static void throwError(Error Error, Throwable Cause, int PopFrame, int FrameCnt) {
 		StackTraceElement[] Stack = Error.getStackTrace();
-		Error.setStackTrace(sliceCallerStackTrace(Stack, PopFrame, FrameCnt));
+		Error.setStackTrace(sliceStackTrace(Stack, PopFrame, FrameCnt));
 		Error.initCause(Cause);
 		throw Error;
 	}
@@ -208,8 +229,6 @@ public class Misc {
 	public static void ERROR(String Format, Object... args) {
 		throwError(new Error(String.format(Format, args)), null, 1);
 	}
-	
-	protected static final String MSG_ERROR = "Critical error";
 	
 	/**
 	 * Alias for creating and throwing an Error with default message
@@ -237,8 +256,6 @@ public class Misc {
 		}
 	}
 	
-	protected static final String MSG_ASSERT = "Assertion failure";
-	
 	/**
 	 * Alias for conditionally creating and throwing an AssertionError with default message
 	 *
@@ -251,9 +268,6 @@ public class Misc {
 			throwError(new AssertionError(MSG_ASSERT), null, 1);
 		}
 	}
-	
-	public static final String MSG_SHOULD_NOT_REACH = "Should not reach!";
-	public static final String MSG_DO_NOT_INSTANTIATE = "Do not instantiate!";
 	
 	/**
 	 * Internal method for creating and throwing a custom RuntimeException with cause, modified stack
@@ -296,7 +310,7 @@ public class Misc {
 		try {
 			Failure = createFailureInstance(FailType, Cause, Message, Failure);
 			StackTraceElement[] Stack = Failure.getStackTrace();
-			Failure.setStackTrace(sliceCallerStackTrace(Stack, PopFrame + 6, FrameCnt));
+			Failure.setStackTrace(sliceStackTrace(Stack, PopFrame + 6, FrameCnt));
 		} catch (Exception e) {
 			Misc.CascadeThrow(e);
 			// PERF: code analysis tool doesn't recognize custom throw functions
@@ -430,8 +444,6 @@ public class Misc {
 		FAILN(1, Format, args);
 	}
 	
-	protected static final String MSG_FAIL = "Fatal failure";
-	
 	/**
 	 * Creating and throwing a RuntimeException with default message
 	 */
@@ -486,9 +498,6 @@ public class Misc {
 	// String Processing
 	// ============================
 	
-	public static final char PACKAGE_DELIMITER = '.';
-	public static final String PACKAGE_DELIMITER_STR = String.valueOf(PACKAGE_DELIMITER);
-	
 	/**
 	 * Strip package name prefix from a full class name
 	 *
@@ -520,10 +529,6 @@ public class Misc {
 		else
 			return ClassName;
 	}
-	
-	public static final char PATH_DELIMITER = '/';
-	public static final String PATH_DELIMITER_STR = String.valueOf(PATH_DELIMITER);
-	public static final char EXT_DELIMITER = '.';
 	
 	/**
 	 * Strip path prefix from a full or relative pathname
@@ -954,11 +959,6 @@ public class Misc {
 		TimeMS = System.Convert(TimeMS, TimeUnit.MSEC, TimeSystem.UNIX);
 		return Formatter.format(new Date(TimeMS));
 	}
-	
-	// SimpleDateFormat is not threadsafe
-	// Ref: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
-	protected static ThreadLocal<DateFormat> DateFormatter =
-			ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS"));
 	
 	/**
 	 * Format a time stamp of given system and unit into built-in date format

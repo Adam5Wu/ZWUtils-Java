@@ -193,8 +193,8 @@ public class LoggerTest {
 		System.err.flush();
 		CLog.Info(" 2 Test");
 		System.out.print(" 3 Test");
-		System.out.print("(NoNewLine) 4 Test\n");
-		System.out.print("(NoNewLine) 5 Test\n");
+		System.out.print("(NoNewLine) 4 Test(NewLine)\n");
+		System.out.print("(NoNewLine) 5 Test(NewLine)\n");
 		System.out.flush();
 		CLog.Info("---------- Test Levels");
 		CLog.Info("+Test1");

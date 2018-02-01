@@ -83,15 +83,14 @@ sourceSets {
 			excludes = [ '**/*.java' ]
 		}
 	}
-// TODO: Currently test only works with eclipse
-//	test {
-//		java {
-//			srcDirs = [ 'test/src/java' ]
-//		}
-//		resources {
-//			srcDirs = [ 'test/res' ]
-//		}
-//	}
+	test {
+		java {
+			srcDirs = [ 'test/src/java/junit' ]
+		}
+		resources {
+			srcDirs = [ 'test/res' ]
+		}
+	}
 }
 
 compileJava {
@@ -119,6 +118,9 @@ dependencies {
 	//compile 'org.scala-lang:scala-compiler:2.12.1'
 	//compile 'org.scala-lang:scala-reflect:2.12.1'
 	//compile 'org.scala-lang:scala-library:2.12.1'
+	
+	// Unit test dependencies 
+	testCompile 'junit:junit:4.+'
 }
 
 allprojects {
