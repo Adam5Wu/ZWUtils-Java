@@ -527,7 +527,7 @@ public class Misc {
 		if (idx != -1)
 			return ClassName.substring(0, idx);
 		else
-			return ClassName;
+			return "";
 	}
 	
 	/**
@@ -592,6 +592,8 @@ public class Misc {
 	 *          - Base path name
 	 * @param Append
 	 *          - Path component to append
+	 * @param More
+	 *          - More path component to append
 	 * @return Appended path name
 	 * @since 0.72
 	 */
