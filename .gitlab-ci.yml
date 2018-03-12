@@ -1,14 +1,9 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
-before_script:
-#  - . ~/.sshagent && sshagent_init
-#  - git submodule update --init --recursive
-  - set -ae && . ~/publish.env
-
 stages:
   - build
-  - deploy
+  - upload
 
 build_package:
   stage: build
@@ -27,11 +22,10 @@ build_package:
     - gradle
   except:
     - /^test-.*$/
-    - /^master$/
     - tags
 
-deploy_package:
-  stage: deploy
+upload_package:
+  stage: upload
   cache:
     paths:
       - build/
@@ -47,4 +41,3 @@ deploy_package:
     - gradle
   only:
     - /^master$/
-
