@@ -666,12 +666,13 @@ public class Dispatchers {
 					CategorySubscriptions = CategorizedSubscriptions.get(Category);
 				}
 				
-				CategorySubscriptions.LockUpdatePayload(NewPayload);
-				if (!Unlock) {
-					CategorySubscriptions.UnlockPayload();
+				if (CategorySubscriptions != null) {
+					CategorySubscriptions.LockUpdatePayload(NewPayload);
+					if (!Unlock) {
+						CategorySubscriptions.UnlockPayload();
+					}
+					Dispatch(CategorySubscriptions, NewPayload, Unlock);
 				}
-				
-				Dispatch(CategorySubscriptions, NewPayload, Unlock);
 			}
 			
 			Dispatch(CommonSubscriptions, NewPayload, Unlock);

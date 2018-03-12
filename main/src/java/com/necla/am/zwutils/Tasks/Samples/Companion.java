@@ -122,32 +122,38 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		OnTerminate = TaskTerm -> {
 			ITask SenderTask = TaskTerm.GetSender();
 			if (SenderTask != null) {
-				ILog.Entry("+Termination request from %s", SenderTask);
+				ILog.Info("Termination request from %s", SenderTask);
 			} else {
-				ILog.Entry("+Termination request received");
+				ILog.Info("Termination request received");
 			}
 			
 			synchronized (PollTasks) {
-				SignalIntegrityEvent();
+				if (IntegrityEvent != null) {
+					ILog.Fine("Forwarding termination request...");
+					SignalIntegrityEvent();
+				} else {
+					ILog.Fine("Termination request already sent");
+				}
 			}
-			ILog.Exit("*Termination request forwarded");
 		};
 		MessageDispatcher.RegisterSubscription(MessageCategories.EVENT_TASK_TERMINATE, OnTerminate);
 	}
-
+	
 	private void SignalIntegrityEvent() {
 		PollTasks.forEach(CoTask -> {
 			ILog.Fine("Signaling task '%s'...", CoTask.getName());
 			try {
-				if (CoTask instanceof Notifiable)
+				if (CoTask instanceof Notifiable) {
 					((Notifiable) CoTask).onSubscription(IntegrityEvent);
-				else
+				} else {
 					ILog.Warn("Un-notifiable companion task '%s'", CoTask.getName());
+				}
 			} catch (Exception e) {
 				ILog.logExcept(e, "Exception while signaling task '%s'", CoTask.getName());
 				// Eat exception
 			}
 		});
+		IntegrityEvent = null;
 	}
 	
 	@Override
@@ -181,8 +187,9 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		}
 		
 		CoTasks.forEach(CoTask -> CoTask.subscribeStateChange(TaskStateChanges));
-		if (Config.Integrity)
+		if (Config.Integrity) {
 			IntegrityEvent = CreateMessage(MessageCategories.EVENT_TASK_TERMINATE, null, this);
+		}
 	}
 	
 	protected Collection<ITask> PollTasks;
@@ -192,16 +199,17 @@ public class Companion extends Poller implements ITask.TaskDependency {
 			Collection<ITask> Reached = TaskCollection.FilterTasksByState(PollTasks, State);
 			Reached.forEach(Task -> ILog.Fine("Task '%s' has reached state %s", Task.getName(), State));
 			
-			PollTasks.removeAll(Reached);
-			if (Config.Integrity&& (IntegrityEvent != null) && !Reached.isEmpty()
-					&& !PollTasks.isEmpty()) {
-				StringBuilder TaskNames = new StringBuilder();
-				Reached.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
-				TaskNames.setLength(TaskNames.length() - 1);
-				if (GlobalConfig.DEBUG_CHECK)
-					ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
-				SignalIntegrityEvent();
-				IntegrityEvent = null;
+			if (!Reached.isEmpty()) {
+				PollTasks.removeAll(Reached);
+				if (Config.Integrity && (IntegrityEvent != null)) {
+					StringBuilder TaskNames = new StringBuilder();
+					Reached.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
+					TaskNames.setLength(TaskNames.length() - 1);
+					if (GlobalConfig.DEBUG_CHECK) {
+						ILog.Warn("Companion group integrity broken by [%s]", TaskNames);
+					}
+					SignalIntegrityEvent();
+				}
 			}
 		}
 		return !PollTasks.isEmpty();
@@ -219,7 +227,9 @@ public class Companion extends Poller implements ITask.TaskDependency {
 					StringBuilder TaskNames = new StringBuilder();
 					PollTasks.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
 					TaskNames.setLength(TaskNames.length() - 1);
-					if (GlobalConfig.DEBUG_CHECK) ILog.Warn("Live companion tasks: [%s]", TaskNames);
+					if (GlobalConfig.DEBUG_CHECK) {
+						ILog.Warn("Live companion tasks: [%s]", TaskNames);
+					}
 				} else {
 					ILog.Warn("There are %d live companion tasks", PollTasks.size());
 				}

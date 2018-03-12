@@ -161,7 +161,7 @@ public abstract class RunnableTask extends Dispatchers.Dispatcher<ITask.State>
 				default:
 					Misc.FAIL(IllegalStateException.class, "Illegal task state: %s", CurState);
 			}
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			ILog.Error("Terminated by unhandled exception");
 			ILog.logExcept(e);
 			FatalException = e;
