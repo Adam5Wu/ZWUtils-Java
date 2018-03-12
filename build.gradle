@@ -1,13 +1,15 @@
+def MavenSrc = System.getenv("MAVENSRC_URL");
+
 buildscript {
 	repositories {
 		maven {
-			url "https://plugins.gradle.org/m2/"
+			url MavenSrc ?: "https://plugins.gradle.org/m2/"
 		}
 	}
 	dependencies {
 		classpath "gradle.plugin.com.zoltu.gradle.plugin:git-versioning:2.0.19"
 		classpath "se.bjurr.gitchangelog:git-changelog-gradle-plugin:1.44"
-		classpath 'org.ajoberstar:gradle-git:1.7.1'
+		classpath "org.ajoberstar:gradle-git:1.7.1"
 	}
 }
 
@@ -98,17 +100,9 @@ compileJava {
 	source NSGen.outputs.files
 }
 
-def MavenSrc = System.getenv("MAVENSRC_URL");
-
-if (MavenSrc == null) {
-	repositories {
-		mavenCentral()
-	}
-} else {
-	repositories {
-		maven {
-			url MavenSrc
-		}
+repositories {
+	maven {
+		url MavenSrc ?: "https://repo.maven.apache.org/maven2/"
 	}
 }
 

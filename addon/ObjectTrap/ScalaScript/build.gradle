@@ -1,7 +1,9 @@
+def MavenSrc = System.getenv("MAVENSRC_URL");
+
 buildscript {
 	repositories {
 		maven {
-			url "https://plugins.gradle.org/m2/"
+			url MavenSrc ?: "https://plugins.gradle.org/m2/"
 		}
 	}
 	dependencies {
@@ -53,17 +55,9 @@ compileJava {
 	source NSGen.outputs.files
 }
 
-def MavenSrc = System.getenv("MAVENSRC_URL");
-
-if (MavenSrc == null) {
-	repositories {
-		mavenCentral()
-	}
-} else {
-	repositories {
-		maven {
-			url MavenSrc
-		}
+repositories {
+	maven {
+		url MavenSrc ?: "https://repo.maven.apache.org/maven2/"
 	}
 }
 
