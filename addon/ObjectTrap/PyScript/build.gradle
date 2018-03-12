@@ -73,7 +73,7 @@ configurations.all {
 }
 
 dependencies {
-	compile 'com.necla.am:ZWUtils-Java:1.0.+'
+	compile 'com.necla.am:ZWUtils-Java:1.1.+'
 	compile 'org.python:jython:2.7.+'
 }
 

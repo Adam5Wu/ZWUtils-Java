@@ -73,7 +73,7 @@ configurations.all {
 }
 
 dependencies {
-	compile 'com.necla.am:ZWUtils-Java:1.0.+'
+	compile 'com.necla.am:ZWUtils-Java:1.1.+'
 	compile 'org.scala-lang:scala-compiler:2.12.1'
 	compile 'org.scala-lang:scala-reflect:2.12.1'
 	compile 'org.scala-lang:scala-library:2.12.1'
