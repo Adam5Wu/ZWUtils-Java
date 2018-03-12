@@ -98,8 +98,18 @@ compileJava {
 	source NSGen.outputs.files
 }
 
-repositories {
-	mavenCentral()
+def MavenSrc = System.getenv("MAVENSRC_URL");
+
+if (MavenSrc == null) {
+	repositories {
+		mavenCentral()
+	}
+} else {
+	repositories {
+		maven {
+			url MavenSrc
+		}
+	}
 }
 
 dependencies {
