@@ -5,7 +5,7 @@ image: registry.local/builder-jdk8:latest
 
 stages:
   - build
-  - upload
+  - publish
 
 build_package:
   stage: build
@@ -22,13 +22,14 @@ build_package:
   tags:
     - java
     - gradle
+    - docker-runner
   except:
     - /^test-.*$/
     - /^master$/
     - tags
 
-upload_package:
-  stage: upload
+publish_package:
+  stage: publish
   cache:
     paths:
       - build/
@@ -42,5 +43,6 @@ upload_package:
   tags:
     - java
     - gradle
+    - docker-runner
   only:
     - /^master$/
