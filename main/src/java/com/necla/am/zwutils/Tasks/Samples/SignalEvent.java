@@ -117,7 +117,7 @@ public class SignalEvent extends Poller implements ITask.TaskDependency {
 						Signal = null;
 					}
 					
-					Mode = InstallMode.valueOf(StrMode);
+					Mode = InstallMode.valueOf(StrMode.toUpperCase());
 					
 					ILog.Fine("Checking signal event...");
 					if (MessageCategories.Lookup(Event) == null) {
