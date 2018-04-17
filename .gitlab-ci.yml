@@ -10,9 +10,6 @@ stages:
 build_package:
   stage: build
   cache:
-    paths:
-      - build/
-      - "addon/*/*/build"
     key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
@@ -31,9 +28,6 @@ build_package:
 publish_package:
   stage: publish
   cache:
-    paths:
-      - build/
-      - "addon/*/*/build"
     key: "$CI_BUILD_REF_NAME"
     untracked: true
   script:
