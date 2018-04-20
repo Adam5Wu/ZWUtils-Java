@@ -63,7 +63,7 @@ public class MultiPassDataSelection<X> {
 		}
 		return PItem;
 	}
-
+	
 	private void RecordFilterReason(MultiPassItem PItem, String MarkReason) {
 		PItem.Mark();
 		NewMarkCount.incrementAndGet();

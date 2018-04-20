@@ -85,6 +85,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.InstructionAdapter;
 
+import com.necla.am.zwutils.GlobalConfig;
 import com.necla.am.zwutils.Config.Container;
 import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataMap;
@@ -1075,9 +1076,10 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					String[] exceptions) {
 				MethodVisitor MV = super.visitMethod(access, name, desc, signature, exceptions);
 				if (name.equals("read")) {
-					if (desc.equals("()I"))
+					if (desc.equals("()I")) // Patch the delegate caller
 						return Patch_InputStream_read(name, desc, MV);
-					else if (desc.equals("([BII)I")) return Patch_InputStream_eof(name, desc, MV);
+					else if (desc.equals("([BII)I")) // Patch the main work logic
+						return Patch_InputStream_eof(name, desc, MV);
 				}
 				return MV;
 			}
@@ -1125,6 +1127,16 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				};
 			}
 			
+			public int test() {
+				if (GlobalConfig.DISABLE_LOG) {
+					if (GlobalConfig.DEBUG_CHECK)
+						return 0;
+					else
+						return -1;
+				}
+				return 1;
+			}
+			
 			private MethodVisitor Patch_InputStream_read(String name, String desc, MethodVisitor MV) {
 				return new InstructionAdapter(Opcodes.ASM6, MV) {
 					boolean Activated = false;
@@ -1137,6 +1149,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 								&& name.equals("read")) {
 							CLog.Finest("Located: invoke %s.%s", owner, name);
 							Activated = true;
+							test();
 						}
 						super.visitMethodInsn(opcode, owner, name, desc, itf);
 					}
@@ -1144,14 +1157,33 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					@Override
 					public void visitJumpInsn(int opcode, Label label) {
 						if (Activated) {
-							Activated = false;
 							if (opcode == Opcodes.IFNE) {
-								CLog.Finest("Patched: condition < 0");
-								super.visitJumpInsn(Opcodes.IFLT, label);
+								CLog.Finest("Patched: if (condition <= 0) {} else ...");
+								super.visitJumpInsn(Opcodes.IFGT, label);
+								CLog.Finest("Patched: if (condition == 0) { return 0; } else ...");
+								Label LREOF = new Label();
+								super.visitVarInsn(Opcodes.ILOAD, 1);
+								super.visitJumpInsn(Opcodes.IFNE, LREOF);
+								super.visitInsn(Opcodes.ICONST_0);
+								super.visitInsn(Opcodes.IRETURN);
+								super.visitLabel(LREOF);
+								super.visitFrame(Opcodes.F_APPEND, 1, new Object[] {
+										Opcodes.INTEGER
+								}, 0, null);
 								return;
 							}
 						}
 						super.visitJumpInsn(opcode, label);
+					}
+					
+					@Override
+					public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
+						if (Activated) {
+							Activated = false;
+							super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+							return;
+						}
+						super.visitFrame(type, nLocal, local, nStack, stack);
 					}
 					
 					@Override
@@ -1212,6 +1244,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			_ClassLoader.DefineOverrideClass(PatchClass, ByteBuffer.wrap(CW.toByteArray()));
 			CLog.Fine("*Done with class '%s'", PatchClass);
 			
+			// Register modified Web server class as provider
 			CLog.Fine("Registering special Web service provider...");
 			Class<?> WSProviderReg_Class = Class.forName("com.sun.net.httpserver.spi.HttpServerProvider");
 			Field WSProviderReg_Field = WSProviderReg_Class.getDeclaredField("provider");
@@ -1351,17 +1384,13 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				TotalInvoke += Handler.GetInvokeCount();
 				TotalExcept += Handler.GetExceptCount();
 			}
-			OnStatCollect(TotalInvoke, TotalExcept);
+			ILog.Info("* Total Invoke / Except: %d / %d", TotalInvoke, TotalExcept);
+			PerfLog(null, Misc.wrap("TotalInvoke", "TotalExcept"), Misc.wrap(TotalInvoke, TotalExcept));
 			return true;
 		} catch (Exception e) {
 			ILog.logExcept(e);
 			return false;
 		}
-	}
-	
-	protected void OnStatCollect(long totalinvoke, long totalexcept) {
-		ILog.Info("* Total Invoke / Except: %d / %d", totalinvoke, totalexcept);
-		PerfLog(null, Misc.wrap("TotalInvoke", "TotalExcept"), Misc.wrap(totalinvoke, totalexcept));
 	}
 	
 	protected void PerfLog(String context, String[] Metrics, Object[] Values) {

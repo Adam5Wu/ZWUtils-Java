@@ -233,7 +233,7 @@ public class DRCFileHandler extends Handler {
 		
 		return DelegateHandler;
 	}
-
+	
 	private void DoLogRotation(File RotLogFile) {
 		try {
 			if (Compressed) {

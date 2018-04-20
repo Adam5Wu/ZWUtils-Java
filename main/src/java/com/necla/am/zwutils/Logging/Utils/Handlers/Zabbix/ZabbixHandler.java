@@ -145,7 +145,7 @@ public class ZabbixHandler extends Handler implements AutoCloseable {
 				Map<String, Severity> _StrMap = new HashMap<>();
 				Map<Integer, Severity> _PtyMap = new HashMap<>();
 				for (Severity Item : Severity.values()) {
-					_StrMap.put(Item.name().toUpperCase(), Item);
+					_StrMap.put(Item.name(), Item);
 					_PtyMap.put(Item.Priority, Item);
 				}
 				StrMap = _StrMap;

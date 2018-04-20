@@ -207,18 +207,24 @@ public class Data {
 			Validation Validation = needValidation();
 			if (Validation != null) {
 				ILog.Config(Messages.Localize("Config.Data.VALIDATING")); //$NON-NLS-1$
-				Validation.validateFields();
+				try {
+					Validation.validateFields();
+				} catch (Throwable e) {
+					ILog.Config("*Configuration validation failed!");
+					Misc.CascadeThrow(e);
+				}
+				ILog.Config(Messages.Localize("Config.Data.VALIDATED")); //$NON-NLS-1$
 			}
 			Population Population = needPopulation();
 			if (Population != null) {
-				if (Validation != null) {
-					ILog.Config("*@<"); //$NON-NLS-1$
-				}
 				ILog.Config(Messages.Localize("Config.Data.POPULATE")); //$NON-NLS-1$
-				Population.populateFields();
-			}
-			if ((Validation != null) || (Population != null)) {
-				ILog.Config(Messages.Localize("Config.Data.VALIDATED")); //$NON-NLS-1$
+				try {
+					Population.populateFields();
+				} catch (Throwable e) {
+					ILog.Config("*Configuration population failed!");
+					Misc.CascadeThrow(e);
+				}
+				ILog.Config(Messages.Localize("Config.Data.POPULATED")); //$NON-NLS-1$
 			}
 		}
 		

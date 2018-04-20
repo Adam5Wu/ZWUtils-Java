@@ -315,7 +315,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 			}
 			ILog.Fine("Lane splitting finished, re-queued %d entries", LeftOver.size());
 		}
-
+		
 		private void ClearConcurrentInserters(SubscriberQueue<X> Lane, Collection<X> LeftOver) {
 			while (InsertWorker.get() != InsertWaiter.get()) {
 				InsertionLock.unlock();
