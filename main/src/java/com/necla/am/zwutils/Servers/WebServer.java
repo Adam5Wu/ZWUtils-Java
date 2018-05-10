@@ -33,6 +33,7 @@ package com.necla.am.zwutils.Servers;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -62,6 +63,7 @@ import java.security.UnrecoverableKeyException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -143,9 +145,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		public static class HandlerConfig {
 			
 			public final Constructor<?> CHandler;
-			public final String ConfigInfo;
+			public final String[] ConfigInfo;
 			
-			public HandlerConfig(Constructor<?> chandler, String configinfo) {
+			public HandlerConfig(Constructor<?> chandler, String[] configinfo) {
 				CHandler = chandler;
 				ConfigInfo = configinfo;
 			}
@@ -173,7 +175,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					}
 					
 					String[] Tokens = HANDLERCONFIG_DELIM.split(From.trim(), 2);
-					String ConfigInfo = (Tokens.length > 1? Tokens[1] : null);
+					String[] ConfigInfo = (Tokens.length > 1? Tokens[1].split(",") : null);
 					
 					try {
 						IClassSolver HandlerClsRef;
@@ -199,13 +201,22 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					return null;
 				}
 				
-				private Constructor<?> InferHandlerConstructor(String ConfigInfo, Class<?> HandlerCls) {
+				private Constructor<?> InferHandlerConstructor(String[] ConfigInfo, Class<?> HandlerCls) {
 					Constructor<?> WHC = null;
 					try {
 						if (ConfigInfo == null) {
 							WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class);
 						} else {
-							WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
+							if (ConfigInfo.length == 1) {
+								WHC =
+										HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class);
+							} else if (ConfigInfo.length == 2) {
+								WHC = HandlerCls.getDeclaredConstructor(WebServer.class, String.class, String.class,
+										String.class);
+							} else {
+								Misc.FAIL("Unrecognized configuration specification - %s",
+										Arrays.asList(ConfigInfo));
+							}
 						}
 						WHC.setAccessible(true);
 					} catch (Exception e) {
@@ -233,7 +244,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					StrBuf.append("Handler: ").append(From.CHandler.getDeclaringClass().getName());
 					
 					if (From.ConfigInfo != null) {
-						StrBuf.append("; Config: ").append(From.ConfigInfo);
+						StrBuf.append("; Config: ").append(Arrays.asList(From.ConfigInfo));
 					}
 					return StrBuf.toString();
 				}
@@ -733,22 +744,24 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			public static class Mutable extends Data.Mutable {
 				
 				// Declare mutable configurable fields (public)
-				public String ResRoot;
-				public boolean ShowDir;
-				public int MaxResSize;
+				public String Base;
+				public String IndexFile;
+				public boolean ListDir;
+				public int MaxSize;
 				
 				@Override
 				public void loadDefaults() {
-					ResRoot = null;
-					ShowDir = false;
-					MaxResSize = (int) SizeUnit.MB.Convert(32, SizeUnit.BYTE);
+					Base = null;
+					ListDir = false;
+					MaxSize = (int) SizeUnit.MB.Convert(32, SizeUnit.BYTE);
 				}
 				
 				@Override
 				public void loadFields(DataMap confMap) {
-					ResRoot = confMap.getText("Root");
-					ShowDir = confMap.getBoolDef("ShowDir", ShowDir);
-					MaxResSize = confMap.getIntDef("MaxSize", MaxResSize);
+					Base = confMap.getText("Base");
+					IndexFile = confMap.getText("IndexFile");
+					ListDir = confMap.getBoolDef("ListDir", ListDir);
+					MaxSize = confMap.getIntDef("MaxSize", MaxSize);
 				}
 				
 				public static final int MIN_RESSIZE = 1024;
@@ -759,14 +772,14 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 					@Override
 					public void validateFields() {
 						ILog.Fine("Checking resource root...");
-						File ResRootDir = new File(ResRoot);
+						File ResRootDir = new File(Base);
 						if (!ResRootDir.isDirectory()) {
-							Misc.ERROR("Resource directory '%s' D.N.E.", ResRoot);
+							Misc.ERROR("Resource directory '%s' D.N.E.", Base);
 						}
 						
 						ILog.Fine("Checking maximum resource size...");
-						if ((MaxResSize < MIN_RESSIZE) || (MaxResSize > MAX_RESSIZE)) {
-							Misc.ERROR("Invalid maximum resource size (%d)", MaxResSize);
+						if ((MaxSize < MIN_RESSIZE) || (MaxSize > MAX_RESSIZE)) {
+							Misc.ERROR("Invalid maximum resource size (%d)", MaxSize);
 						}
 					}
 					
@@ -782,24 +795,27 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 			public static class ReadOnly extends Data.ReadOnly {
 				
 				// Declare read-only configurable fields (public)
-				public final String ResRoot;
-				public final boolean ShowDir;
-				public final int MaxResSize;
+				public final String Base;
+				public final String IndexFile;
+				public final boolean ListDir;
+				public final int MaxSize;
 				
 				public ReadOnly(IGroupLogger Logger, Mutable Source) {
 					super(Logger, Source);
 					
 					// Copy all fields from Source
-					ResRoot = Source.ResRoot;
-					ShowDir = Source.ShowDir;
-					MaxResSize = Source.MaxResSize;
+					Base = Source.Base;
+					IndexFile = Source.IndexFile;
+					ListDir = Source.ListDir;
+					MaxSize = Source.MaxSize;
 				}
 				
 			}
 			
-			public static Container<Mutable, ReadOnly> Create(String ConfFilePath) throws Exception {
+			public static Container<Mutable, ReadOnly> Create(String ConfFilePath, String ConfPfx)
+					throws Exception {
 				return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP + ".Config",
-						new File(ConfFilePath), KEY_PREFIX);
+						new File(ConfFilePath), ConfPfx);
 			}
 			
 		}
@@ -807,9 +823,14 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		protected ConfigData.ReadOnly Config;
 		
 		public ResHandler(WebServer server, String context, String ConfFilePath) throws Exception {
+			this(server, context, ConfFilePath, ConfigData.KEY_PREFIX);
+		}
+		
+		public ResHandler(WebServer server, String context, String ConfFilePath, String ConfPfx)
+				throws Exception {
 			super(server, context);
 			
-			Config = ConfigData.Create(ConfFilePath).reflect();
+			Config = ConfigData.Create(ConfFilePath, ConfPfx).reflect();
 		}
 		
 		@Override
@@ -846,14 +867,22 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 				// Parse relative paths
 				String RelPath = uri.getPath().substring(CONTEXT.length() + 1);
-				File GetFile = new File(Misc.appendPathName(Config.ResRoot, RelPath));
+				File GetFile = new File(Misc.appendPathName(Config.Base, RelPath));
 				if (!GetFile.exists()) {
 					ILog.Warn("Resource '%s' D.N.E.", RelPath);
 					return HttpURLConnection.HTTP_NOT_FOUND;
 				}
 				
-				if (GetFile.isDirectory()) {
-					if (!Config.ShowDir) {
+				while (GetFile.isDirectory()) {
+					if (Config.IndexFile != null) {
+						File[] IndexFile = GetFile
+								.listFiles((FilenameFilter) (FInst, FName) -> FName.equals(Config.IndexFile));
+						if (IndexFile.length > 0) {
+							GetFile = IndexFile[0];
+							break;
+						}
+					}
+					if (!Config.ListDir) {
 						ILog.Warn("Resource directory '%s' not listable", RelPath);
 						return HttpURLConnection.HTTP_FORBIDDEN;
 					}
@@ -899,9 +928,9 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				try (RandomAccessFile GetData = new RandomAccessFile(GetFile, "r")) {
 					try (FileChannel DataChannel = GetData.getChannel()) {
 						long DataSize = DataChannel.size();
-						if (DataSize > Config.MaxResSize) {
+						if (DataSize > Config.MaxSize) {
 							ILog.Warn("Resource '%s' exceeded size constraint (%s > %s)", RelPath,
-									Misc.FormatSize(DataSize), Misc.FormatSize(Config.MaxResSize));
+									Misc.FormatSize(DataSize), Misc.FormatSize(Config.MaxSize));
 							return HttpURLConnection.HTTP_ENTITY_TOO_LARGE;
 						}
 						
@@ -973,11 +1002,19 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		Handlers = new HashMap<>();
 		Config.Handlers.forEach((Context, HandlerConf) -> {
 			try {
-				Object Handler;
+				Object Handler = null;
 				if (HandlerConf.ConfigInfo == null) {
 					Handler = HandlerConf.CHandler.newInstance(this, Context);
 				} else {
-					Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo);
+					if (HandlerConf.ConfigInfo.length == 1) {
+						Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo[0]);
+					} else if (HandlerConf.ConfigInfo.length == 1) {
+						Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo[0],
+								HandlerConf.ConfigInfo[1]);
+					} else {
+						Misc.FAIL("Unrecognized configuration specification - %s",
+								Arrays.asList(HandlerConf.ConfigInfo));
+					}
 				}
 				Handlers.put(Context, (WebHandler) Handler);
 			} catch (Exception e) {
