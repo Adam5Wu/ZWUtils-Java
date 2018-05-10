@@ -1008,7 +1008,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				} else {
 					if (HandlerConf.ConfigInfo.length == 1) {
 						Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo[0]);
-					} else if (HandlerConf.ConfigInfo.length == 1) {
+					} else if (HandlerConf.ConfigInfo.length == 2) {
 						Handler = HandlerConf.CHandler.newInstance(this, Context, HandlerConf.ConfigInfo[0],
 								HandlerConf.ConfigInfo[1]);
 					} else {
