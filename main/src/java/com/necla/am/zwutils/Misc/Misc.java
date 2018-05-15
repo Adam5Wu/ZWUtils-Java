@@ -830,8 +830,9 @@ public class Misc {
 		while (CurRes != null) {
 			Conv._WHOLE = Conv._FRAG;
 			ConvUnit.Convert(Conv, DataUnit, CurRes);
-			boolean LastUnit = (CurRes.FACTOR() <= LoUnit.FACTOR()) || (Conv._FRAG == 0);
-			String PrintToken = UVP.Perform(PrevValue, PrevUnit, Conv._WHOLE, CurRes, LastUnit);
+			boolean LastUnit = (CurRes.FACTOR() <= LoUnit.FACTOR());
+			String PrintToken = UVP.Perform(PrevValue, PrevUnit, Conv._WHOLE, CurRes,
+					LastUnit || ((Conv._FRAG == 0) && (PrevValue != null)));
 			if (PrintToken != null) {
 				PrevValue = Conv._WHOLE;
 				PrevUnit = CurRes;
