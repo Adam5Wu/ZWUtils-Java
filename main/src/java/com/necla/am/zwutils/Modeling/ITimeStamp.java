@@ -58,7 +58,7 @@ import com.necla.am.zwutils.Misc.Misc.TimeUnit;
  * @version 0.1 - Oct. 2014: Initial implementation
  * @version 0.3 - Jan. 20 2016: Initial public release
  */
-public interface ITimeStamp extends IIdentifier {
+public interface ITimeStamp extends IIdentifier, Comparable<ITimeStamp> {
 	
 	/**
 	 * Obtain an integer value of the time-stamp in a specified time system and unit
@@ -200,6 +200,11 @@ public interface ITimeStamp extends IIdentifier {
 		 */
 		public static ITimeStamp Now() {
 			return new ITimeStamp.Impl(System.currentTimeMillis());
+		}
+		
+		@Override
+		public int compareTo(ITimeStamp oTime) {
+			return Before(oTime)? (After(oTime)? 0 : -1) : 1;
 		}
 		
 	}

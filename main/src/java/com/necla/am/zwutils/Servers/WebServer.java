@@ -116,6 +116,8 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 
+import sun.misc.Cleaner;
+
 
 /**
  * Simple pluggable modular Web server
@@ -631,7 +633,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				
 				int RBODYLEN = SendRespHeaders(HE, RP, RCODE);
 				
-				if (RBODYLEN > 0) {
+				if (RBODYLEN >= 0) {
 					SendRespBody(HE, RP);
 				}
 				
@@ -939,7 +941,10 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						try {
 							RBODY.put(DataMap).rewind();
 						} finally {
-							((sun.nio.ch.DirectBuffer) DataMap).cleaner().clean();
+							Cleaner BufCleaner = ((sun.nio.ch.DirectBuffer) DataMap).cleaner();
+							if (BufCleaner != null) {
+								BufCleaner.clean();
+							}
 						}
 					}
 				}

@@ -206,17 +206,17 @@ public class MiscTest {
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
 			
-			DeltaMS -= TimeUnit.DAY.Convert(5, TimeUnit.MSEC);
-			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
-			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
-			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
-			
 			DeltaMS -= TimeUnit.SEC.Convert(2, TimeUnit.MSEC);
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
 			
 			DeltaMS -= TimeUnit.MSEC.Convert(100, TimeUnit.MSEC);
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
+			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
+			
+			DeltaMS -= TimeUnit.DAY.Convert(5, TimeUnit.MSEC);
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime(DeltaMS));
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_Abbrv(DeltaMS));
 			CLog.Info("* Delta Time = %s", Misc.FormatDeltaTime_English(DeltaMS));
@@ -262,17 +262,17 @@ public class MiscTest {
 			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
 			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
 			
-			CompSize -= SizeUnit.TB.Convert(5, SizeUnit.BYTE);
-			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
-			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
-			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
-			
 			CompSize -= SizeUnit.KB.Convert(2, SizeUnit.BYTE);
 			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
 			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
 			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
 			
 			CompSize -= SizeUnit.BYTE.Convert(100, SizeUnit.BYTE);
+			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
+			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));
+			
+			CompSize -= SizeUnit.TB.Convert(5, SizeUnit.BYTE);
 			CLog.Info("* Composit Size = %s", Misc.FormatSize(CompSize));
 			CLog.Info("* Composit Size = %s", Misc.FormatSize_Abbrv(CompSize));
 			CLog.Info("* Composit Size = %s", Misc.FormatSize_English(CompSize));

@@ -469,6 +469,9 @@ public class Misc {
 		if (Cause instanceof Error) {
 			throwError(new Error(String.format(Format, args)), Cause, 1, 1);
 		} else {
+			if (Cause instanceof InvocationTargetException) {
+				Cause = ((InvocationTargetException) Cause).getTargetException();
+			}
 			throwFailure(RuntimeException.class, Cause, 1, 1, String.format(Format, args));
 		}
 	}
@@ -793,8 +796,6 @@ public class Misc {
 		
 		public String UNITNAME(boolean Abbrv);
 		
-		public boolean IMPLICIT_ENUM();
-		
 		public ConvUnit ENUMNEXT(boolean Higher);
 		
 		public static DivResult Convert(long Value, ConvUnit FromBase, ConvUnit ToBase) {
@@ -829,7 +830,7 @@ public class Misc {
 		while (CurRes != null) {
 			Conv._WHOLE = Conv._FRAG;
 			ConvUnit.Convert(Conv, DataUnit, CurRes);
-			boolean LastUnit = CurRes.FACTOR() <= LoUnit.FACTOR();
+			boolean LastUnit = (CurRes.FACTOR() <= LoUnit.FACTOR()) || (Conv._FRAG == 0);
 			String PrintToken = UVP.Perform(PrevValue, PrevUnit, Conv._WHOLE, CurRes, LastUnit);
 			if (PrintToken != null) {
 				PrevValue = Conv._WHOLE;
@@ -837,10 +838,6 @@ public class Misc {
 				
 				PrependSign(Value, OmitPlus, StrBuf);
 				StrBuf.append(PrintToken);
-			} else {
-				if ((Conv._FRAG == 0) && (PrevValue != null)) {
-					break;
-				}
 			}
 			CurRes = LastUnit? null : CurRes.ENUMNEXT(false);
 		}
@@ -868,7 +865,6 @@ public class Misc {
 	 */
 	public enum TimeUnit implements ConvUnit {
 		NSEC(1, "ns", "nanosecond"),
-		HNSEC(100 * NSEC._FACTOR, "hns", "hundred-nanosecond", false),
 		USEC(1000 * NSEC._FACTOR, "us", "microsecond"),
 		MSEC(1000 * USEC._FACTOR, "ms", "millisecond"),
 		SEC(1000 * MSEC._FACTOR, "s", "second"),
@@ -879,17 +875,11 @@ public class Misc {
 		final long _FACTOR;
 		final String _UNAME_ABBRV;
 		final String _UNAME_FULL;
-		final boolean _IMPLICIT_ENUM;
 		
 		TimeUnit(long divisor, String name_abbrv, String name_full) {
-			this(divisor, name_abbrv, name_full, true);
-		}
-		
-		TimeUnit(long divisor, String name_abbrv, String name_full, boolean implicit_enum) {
 			_FACTOR = divisor;
 			_UNAME_ABBRV = name_abbrv;
 			_UNAME_FULL = name_full;
-			_IMPLICIT_ENUM = implicit_enum;
 		}
 		
 		@Override
@@ -900,11 +890,6 @@ public class Misc {
 		@Override
 		public String UNITNAME(boolean Abbrev) {
 			return Abbrev? _UNAME_ABBRV : _UNAME_FULL;
-		}
-		
-		@Override
-		public boolean IMPLICIT_ENUM() {
-			return _IMPLICIT_ENUM;
 		}
 		
 		static final TimeUnit[] _ALL_ = TimeUnit.values();
@@ -1110,17 +1095,11 @@ public class Misc {
 		final long _FACTOR;
 		final String _UNAME_ABBRV;
 		final String _UNAME_FULL;
-		final boolean _IMPLICIT_ENUM;
 		
 		SizeUnit(long divisor, String name_abbrv, String name_full) {
-			this(divisor, name_abbrv, name_full, true);
-		}
-		
-		SizeUnit(long divisor, String name_abbrv, String name_full, boolean implicit_enum) {
 			_FACTOR = divisor;
 			_UNAME_ABBRV = name_abbrv;
 			_UNAME_FULL = name_full;
-			_IMPLICIT_ENUM = implicit_enum;
 		}
 		
 		@Override
@@ -1131,11 +1110,6 @@ public class Misc {
 		@Override
 		public String UNITNAME(boolean Abbrev) {
 			return Abbrev? _UNAME_ABBRV : _UNAME_FULL;
-		}
-		
-		@Override
-		public boolean IMPLICIT_ENUM() {
-			return _IMPLICIT_ENUM;
 		}
 		
 		static final SizeUnit[] _ALL_ = SizeUnit.values();
