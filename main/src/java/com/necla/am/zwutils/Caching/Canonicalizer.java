@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -261,7 +262,7 @@ public class Canonicalizer {
 			
 			int hashcode = 0;
 			for (Object value : values) {
-				hashcode = hashcode ^ value.hashCode();
+				hashcode = hashcode ^ Objects.hashCode(value);
 			}
 			_HashCode = hashcode;
 		}

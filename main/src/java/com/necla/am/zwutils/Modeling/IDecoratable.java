@@ -31,6 +31,8 @@
 
 package com.necla.am.zwutils.Modeling;
 
+import java.util.Objects;
+
 import com.necla.am.zwutils.Misc.Misc;
 
 
@@ -160,7 +162,7 @@ public interface IDecoratable {
 			// Fast acceptance
 			if (super.equals(obj)) return true;
 			// Fast rejection
-			if ((obj == null) || (hashCode() != obj.hashCode())) return false;
+			if (hashCode() != Objects.hashCode(obj)) return false;
 			return _equals((Value<?>) obj);
 		}
 		
