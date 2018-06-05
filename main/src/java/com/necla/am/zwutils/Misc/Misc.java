@@ -91,7 +91,7 @@ public class Misc {
 	// SimpleDateFormat is not threadsafe
 	// Ref: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
 	protected static final ThreadLocal<DateFormat> DateFormatter =
-			ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd+HH:mm:ss.SSS"));
+			ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS"));
 	
 	static {
 		// Order is important
