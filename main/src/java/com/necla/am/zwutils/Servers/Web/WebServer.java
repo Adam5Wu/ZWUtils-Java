@@ -29,40 +29,22 @@
  * // @formatter:on
  */
 
-package com.necla.am.zwutils.Servers;
+package com.necla.am.zwutils.Servers.Web;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilenameFilter;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.spi.FileTypeDetector;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,8 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -88,15 +68,10 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.InstructionAdapter;
 
 import com.necla.am.zwutils.GlobalConfig;
-import com.necla.am.zwutils.Config.Container;
-import com.necla.am.zwutils.Config.Data;
 import com.necla.am.zwutils.Config.DataMap;
-import com.necla.am.zwutils.FileSystem.SingleDirFileIterable;
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
 import com.necla.am.zwutils.Misc.Misc;
-import com.necla.am.zwutils.Misc.Misc.SizeUnit;
-import com.necla.am.zwutils.Misc.Misc.TimeSystem;
 import com.necla.am.zwutils.Misc.Misc.TimeUnit;
 import com.necla.am.zwutils.Misc.Parsers;
 import com.necla.am.zwutils.Modeling.ITimeStamp;
@@ -108,15 +83,10 @@ import com.necla.am.zwutils.Reflection.PackageClassIterable.IClassFilter;
 import com.necla.am.zwutils.Reflection.SuffixClassDictionary;
 import com.necla.am.zwutils.Tasks.ITask;
 import com.necla.am.zwutils.Tasks.Samples.Poller;
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
-
-import sun.misc.Cleaner;
 
 
 /**
@@ -509,473 +479,6 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 		
 	}
 	
-	public static class WebHandler implements HttpHandler {
-		
-		protected final IGroupLogger ILog;
-		
-		public final WebServer SERVER;
-		public final String CONTEXT;
-		
-		protected AtomicLong InvokeCount;
-		protected AtomicLong ExceptCount;
-		protected final Map<Integer, Long> ReplyStats;
-		protected final Map<Class<? extends Throwable>, Long> ExceptStats;
-		
-		public static final String HEADER_CONTENTTYPE = "Content-Type";
-		public static final String HEADER_LOCATION = "Location";
-		public static final String HEADER_LASTMODIFIED = "Last-Modified";
-		public static final String HEADER_IFMODIFIEDSINCE = "If-Modified-Since";
-		
-		public WebHandler(WebServer server, String context) {
-			ILog = new GroupLogger.PerInst(server.getName() + ".Handler/" + context);
-			
-			SERVER = server;
-			CONTEXT = context;
-			
-			InvokeCount = new AtomicLong(0);
-			ExceptCount = new AtomicLong(0);
-			ReplyStats = new HashMap<>();
-			ExceptStats = new HashMap<>();
-		}
-		
-		protected void PerfLog(String[] Metrics, Object[] Values) {
-			SERVER.PerfLog(CONTEXT, Metrics, Values);
-		}
-		
-		protected static class RequestProcessor {
-			
-			private HttpExchange HE;
-			private InputStream BODY = null;
-			
-			protected final InetSocketAddress RemoteAddr;
-			protected final String RemoteDispIdent;
-			protected boolean NeedContinue = false;
-			protected boolean DropRequest = false;
-			
-			public RequestProcessor(HttpExchange he) {
-				HE = he;
-				RemoteAddr = he.getRemoteAddress();
-				RemoteDispIdent =
-						String.format("[%s:%d]", RemoteAddr.getHostString(), RemoteAddr.getPort());
-				
-				NeedContinue = "100-continue".equalsIgnoreCase(he.getRequestHeaders().getFirst("Expect"));
-			}
-			
-			protected final String METHOD() {
-				return HE.getRequestMethod();
-			}
-			
-			protected final Headers HEADERS() {
-				return HE.getRequestHeaders();
-			}
-			
-			protected final InputStream BODY() {
-				if (BODY == null) {
-					if (NeedContinue) {
-						HandleExpectContinue();
-					}
-					BODY = HE.getRequestBody();
-				}
-				return BODY;
-			}
-			
-			private void HandleExpectContinue() {
-				try {
-					Method GetRawOutstream = HE.getClass().getDeclaredMethod("getRawOutputStream");
-					GetRawOutstream.setAccessible(true);
-					OutputStream RawOutput = (OutputStream) GetRawOutstream.invoke(HE);
-					RawOutput.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
-					RawOutput.flush();
-				} catch (Exception e) {
-					Misc.CascadeThrow(e);
-				}
-				NeedContinue = false;
-			}
-			
-			protected Map<String, List<String>> RHEADERS = new HashMap<>();
-			protected ByteBuffer RBODY = null;
-			
-			protected static final String TEXT_UNIMPLEMENTED =
-					"No implementation provided for this request handler";
-			
-			public final void AddHeader(String Key, String Value) {
-				List<String> Values = RHEADERS.computeIfAbsent(Key, K -> new ArrayList<>());
-				Values.add(Value);
-			}
-			
-			public int Serve(URI uri) throws Exception {
-				RBODY = ByteBuffer.wrap(TEXT_UNIMPLEMENTED.getBytes(StandardCharsets.UTF_8));
-				AddHeader(HEADER_CONTENTTYPE, "text/plain; charset=utf-8");
-				return HttpURLConnection.HTTP_NOT_FOUND;
-			}
-		}
-		
-		@Override
-		public final void handle(HttpExchange HE) throws IOException {
-			InvokeCount.incrementAndGet();
-			try {
-				RequestProcessor RP = getProcessor(HE);
-				ILog.Fine("%s: %s '%s'", RP.RemoteDispIdent, HE.getRequestMethod(), HE.getRequestURI());
-				
-				int RCODE = RP.Serve(HE.getRequestURI());
-				
-				if (!RP.DropRequest) {
-					if (HE.getRequestBody().available() > 0) {
-						ILog.Warn("%s: Left-over payload data (connection will not be reused)",
-								RP.RemoteDispIdent);
-					}
-				}
-				
-				synchronized (ReplyStats) {
-					long Count = ReplyStats.containsKey(RCODE)? ReplyStats.get(RCODE) : 0;
-					ReplyStats.put(RCODE, Count + 1);
-				}
-				
-				int RBODYLEN = SendRespHeaders(HE, RP, RCODE);
-				
-				if (RBODYLEN >= 0) {
-					SendRespBody(HE, RP);
-				}
-				
-				if (RP.DropRequest) {
-					HE.close();
-				}
-			} catch (Exception e) {
-				if (ILog.isLoggable(Level.FINE)) {
-					ILog.logExcept(e, "Error serving request");
-				} else {
-					ILog.Warn("[%s:%d]: Error serving request %s '%s' - %s",
-							HE.getRemoteAddress().getHostString(), HE.getRemoteAddress().getPort(),
-							HE.getRequestMethod(), HE.getRequestURI(),
-							(e.getLocalizedMessage() != null? e.getLocalizedMessage() : e.getClass().getName()));
-				}
-				ExceptCount.incrementAndGet();
-				HE.close();
-				
-				Class<? extends Throwable> ExceptClass = e.getClass();
-				synchronized (ExceptStats) {
-					long Count = ExceptStats.containsKey(ExceptClass)? ExceptStats.get(ExceptClass) : 0;
-					ExceptStats.put(ExceptClass, Count + 1);
-				}
-			}
-		}
-		
-		private void SendRespBody(HttpExchange HE, RequestProcessor RP) throws IOException {
-			try (OutputStream RBODY = HE.getResponseBody()) {
-				// We CANNOT use try-with-resource here because it is not our place to close the channel!
-				WritableByteChannel WChannel = Channels.newChannel(RBODY);
-				while (RP.RBODY.remaining() > 0) {
-					WChannel.write(RP.RBODY);
-				}
-			}
-		}
-		
-		private int SendRespHeaders(HttpExchange HE, RequestProcessor RP, int RCODE)
-				throws IOException {
-			HE.getResponseHeaders().putAll(RP.RHEADERS);
-			int RBODYLEN = RP.RBODY != null? RP.RBODY.capacity() : -1;
-			ILog.Finer("%s: %d (%dH, %s)", RP.RemoteDispIdent, RCODE, RP.RHEADERS.size(),
-					Misc.FormatSize(RBODYLEN));
-			HE.sendResponseHeaders(RCODE, RBODYLEN);
-			return RBODYLEN;
-		}
-		
-		public RequestProcessor getProcessor(HttpExchange HE) {
-			return new RequestProcessor(HE);
-		}
-		
-		public void CoTask(ITask task) {
-			// Do Nothing
-		}
-		
-		public long StatInvoke() {
-			return InvokeCount.get();
-		}
-		
-		public long StatExcept() {
-			return ExceptCount.get();
-		}
-		
-		public void HeartBeat(ITimeStamp now) {
-			ILog.Info("%d requests served, %d exceptions", InvokeCount.get(), ExceptCount.get());
-			PerfLog(Misc.wrap("TotalInvoke", "TotalExcept"),
-					Misc.wrap(InvokeCount.get(), ExceptCount.get()));
-		}
-		
-		public long GetInvokeCount() {
-			return InvokeCount.get();
-		}
-		
-		public long GetExceptCount() {
-			return ExceptCount.get();
-		}
-		
-	}
-	
-	public static class ResHandler extends WebHandler {
-		
-		// Complement commonly served resource mime type
-		public static final class CommonResTypeDetector extends FileTypeDetector {
-			
-			@Override
-			public String probeContentType(final Path path) throws IOException {
-				String FileName = path.getFileName().toString();
-				int ExtSep = FileName.lastIndexOf('.');
-				String FileExt = (ExtSep > 0)? FileName.substring(ExtSep + 1) : "";
-				switch (FileExt) {
-					case "js":
-						return "text/javascript";
-					
-					default:
-						return null;
-				}
-			}
-			
-		}
-		
-		public static final String LOGGROUP = "ZWUtils.Servers.Web.ResHandler";
-		
-		public static class ConfigData {
-			protected ConfigData() {
-				Misc.FAIL(IllegalStateException.class, Misc.MSG_DO_NOT_INSTANTIATE);
-			}
-			
-			protected static final String KEY_PREFIX = "WebHandler.Resources.";
-			protected static final String TOKEN_DELIM = ";";
-			
-			public static class Mutable extends Data.Mutable {
-				
-				// Declare mutable configurable fields (public)
-				public String Base;
-				public String IndexFile;
-				public boolean ListDir;
-				public int MaxSize;
-				
-				@Override
-				public void loadDefaults() {
-					Base = null;
-					ListDir = false;
-					MaxSize = (int) SizeUnit.MB.Convert(32, SizeUnit.BYTE);
-				}
-				
-				@Override
-				public void loadFields(DataMap confMap) {
-					Base = confMap.getText("Base");
-					IndexFile = confMap.getText("IndexFile");
-					ListDir = confMap.getBoolDef("ListDir", ListDir);
-					MaxSize = confMap.getIntDef("MaxSize", MaxSize);
-				}
-				
-				public static final int MIN_RESSIZE = 1024;
-				public static final int MAX_RESSIZE = (int) SizeUnit.MB.Convert(128, SizeUnit.BYTE);
-				
-				protected class Validation implements Data.Mutable.Validation {
-					
-					@Override
-					public void validateFields() {
-						ILog.Fine("Checking resource root...");
-						File ResRootDir = new File(Base);
-						if (!ResRootDir.isDirectory()) {
-							Misc.ERROR("Resource directory '%s' D.N.E.", Base);
-						}
-						
-						ILog.Fine("Checking maximum resource size...");
-						if ((MaxSize < MIN_RESSIZE) || (MaxSize > MAX_RESSIZE)) {
-							Misc.ERROR("Invalid maximum resource size (%d)", MaxSize);
-						}
-					}
-					
-				}
-				
-				@Override
-				protected Validation needValidation() {
-					return new Validation();
-				}
-				
-			}
-			
-			public static class ReadOnly extends Data.ReadOnly {
-				
-				// Declare read-only configurable fields (public)
-				public final String Base;
-				public final String IndexFile;
-				public final boolean ListDir;
-				public final int MaxSize;
-				
-				public ReadOnly(IGroupLogger Logger, Mutable Source) {
-					super(Logger, Source);
-					
-					// Copy all fields from Source
-					Base = Source.Base;
-					IndexFile = Source.IndexFile;
-					ListDir = Source.ListDir;
-					MaxSize = Source.MaxSize;
-				}
-				
-			}
-			
-			public static Container<Mutable, ReadOnly> Create(String ConfFilePath, String ConfPfx)
-					throws Exception {
-				return Container.Create(Mutable.class, ReadOnly.class, LOGGROUP + ".Config",
-						new File(ConfFilePath), ConfPfx);
-			}
-			
-		}
-		
-		protected ConfigData.ReadOnly Config;
-		
-		public ResHandler(WebServer server, String context, String ConfFilePath) throws Exception {
-			this(server, context, ConfFilePath, ConfigData.KEY_PREFIX);
-		}
-		
-		public ResHandler(WebServer server, String context, String ConfFilePath, String ConfPfx)
-				throws Exception {
-			super(server, context);
-			
-			Config = ConfigData.Create(ConfFilePath, ConfPfx).reflect();
-		}
-		
-		@Override
-		public RequestProcessor getProcessor(HttpExchange he) {
-			return new Processor(he);
-		}
-		
-		protected class Processor extends WebHandler.RequestProcessor {
-			
-			protected SimpleDateFormat DataFormatter =
-					new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
-			
-			public Processor(HttpExchange he) {
-				super(he);
-			}
-			
-			@Override
-			public int Serve(URI uri) throws Exception {
-				// Only accept GET request
-				if (!METHOD().equals("GET")) {
-					ILog.Warn("Method not allowed");
-					AddHeader("Allow", "GET");
-					return HttpURLConnection.HTTP_BAD_METHOD;
-				}
-				
-				// Do not accept any query or fragment
-				if (uri.getQuery() != null) {
-					ILog.Warn("Query on resource file ignored (%s)", uri.getQuery());
-				}
-				if (uri.getFragment() != null) {
-					ILog.Warn("Non-empty fragment not allowed");
-					return HttpURLConnection.HTTP_BAD_REQUEST;
-				}
-				
-				// Parse relative paths
-				String RelPath = uri.getPath().substring(CONTEXT.length() + 1);
-				File GetFile = new File(Misc.appendPathName(Config.Base, RelPath));
-				if (!GetFile.exists()) {
-					ILog.Warn("Resource '%s' D.N.E.", RelPath);
-					return HttpURLConnection.HTTP_NOT_FOUND;
-				}
-				
-				while (GetFile.isDirectory()) {
-					if (Config.IndexFile != null) {
-						File[] IndexFile = GetFile
-								.listFiles((FilenameFilter) (FInst, FName) -> FName.equals(Config.IndexFile));
-						if (IndexFile.length > 0) {
-							GetFile = IndexFile[0];
-							break;
-						}
-					}
-					if (!Config.ListDir) {
-						ILog.Warn("Resource directory '%s' not listable", RelPath);
-						return HttpURLConnection.HTTP_FORBIDDEN;
-					}
-					
-					if (!RelPath.isEmpty() && !RelPath.endsWith("/")) {
-						AddHeader(HEADER_LOCATION, uri.getPath() + '/');
-						return HttpURLConnection.HTTP_MOVED_PERM;
-					}
-					
-					return GenDirPage(uri, RelPath, GetFile);
-				}
-				
-				return SendDataFile(RelPath, GetFile);
-			}
-			
-			private int SendDataFile(String RelPath, File GetFile) throws IOException, ParseException {
-				if (!GetFile.canRead()) {
-					ILog.Warn("Resource '%s' unreadable", RelPath);
-					return HttpURLConnection.HTTP_FORBIDDEN;
-				}
-				
-				String type = Files.probeContentType(GetFile.toPath());
-				if (type == null) {
-					ILog.Warn("Resource '%s' type unknown", RelPath);
-					return HttpURLConnection.HTTP_INTERNAL_ERROR;
-				}
-				AddHeader(HEADER_CONTENTTYPE, type);
-				
-				long LastModified = TimeUnit.MSEC.Convert(GetFile.lastModified(), TimeUnit.SEC);
-				List<String> ModificationCheck = HEADERS().get(HEADER_IFMODIFIEDSINCE);
-				if (ModificationCheck != null) {
-					String ModificationTS = ModificationCheck.get(0);
-					if (ModificationCheck.size() > 1) {
-						ILog.Warn("Multiple modification check headers, using the first (%s)", ModificationTS);
-					}
-					long CheckLastModified =
-							TimeUnit.MSEC.Convert(DataFormatter.parse(ModificationTS).getTime(), TimeUnit.SEC);
-					if (LastModified == CheckLastModified) return HttpURLConnection.HTTP_NOT_MODIFIED;
-				}
-				AddHeader(HEADER_LASTMODIFIED,
-						Misc.FormatTS(LastModified, TimeSystem.UNIX, TimeUnit.MSEC, DataFormatter));
-				
-				try (RandomAccessFile GetData = new RandomAccessFile(GetFile, "r")) {
-					try (FileChannel DataChannel = GetData.getChannel()) {
-						long DataSize = DataChannel.size();
-						if (DataSize > Config.MaxSize) {
-							ILog.Warn("Resource '%s' exceeded size constraint (%s > %s)", RelPath,
-									Misc.FormatSize(DataSize), Misc.FormatSize(Config.MaxSize));
-							return HttpURLConnection.HTTP_ENTITY_TOO_LARGE;
-						}
-						
-						RBODY = ByteBuffer.allocate((int) DataSize);
-						ByteBuffer DataMap = DataChannel.map(FileChannel.MapMode.READ_ONLY, 0, DataSize);
-						try {
-							RBODY.put(DataMap).rewind();
-						} finally {
-							Cleaner BufCleaner = ((sun.nio.ch.DirectBuffer) DataMap).cleaner();
-							if (BufCleaner != null) {
-								BufCleaner.clean();
-							}
-						}
-					}
-				}
-				
-				return HttpURLConnection.HTTP_OK;
-			}
-			
-			private int GenDirPage(URI uri, String RelPath, File GetFile) {
-				StringBuilder StrBuf = new StringBuilder();
-				StrBuf.append(String.format("<p>Directory content of '%s':", uri.getPath()));
-				StrBuf.append("<ul>");
-				if (!RelPath.isEmpty()) {
-					StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ".."))
-							.append("..").append("</a>");
-				}
-				for (File Item : new SingleDirFileIterable(GetFile)) {
-					String ItemName = Item.isDirectory()? Item.getName() + '/' : Item.getName();
-					StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ItemName))
-							.append(ItemName).append("</a>");
-				}
-				StrBuf.append("</ul>");
-				
-				AddHeader(HEADER_CONTENTTYPE, "text/html; charset=utf-8");
-				RBODY = ByteBuffer.wrap(StrBuf.toString().getBytes(StandardCharsets.UTF_8));
-				return HttpURLConnection.HTTP_OK;
-			}
-			
-		}
-		
-	}
-	
 	protected ConfigData.ReadOnly Config;
 	
 	protected HttpServer Server = null;
@@ -1023,7 +526,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 				}
 				Handlers.put(Context, (WebHandler) Handler);
 			} catch (Exception e) {
-				Misc.CascadeThrow(e, "Failed to initialize handler '%s'", Context);
+				Misc.CascadeThrow(e, "Failed to initialize handler of '/%s'", Context);
 			}
 		});
 	}
