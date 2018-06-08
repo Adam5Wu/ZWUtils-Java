@@ -1012,8 +1012,12 @@ public class Misc {
 	 * @return Formated string
 	 */
 	public static String FormatDeltaTime_English(long DeltaMS, boolean OmitPlusSign) {
-		return Stringify(DeltaMS, TimeUnit.MSEC, UVP_English, OmitPlusSign, TimeUnit.DAY,
-				TimeUnit.MSEC);
+		return FormatDeltaTime_English(DeltaMS, OmitPlusSign, TimeUnit.DAY, TimeUnit.MSEC);
+	}
+	
+	public static String FormatDeltaTime_English(long DeltaMS, boolean OmitPlusSign, ConvUnit HiUnit,
+			ConvUnit LoUnit) {
+		return Stringify(DeltaMS, TimeUnit.MSEC, UVP_English, OmitPlusSign, HiUnit, LoUnit);
 	}
 	
 	public static String FormatDeltaTime_English(long DeltaMS) {
