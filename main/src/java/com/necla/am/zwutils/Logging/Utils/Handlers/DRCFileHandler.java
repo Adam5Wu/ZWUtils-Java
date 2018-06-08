@@ -219,16 +219,14 @@ public class DRCFileHandler extends Handler {
 			Misc.ERROR("Handler already closed");
 		}
 		
-		File RotLogFile = null;
 		if (CheckDAY) {
-			RotLogFile = CheckRotationDue(RotLogFile);
+			File RotLogFile = CheckRotationDue();
+			if (RotLogFile != null) {
+				DoLogRotation(RotLogFile);
+			}
 		}
 		if (DelegateHandler == null) {
 			CreateNewHandler();
-		}
-		
-		if (RotLogFile != null) {
-			DoLogRotation(RotLogFile);
 		}
 		
 		return DelegateHandler;
@@ -236,6 +234,12 @@ public class DRCFileHandler extends Handler {
 	
 	private void DoLogRotation(File RotLogFile) {
 		try {
+			if (DelegateHandler != null) {
+				DelegateHandler.flush();
+				DelegateHandler.close();
+				DelegateHandler = null;
+			}
+			
 			if (Compressed) {
 				File CompLogFile = new File(RotLogFile.getPath() + ".gz");
 				if (CompLogFile.exists()) {
@@ -296,15 +300,11 @@ public class DRCFileHandler extends Handler {
 		}
 	}
 	
-	private File CheckRotationDue(File RotLogFile) {
+	private File CheckRotationDue() {
+		File RotLogFile = null;
 		ITimeStamp Now = ITimeStamp.Impl.Now();
 		long NowDAY = Now.VALUE(TimeSystem.UNIX, TimeUnit.DAY);
 		if (NowDAY > LastLogDAY) {
-			if (DelegateHandler != null) {
-				DelegateHandler.flush();
-				DelegateHandler.close();
-				DelegateHandler = null;
-			}
 			if (LogFile.exists() && (LogFile.length() > 0)) {
 				String RotateExt =
 						Misc.FormatTS(LastLogDAY, TimeSystem.UNIX, TimeUnit.DAY, RotateExtFormatter);
