@@ -130,7 +130,7 @@ public class Companion extends Poller implements ITask.TaskDependency {
 			synchronized (PollTasks) {
 				if (IntegrityEvent != null) {
 					ILog.Fine("Forwarding termination request...");
-					SignalIntegrityEvent();
+					IntegrityEvent = null;
 				} else {
 					ILog.Fine("Termination request already sent");
 				}
@@ -187,9 +187,7 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		}
 		
 		CoTasks.forEach(CoTask -> CoTask.subscribeStateChange(TaskStateChanges));
-		if (Config.Integrity) {
-			IntegrityEvent = CreateMessage(MessageCategories.EVENT_TASK_TERMINATE, null, this);
-		}
+		IntegrityEvent = CreateMessage(MessageCategories.EVENT_TASK_TERMINATE, null, this);
 	}
 	
 	protected Collection<ITask> PollTasks;
