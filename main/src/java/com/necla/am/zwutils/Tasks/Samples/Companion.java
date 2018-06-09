@@ -68,21 +68,25 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		public static class Mutable extends Poller.ConfigData.Mutable {
 			
 			public boolean Integrity;
+			public boolean CascadeTerm;
 			
 			@Override
 			public void loadDefaults() {
 				super.loadDefaults();
 				
 				Integrity = false;
+				CascadeTerm = true;
 			}
 			
 			public static final String CONFIG_INTEGRITY = "Integrity";
+			public static final String CONFIG_CASCADETERM = "CascadeTerm";
 			
 			@Override
 			public void loadFields(DataMap confMap) {
 				super.loadFields(confMap);
 				
 				Integrity = confMap.getBoolDef(CONFIG_INTEGRITY, Integrity);
+				CascadeTerm = confMap.getBoolDef(CONFIG_CASCADETERM, CascadeTerm);
 			}
 			
 		}
@@ -90,11 +94,13 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		public static class ReadOnly extends Poller.ConfigData.ReadOnly {
 			
 			public final boolean Integrity;
+			public final boolean CascadeTerm;
 			
 			public ReadOnly(IGroupLogger Logger, Mutable Source) {
 				super(Logger, Source);
 				
 				Integrity = Source.Integrity;
+				CascadeTerm = Source.CascadeTerm;
 			}
 			
 		}
@@ -117,26 +123,6 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		super.doInit();
 		
 		CoTasks = new TaskCollection.Dependencies(getName() + ".CoTask", this);
-		
-		MessageDispatcher.UnregisterSubscription(MessageCategories.EVENT_TASK_TERMINATE, OnTerminate);
-		OnTerminate = TaskTerm -> {
-			ITask SenderTask = TaskTerm.GetSender();
-			if (SenderTask != null) {
-				ILog.Info("Termination request from %s", SenderTask);
-			} else {
-				ILog.Info("Termination request received");
-			}
-			
-			synchronized (PollTasks) {
-				if (IntegrityEvent != null) {
-					ILog.Fine("Forwarding termination request...");
-					IntegrityEvent = null;
-				} else {
-					ILog.Fine("Termination request already sent");
-				}
-			}
-		};
-		MessageDispatcher.RegisterSubscription(MessageCategories.EVENT_TASK_TERMINATE, OnTerminate);
 	}
 	
 	private void SignalIntegrityEvent() {
@@ -187,7 +173,9 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		}
 		
 		CoTasks.forEach(CoTask -> CoTask.subscribeStateChange(TaskStateChanges));
-		IntegrityEvent = CreateMessage(MessageCategories.EVENT_TASK_TERMINATE, null, this);
+		if (Config.Integrity || Config.CascadeTerm) {
+			IntegrityEvent = CreateMessage(MessageCategories.EVENT_TASK_TERMINATE, null, this);
+		}
 	}
 	
 	protected Collection<ITask> PollTasks;
@@ -219,20 +207,23 @@ public class Companion extends Poller implements ITask.TaskDependency {
 		
 		super.doTask();
 		
-		synchronized (PollTasks) {
-			if (!PollTasks.isEmpty()) {
-				if (GlobalConfig.DEBUG_CHECK) {
-					StringBuilder TaskNames = new StringBuilder();
-					PollTasks.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
-					TaskNames.setLength(TaskNames.length() - 1);
-					if (GlobalConfig.DEBUG_CHECK) {
-						ILog.Warn("Live companion tasks: [%s]", TaskNames);
+		if (Config.CascadeTerm && (IntegrityEvent != null)) {
+			SignalIntegrityEvent();
+		}
+		
+		while (PollState(State.TERMINATED)) {
+			Sleep(Config.TimeRes);
+			if (GlobalConfig.DEBUG_CHECK) {
+				synchronized (PollTasks) {
+					if (!PollTasks.isEmpty()) {
+						StringBuilder TaskNames = new StringBuilder();
+						PollTasks.forEach(CoTask -> TaskNames.append(CoTask.getName()).append(','));
+						TaskNames.setLength(TaskNames.length() - 1);
+						if (GlobalConfig.DEBUG_CHECK) {
+							ILog.Warn("Waiting for live companion tasks: [%s]", TaskNames);
+						}
 					}
-				} else {
-					ILog.Warn("There are %d live companion tasks", PollTasks.size());
 				}
-			} else {
-				ILog.Fine("All companion tasks terminated");
 			}
 		}
 	}

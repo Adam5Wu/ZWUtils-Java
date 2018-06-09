@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.necla.am.zwutils.Logging.GroupLogger;
 import com.necla.am.zwutils.Logging.IGroupLogger;
@@ -91,13 +92,11 @@ public class TaskCollection<T extends ITask> implements Iterable<T> {
 		return new ArrayList<>(Tasks);
 	}
 	
-	public static <T extends ITask> Collection<T> FilterTasksByState(Iterable<T> Tasks,
+	public static <T extends ITask> Collection<T> FilterTasksByState(Collection<T> Tasks,
 			ITask.State State) {
-		Collection<T> StateTasks = new ArrayList<>();
-		Tasks.forEach(Task -> {
-			if (Task.tellState().ordinal() >= State.ordinal()) StateTasks.add(Task);
-		});
-		return StateTasks;
+		return Tasks.stream().filter(Task -> {
+			return (Task.tellState().ordinal() >= State.ordinal());
+		}).collect(Collectors.toList());
 	}
 	
 	public Collection<T> GetTasksByState(ITask.State State) {
@@ -118,7 +117,9 @@ public class TaskCollection<T extends ITask> implements Iterable<T> {
 		
 		@Override
 		public void AddDependency(ITask Task) {
-			if (!AddTask(Task)) ILog.Warn("Task '%s' already in colllection", Task.getName());
+			if (!AddTask(Task)) {
+				ILog.Warn("Task '%s' already in colllection", Task.getName());
+			}
 		}
 		
 		@Override
