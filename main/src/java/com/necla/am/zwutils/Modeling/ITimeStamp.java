@@ -187,12 +187,12 @@ public interface ITimeStamp extends IIdentifier, Comparable<ITimeStamp> {
 		
 		@Override
 		public boolean Before(ITimeStamp timestamp) {
-			return UNIXMS() <= timestamp.UNIXMS();
+			return UNIXMS() < timestamp.UNIXMS();
 		}
 		
 		@Override
 		public boolean After(ITimeStamp timestamp) {
-			return UNIXMS() >= timestamp.UNIXMS();
+			return UNIXMS() > timestamp.UNIXMS();
 		}
 		
 		/**
@@ -204,7 +204,7 @@ public interface ITimeStamp extends IIdentifier, Comparable<ITimeStamp> {
 		
 		@Override
 		public int compareTo(ITimeStamp oTime) {
-			return Before(oTime)? (After(oTime)? 0 : -1) : 1;
+			return Before(oTime)? -1 : (After(oTime)? 1 : 0);
 		}
 		
 	}
