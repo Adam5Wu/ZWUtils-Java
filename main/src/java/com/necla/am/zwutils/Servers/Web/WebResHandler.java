@@ -9,6 +9,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -313,14 +314,16 @@ public class WebResHandler extends WebHandler {
 						.append("..").append("</a>");
 			}
 			try {
-				Files.newDirectoryStream(TargetPath).forEach(ItemPath -> {
-					String ItemName = ItemPath.getFileName().toString();
-					if (Files.isDirectory(ItemPath)) {
-						ItemName += '/';
-					}
-					StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ItemName))
-							.append(ItemName).append("</a>");
-				});
+				try (DirectoryStream<Path> DirList = Files.newDirectoryStream(TargetPath)) {
+					DirList.forEach(ItemPath -> {
+						String ItemName = ItemPath.getFileName().toString();
+						if (Files.isDirectory(ItemPath)) {
+							ItemName += '/';
+						}
+						StrBuf.append("<li>").append(String.format("<a href='%s%s'>", uri.getPath(), ItemName))
+								.append(ItemName).append("</a>");
+					});
+				}
 			} catch (IOException e) {
 				ILog.logExcept(e, "Error generating directory listing for '%s'", RelPath);
 				StrBuf.append("<li>Error generating directory listing - ").append(e.getLocalizedMessage());
