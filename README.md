@@ -2,10 +2,13 @@
 [![License](https://img.shields.io/github/license/Adam5Wu/ZWUtils-Java.svg)](./LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/Adam5Wu/ZWUtils-Java.svg)](https://github.com/Adam5Wu/ZWUtils-Java/issues)
 [![GitHub forks](https://img.shields.io/github/forks/Adam5Wu/ZWUtils-Java.svg)](https://github.com/Adam5Wu/ZWUtils-Java/network)
-[![SonarCloud-SLoC](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=ncloc)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
 [![Build Status](https://travis-ci.org/Adam5Wu/ZWUtils-Java.svg?branch=master)](https://travis-ci.org/Adam5Wu/ZWUtils-Java)
 
-[![SonarCloud-Stat](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=alert_status)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-SLoC](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=ncloc)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-RelR](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-SecR](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=security_rating)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+[![SonarCloud-ManR](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=ZWUtils-Java)
+
 [![SonarCloud-Bugs](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=bugs)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=bugs)
 [![SonarCloud-Vuls](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=vulnerabilities)
 [![SonarCloud-RCov](https://sonarcloud.io/api/project_badges/measure?project=ZWUtils-Java&metric=coverage)](https://sonarcloud.io/component_measures?id=ZWUtils-Java&metric=coverage)
