@@ -842,7 +842,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 	
 	private void SetupSSL() throws NoSuchAlgorithmException, KeyStoreException,
 			UnrecoverableKeyException, KeyManagementException {
-		SSLContext SSLCtx = SSLContext.getInstance("TLS");
+		SSLContext SSLCtx = SSLContext.getInstance("TLSv1.2");
 		SSLSessionContext SessionCtx = SSLCtx.getServerSessionContext();
 		SessionCtx.setSessionCacheSize(Config.SSLSessionCacheSize);
 		SessionCtx.setSessionTimeout(Config.SSLSessionTimeout);
