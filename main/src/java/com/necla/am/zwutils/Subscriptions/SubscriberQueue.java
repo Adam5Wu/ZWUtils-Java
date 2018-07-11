@@ -60,6 +60,8 @@ import com.necla.am.zwutils.Tasks.MessageCategories;
  */
 public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	
+	public static final String LOGGROUPPFX = "ZWUtils.SubscriberQueue.";
+	
 	protected final IGroupLogger ILog;
 	public final String Name;
 	
@@ -73,7 +75,7 @@ public class SubscriberQueue<X> implements ISubscription<X>, AutoCloseable {
 	protected BlockingDeque<X> RepQueue;
 	
 	public SubscriberQueue(String name, int hql, int bqs) {
-		ILog = new GroupLogger.PerInst(name);
+		ILog = new GroupLogger.PerInst(LOGGROUPPFX + name);
 		
 		Name = name;
 		HighQueueLen = hql;

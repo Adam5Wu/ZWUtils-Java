@@ -514,7 +514,7 @@ public class TaskHost extends Poller {
 					String PackagePath = pkgname.replace('.', '/') + '/';
 					URL PackageURL = CL.getResource(PackagePath);
 					if (PackageURL == null) {
-						Misc.ERROR("Unable to resolve package");
+						Misc.ERROR("Unable to resolve package '%s'", PackagePath);
 					}
 					
 					for (String cname : new PackageClassIterable(PackageURL, pkgname,
