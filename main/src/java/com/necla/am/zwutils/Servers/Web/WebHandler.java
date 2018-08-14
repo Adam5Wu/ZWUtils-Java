@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
@@ -39,8 +40,8 @@ public class WebHandler implements HttpHandler {
 	
 	protected AtomicLong InvokeCount;
 	protected AtomicLong ExceptCount;
-	protected final Map<Integer, Long> ReplyStats;
-	protected final Map<Class<? extends Throwable>, Long> ExceptStats;
+	protected final Map<Integer, AtomicLong> ReplyStats;
+	protected final Map<Class<? extends Throwable>, AtomicLong> ExceptStats;
 	
 	public static final String HEADER_CONTENTTYPE = "Content-Type";
 	public static final String HEADER_LOCATION = "Location";
@@ -55,8 +56,8 @@ public class WebHandler implements HttpHandler {
 		
 		InvokeCount = new AtomicLong(0);
 		ExceptCount = new AtomicLong(0);
-		ReplyStats = new HashMap<>();
-		ExceptStats = new HashMap<>();
+		ReplyStats = new ConcurrentHashMap<>();
+		ExceptStats = new ConcurrentHashMap<>();
 	}
 	
 	protected void PerfLog(String[] Metrics, Object[] Values) {
@@ -146,10 +147,15 @@ public class WebHandler implements HttpHandler {
 				}
 			}
 			
-			synchronized (ReplyStats) {
-				long Count = ReplyStats.containsKey(RCODE)? ReplyStats.get(RCODE) : 0;
-				ReplyStats.put(RCODE, Count + 1);
+			AtomicLong Count = ReplyStats.get(RCODE);
+			if (Count == null) {
+				Count = new AtomicLong(0);
+				AtomicLong RaceCount = ReplyStats.putIfAbsent(RCODE, Count);
+				if (RaceCount != null) {
+					Count = RaceCount;
+				}
 			}
+			Count.incrementAndGet();
 			
 			int RBODYLEN = SendRespHeaders(HE, RP, RCODE);
 			
@@ -173,10 +179,15 @@ public class WebHandler implements HttpHandler {
 			HE.close();
 			
 			Class<? extends Throwable> ExceptClass = e.getClass();
-			synchronized (ExceptStats) {
-				long Count = ExceptStats.containsKey(ExceptClass)? ExceptStats.get(ExceptClass) : 0;
-				ExceptStats.put(ExceptClass, Count + 1);
+			AtomicLong Count = ExceptStats.get(ExceptClass);
+			if (Count == null) {
+				Count = new AtomicLong(0);
+				AtomicLong RaceCount = ExceptStats.putIfAbsent(ExceptClass, Count);
+				if (RaceCount != null) {
+					Count = RaceCount;
+				}
 			}
+			Count.incrementAndGet();
 		}
 	}
 	
