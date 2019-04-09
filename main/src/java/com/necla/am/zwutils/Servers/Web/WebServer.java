@@ -394,7 +394,7 @@ public class WebServer extends Poller implements ITask.TaskDependency {
 						Misc.ERROR("Invalid shutdown grace period (%d)", ShutdownGrace);
 					}
 					
-					if (CertStoreFile != null) {
+					if ((CertStoreFile != null) && !CertStoreFile.isEmpty()) {
 						CheckCertStorage();
 					}
 				}
